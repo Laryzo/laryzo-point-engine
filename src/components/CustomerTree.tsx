@@ -10,7 +10,7 @@ interface Customer {
   email: string;
   whatsapp: string;
   parent_id: string | null;
-  position: 'left' | 'right' | null;
+  position: string | null;
 }
 
 interface CustomerTreeProps {
