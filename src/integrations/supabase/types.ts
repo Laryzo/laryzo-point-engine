@@ -14,7 +14,154 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admins: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          password_hash: string
+          role: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          password_hash: string
+          role?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          password_hash?: string
+          role?: string | null
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string | null
+          parent_id: string | null
+          position: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          parent_id?: string | null
+          position?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          parent_id?: string | null
+          position?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      point_history: {
+        Row: {
+          created_at: string | null
+          from_customer: string | null
+          id: string
+          level: number | null
+          points: number | null
+          product_code: string | null
+          to_customer: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          from_customer?: string | null
+          id?: string
+          level?: number | null
+          points?: number | null
+          product_code?: string | null
+          to_customer?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          from_customer?: string | null
+          id?: string
+          level?: number | null
+          points?: number | null
+          product_code?: string | null
+          to_customer?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_history_from_customer_fkey"
+            columns: ["from_customer"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_history_to_customer_fkey"
+            columns: ["to_customer"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          id: string
+          margin: number | null
+          product_code: string | null
+          product_name: string | null
+          product_type: string | null
+          qty: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          margin?: number | null
+          product_code?: string | null
+          product_name?: string | null
+          product_type?: string | null
+          qty?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          margin?: number | null
+          product_code?: string | null
+          product_name?: string | null
+          product_type?: string | null
+          qty?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
