@@ -8,13 +8,19 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
+import AdminRegister from '@/components/AdminRegister';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isFirstAdmin } = useAuth();
   const navigate = useNavigate();
+
+  // Show admin register if no admins exist
+  if (isFirstAdmin) {
+    return <AdminRegister />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

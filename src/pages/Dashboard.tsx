@@ -4,11 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home } from 'lucide-react';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
+import AdminManagement from '@/components/AdminManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const Dashboard = () => {
   const { admin, logout } = useAuth();
@@ -20,6 +23,7 @@ const Dashboard = () => {
   });
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
+  const [activeView, setActiveView] = useState('dashboard');
 
   useEffect(() => {
     fetchStats();
@@ -47,119 +51,181 @@ const Dashboard = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Laryzo Point Engine</h1>
-            <p className="text-muted-foreground">Welcome back, {admin?.email}</p>
-          </div>
-          <Button variant="outline" onClick={logout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-      </div>
+  const renderContent = () => {
+    switch (activeView) {
+      case 'admin':
+        return <AdminManagement />;
+      default:
+        return (
+          <div className="p-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalCustomers}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalTransactions}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Points</CardTitle>
+                  <Award className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalPoints.toFixed(2)}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">Rp {stats.totalRevenue.toLocaleString()}</div>
+                </CardContent>
+              </Card>
+            </div>
 
-      <div className="container mx-auto px-4 py-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCustomers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalTransactions}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Points</CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalPoints.toFixed(2)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">Rp {stats.totalRevenue.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Main Content */}
+            <Tabs defaultValue="tree" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <TabsList>
+                  <TabsTrigger value="tree">Customer Tree</TabsTrigger>
+                  <TabsTrigger value="customers">Customers</TabsTrigger>
+                  <TabsTrigger value="transactions">Transactions</TabsTrigger>
+                </TabsList>
+                <div className="space-x-2">
+                  <Button onClick={() => setShowCustomerForm(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Customer
+                  </Button>
+                  <Button onClick={() => setShowTransactionForm(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Transaction
+                  </Button>
+                </div>
+              </div>
+
+              <TabsContent value="tree">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Binary Tree Structure</CardTitle>
+                    <CardDescription>Visual representation of your customer network</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <CustomerTree onStatsUpdate={fetchStats} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="customers">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Customer Management</CardTitle>
+                    <CardDescription>Manage your customer database</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-muted-foreground">Customer list will be implemented here</div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="transactions">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Transaction History</CardTitle>
+                    <CardDescription>View all transactions and point distributions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-muted-foreground">Transaction list will be implemented here</div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        );
+    }
+  };
+
+  const isSuperAdmin = admin?.role === 'super_admin';
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        {/* Sidebar */}
+        <Sidebar className="w-64">
+          <SidebarContent>
+            <div className="p-4 border-b">
+              <h2 className="text-lg font-semibold">Laryzo Point Engine</h2>
+              <p className="text-sm text-muted-foreground">{admin?.name || admin?.email}</p>
+            </div>
+            
+            <SidebarGroup>
+              <SidebarGroupLabel>Menu</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('dashboard')}
+                      className={activeView === 'dashboard' ? 'bg-accent' : ''}
+                    >
+                      <Home className="h-4 w-4" />
+                      <span>Dashboard</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => setActiveView('admin')}
+                        className={activeView === 'admin' ? 'bg-accent' : ''}
+                      >
+                        <Settings className="h-4 w-4" />
+                        <span>Admin Management</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <div className="mt-auto p-4 border-t">
+              <Button variant="outline" onClick={logout} className="w-full">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
+          </SidebarContent>
+        </Sidebar>
 
         {/* Main Content */}
-        <Tabs defaultValue="tree" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <TabsList>
-              <TabsTrigger value="tree">Customer Tree</TabsTrigger>
-              <TabsTrigger value="customers">Customers</TabsTrigger>
-              <TabsTrigger value="transactions">Transactions</TabsTrigger>
-            </TabsList>
-            <div className="space-x-2">
-              <Button onClick={() => setShowCustomerForm(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Customer
-              </Button>
-              <Button onClick={() => setShowTransactionForm(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Transaction
-              </Button>
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <div className="border-b bg-card p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger />
+              <h1 className="text-xl font-semibold">
+                {activeView === 'admin' ? 'Admin Management' : 'Dashboard'}
+              </h1>
             </div>
           </div>
 
-          <TabsContent value="tree">
-            <Card>
-              <CardHeader>
-                <CardTitle>Binary Tree Structure</CardTitle>
-                <CardDescription>Visual representation of your customer network</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CustomerTree onStatsUpdate={fetchStats} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="customers">
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Management</CardTitle>
-                <CardDescription>Manage your customer database</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-muted-foreground">Customer list will be implemented here</div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="transactions">
-            <Card>
-              <CardHeader>
-                <CardTitle>Transaction History</CardTitle>
-                <CardDescription>View all transactions and point distributions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-muted-foreground">Transaction list will be implemented here</div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          {/* Content */}
+          <div className="flex-1 overflow-auto">
+            {renderContent()}
+          </div>
+        </div>
       </div>
 
       {/* Forms */}
@@ -182,7 +248,7 @@ const Dashboard = () => {
           }}
         />
       )}
-    </div>
+    </SidebarProvider>
   );
 };
 

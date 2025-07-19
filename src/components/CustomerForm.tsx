@@ -63,21 +63,59 @@ export const CustomerForm = ({ onClose, onSuccess }: CustomerFormProps) => {
     }
   };
 
+  const findAvailableSlot = async () => {
+    try {
+      // Get all customers with their children count
+      const { data: customers } = await supabase
+        .from('customers')
+        .select(`
+          id, 
+          name,
+          customers!customers_parent_id_fkey(position)
+        `)
+        .order('created_at', { ascending: true });
+
+      if (!customers || customers.length === 0) {
+        return { parent_id: null, position: null };
+      }
+
+      // Find first customer with available slot (top-to-bottom, left-to-right)
+      for (const customer of customers) {
+        const children = customer.customers || [];
+        const hasLeft = children.some((c: any) => c.position === 'left');
+        const hasRight = children.some((c: any) => c.position === 'right');
+
+        if (!hasLeft) {
+          return { parent_id: customer.id, position: 'left' };
+        }
+        if (!hasRight) {
+          return { parent_id: customer.id, position: 'right' };
+        }
+      }
+
+      // If all slots are taken, return the first customer (they can still have children)
+      return { parent_id: customers[0].id, position: 'left' };
+    } catch (error) {
+      console.error('Error finding available slot:', error);
+      return { parent_id: null, position: null };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Find available slot automatically
+      const { parent_id, position } = await findAvailableSlot();
+
       const customerData: any = {
         name,
         email: email || null,
         whatsapp: whatsapp || null,
+        parent_id,
+        position,
       };
-
-      if (parentId) {
-        customerData.parent_id = parentId;
-        customerData.position = position;
-      }
 
       const { error } = await supabase
         .from('customers')
@@ -86,15 +124,15 @@ export const CustomerForm = ({ onClose, onSuccess }: CustomerFormProps) => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Customer added successfully",
+        title: "Berhasil",
+        description: "Customer berhasil ditambahkan ke genealogi",
       });
 
       onSuccess();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to add customer",
+        description: error.message || "Gagal menambahkan customer",
         variant: "destructive",
       });
     } finally {
@@ -106,20 +144,20 @@ export const CustomerForm = ({ onClose, onSuccess }: CustomerFormProps) => {
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add New Customer</DialogTitle>
+          <DialogTitle>Tambah Customer Baru</DialogTitle>
           <DialogDescription>
-            Add a new customer to your binary tree network
+            Tambahkan customer baru ke dalam jaringan genealogi binary tree
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
+            <Label htmlFor="name">Nama *</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Customer name"
+              placeholder="Nama customer"
               required
             />
           </div>
@@ -145,44 +183,16 @@ export const CustomerForm = ({ onClose, onSuccess }: CustomerFormProps) => {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="parent">Parent Customer</Label>
-            <Select value={parentId} onValueChange={setParentId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select parent (optional for root)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None (Root Customer)</SelectItem>
-                {availableParents.map((parent) => (
-                  <SelectItem key={parent.id} value={parent.id}>
-                    {parent.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="bg-muted p-3 rounded-md text-sm text-muted-foreground">
+            Customer akan ditempatkan secara otomatis pada posisi tersedia di genealogi
           </div>
-
-          {parentId && (
-            <div className="space-y-2">
-              <Label htmlFor="position">Position</Label>
-              <Select value={position} onValueChange={(value: 'left' | 'right') => setPosition(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="left">Left</SelectItem>
-                  <SelectItem value="right">Right</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           <div className="flex space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Cancel
+              Batal
             </Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Adding..." : "Add Customer"}
+              {loading ? "Menambahkan..." : "Tambah Customer"}
             </Button>
           </div>
         </form>
