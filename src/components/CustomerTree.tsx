@@ -2,7 +2,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, Mail, Phone } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Users, Mail, Phone, ZoomIn, ZoomOut, Maximize, Minimize } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -20,6 +23,9 @@ interface CustomerTreeProps {
 export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [rootCustomers, setRootCustomers] = useState<Customer[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [zoom, setZoom] = useState(100);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
@@ -45,6 +51,10 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
     return customers.filter(c => c.parent_id === parentId);
   };
 
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 20, 200));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 20, 50));
+  const handleFullscreen = () => setIsFullscreen(!isFullscreen);
+
   const CustomerNode = ({ customer }: { customer: Customer }) => {
     const children = getChildren(customer.id);
     const leftChild = children.find(c => c.position === 'left');
@@ -52,50 +62,40 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
 
     return (
       <div className="flex flex-col items-center space-y-4">
-        <Card className="w-64 hover:shadow-md transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <Users className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold">{customer.name || 'Unnamed'}</h3>
+        <Card 
+          className="w-32 hover:shadow-md transition-shadow cursor-pointer hover:bg-accent"
+          onClick={() => setSelectedCustomer(customer)}
+        >
+          <CardContent className="p-3">
+            <div className="flex items-center justify-center">
+              <h3 className="font-semibold text-sm text-center">{customer.name || 'Unnamed'}</h3>
             </div>
-            {customer.email && (
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-1">
-                <Mail className="w-3 h-3" />
-                <span>{customer.email}</span>
-              </div>
-            )}
-            {customer.whatsapp && (
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <Phone className="w-3 h-3" />
-                <span>{customer.whatsapp}</span>
-              </div>
-            )}
           </CardContent>
         </Card>
 
         {(leftChild || rightChild) && (
-          <div className="flex space-x-8">
+          <div className="flex space-x-6">
             <div className="flex flex-col items-center">
               {leftChild ? (
                 <>
-                  <div className="text-xs text-muted-foreground mb-2">LEFT</div>
+                  <div className="text-xs text-muted-foreground mb-2">L</div>
                   <CustomerNode customer={leftChild} />
                 </>
               ) : (
-                <div className="w-64 h-24 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
-                  <span className="text-sm">Available Slot</span>
+                <div className="w-32 h-16 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                  <span className="text-xs">Available</span>
                 </div>
               )}
             </div>
             <div className="flex flex-col items-center">
               {rightChild ? (
                 <>
-                  <div className="text-xs text-muted-foreground mb-2">RIGHT</div>
+                  <div className="text-xs text-muted-foreground mb-2">R</div>
                   <CustomerNode customer={rightChild} />
                 </>
               ) : (
-                <div className="w-64 h-24 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
-                  <span className="text-sm">Available Slot</span>
+                <div className="w-32 h-16 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                  <span className="text-xs">Available</span>
                 </div>
               )}
             </div>
@@ -115,13 +115,119 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
     );
   }
 
-  return (
-    <div className="overflow-auto p-4">
-      <div className="space-y-8">
-        {rootCustomers.map(customer => (
-          <CustomerNode key={customer.id} customer={customer} />
-        ))}
+  const TreeContent = () => (
+    <div className="relative h-full">
+      {/* Controls */}
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
+        <Button size="sm" variant="outline" onClick={handleZoomOut}>
+          <ZoomOut className="w-4 h-4" />
+        </Button>
+        <span className="px-2 py-1 bg-background border rounded text-sm">{zoom}%</span>
+        <Button size="sm" variant="outline" onClick={handleZoomIn}>
+          <ZoomIn className="w-4 h-4" />
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleFullscreen}>
+          {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+        </Button>
       </div>
+
+      {/* Scrollable Tree */}
+      <ScrollArea className="h-full w-full">
+        <div 
+          className="p-8 min-w-max"
+          style={{ 
+            transform: `scale(${zoom / 100})`,
+            transformOrigin: 'top left',
+            minHeight: '100%'
+          }}
+        >
+          <div className="space-y-8">
+            {rootCustomers.map(customer => (
+              <CustomerNode key={customer.id} customer={customer} />
+            ))}
+          </div>
+        </div>
+      </ScrollArea>
+    </div>
+  );
+
+  if (isFullscreen) {
+    return (
+      <>
+        <div className="fixed inset-0 z-50 bg-background">
+          <TreeContent />
+        </div>
+        
+        {/* Customer Detail Dialog */}
+        <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Customer Details</DialogTitle>
+            </DialogHeader>
+            {selectedCustomer && (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-primary" />
+                  <span className="font-semibold">{selectedCustomer.name}</span>
+                </div>
+                {selectedCustomer.email && (
+                  <div className="flex items-center space-x-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <span>{selectedCustomer.email}</span>
+                  </div>
+                )}
+                {selectedCustomer.whatsapp && (
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <span>{selectedCustomer.whatsapp}</span>
+                  </div>
+                )}
+                <div className="text-sm text-muted-foreground">
+                  <p>Position: {selectedCustomer.position || 'Root'}</p>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  return (
+    <div className="h-[600px] relative">
+      <TreeContent />
+      
+      {/* Customer Detail Dialog */}
+      <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Customer Details</DialogTitle>
+          </DialogHeader>
+          {selectedCustomer && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Users className="w-4 h-4 text-primary" />
+                <span className="font-semibold">{selectedCustomer.name}</span>
+              </div>
+              {selectedCustomer.email && (
+                <div className="flex items-center space-x-2">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <span>{selectedCustomer.email}</span>
+                </div>
+              )}
+              {selectedCustomer.whatsapp && (
+                <div className="flex items-center space-x-2">
+                  <Phone className="w-4 h-4 text-muted-foreground" />
+                  <span>{selectedCustomer.whatsapp}</span>
+                </div>
+              )}
+              <div className="text-sm text-muted-foreground">
+                <p>Position: {selectedCustomer.position || 'Root'}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
