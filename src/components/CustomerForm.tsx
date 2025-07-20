@@ -65,36 +65,48 @@ export const CustomerForm = ({ onClose, onSuccess }: CustomerFormProps) => {
 
   const findAvailableSlot = async () => {
     try {
-      // Get all customers with their children count
-      const { data: customers } = await supabase
+      // Get all customers 
+      const { data: allCustomers, error } = await supabase
         .from('customers')
-        .select(`
-          id, 
-          name,
-          customers!customers_parent_id_fkey(position)
-        `)
+        .select('id, name, parent_id')
         .order('created_at', { ascending: true });
 
-      if (!customers || customers.length === 0) {
+      if (error) throw error;
+
+      if (!allCustomers || allCustomers.length === 0) {
         return { parent_id: null, position: null };
       }
 
-      // Find first customer with available slot (top-to-bottom, left-to-right)
-      for (const customer of customers) {
-        const children = customer.customers || [];
-        const hasLeft = children.some((c: any) => c.position === 'left');
-        const hasRight = children.some((c: any) => c.position === 'right');
+      // Binary tree placement logic - find first available slot in order
+      // Start from root nodes, then go level by level (breadth-first)
+      const queue = allCustomers.filter(c => !c.parent_id);
+      
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        
+        const { data: children, error: childError } = await supabase
+          .from('customers')
+          .select('position')
+          .eq('parent_id', current.id);
+
+        if (childError) continue;
+
+        const hasLeft = children?.some(c => c.position === 'left') || false;
+        const hasRight = children?.some(c => c.position === 'right') || false;
 
         if (!hasLeft) {
-          return { parent_id: customer.id, position: 'left' };
-        }
-        if (!hasRight) {
-          return { parent_id: customer.id, position: 'right' };
+          return { parent_id: current.id, position: 'left' };
+        } else if (!hasRight) {
+          return { parent_id: current.id, position: 'right' };
+        } else {
+          // Both slots filled, add children to queue for next level
+          const currentChildren = allCustomers.filter(c => c.parent_id === current.id);
+          queue.push(...currentChildren);
         }
       }
 
-      // If all slots are taken, return the first customer (they can still have children)
-      return { parent_id: customers[0].id, position: 'left' };
+      // If no slots found (shouldn't happen with proper binary tree), create new root
+      return { parent_id: null, position: null };
     } catch (error) {
       console.error('Error finding available slot:', error);
       return { parent_id: null, position: null };

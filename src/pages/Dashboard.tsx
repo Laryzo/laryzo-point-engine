@@ -8,6 +8,8 @@ import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home } 
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
+import { CustomerList } from '@/components/CustomerList';
+import { TransactionList } from '@/components/TransactionList';
 import AdminManagement from '@/components/AdminManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -131,27 +133,11 @@ const Dashboard = () => {
               </TabsContent>
 
               <TabsContent value="customers">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Customer Management</CardTitle>
-                    <CardDescription>Manage your customer database</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-muted-foreground">Customer list will be implemented here</div>
-                  </CardContent>
-                </Card>
+                <CustomerList />
               </TabsContent>
 
               <TabsContent value="transactions">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Transaction History</CardTitle>
-                    <CardDescription>View all transactions and point distributions</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-muted-foreground">Transaction list will be implemented here</div>
-                  </CardContent>
-                </Card>
+                <TransactionList />
               </TabsContent>
             </Tabs>
           </div>
