@@ -131,14 +131,13 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
         </Button>
       </div>
 
-      {/* Scrollable Tree */}
-      <ScrollArea className="h-full w-full">
+      {/* Scrollable Tree with vertical scrolling */}
+      <ScrollArea className="h-full w-full overflow-auto">
         <div 
-          className="p-8 min-w-max"
+          className="p-8 min-w-max min-h-max overflow-x-auto overflow-y-auto"
           style={{ 
             transform: `scale(${zoom / 100})`,
-            transformOrigin: 'top left',
-            minHeight: '100%'
+            transformOrigin: 'top left'
           }}
         >
           <div className="space-y-8">

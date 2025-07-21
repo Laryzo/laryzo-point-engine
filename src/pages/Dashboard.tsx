@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt } from 'lucide-react';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
@@ -57,6 +57,60 @@ const Dashboard = () => {
     switch (activeView) {
       case 'admin':
         return <AdminManagement />;
+      case 'tree':
+        return (
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Customer Tree</h2>
+                <p className="text-muted-foreground">Visual representation of your customer network</p>
+              </div>
+              <div className="space-x-2">
+                <Button onClick={() => setShowCustomerForm(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Customer
+                </Button>
+              </div>
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                <CustomerTree onStatsUpdate={fetchStats} />
+              </CardContent>
+            </Card>
+          </div>
+        );
+      case 'customers':
+        return (
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Customers</h2>
+                <p className="text-muted-foreground">Manage your customer database</p>
+              </div>
+              <Button onClick={() => setShowCustomerForm(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Customer
+              </Button>
+            </div>
+            <CustomerList />
+          </div>
+        );
+      case 'transactions':
+        return (
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Transactions</h2>
+                <p className="text-muted-foreground">Track all customer transactions</p>
+              </div>
+              <Button onClick={() => setShowTransactionForm(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Transaction
+              </Button>
+            </div>
+            <TransactionList />
+          </div>
+        );
       default:
         return (
           <div className="p-6">
@@ -99,47 +153,6 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Main Content */}
-            <Tabs defaultValue="tree" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <TabsList>
-                  <TabsTrigger value="tree">Customer Tree</TabsTrigger>
-                  <TabsTrigger value="customers">Customers</TabsTrigger>
-                  <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                </TabsList>
-                <div className="space-x-2">
-                  <Button onClick={() => setShowCustomerForm(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Customer
-                  </Button>
-                  <Button onClick={() => setShowTransactionForm(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Transaction
-                  </Button>
-                </div>
-              </div>
-
-              <TabsContent value="tree">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Binary Tree Structure</CardTitle>
-                    <CardDescription>Visual representation of your customer network</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CustomerTree onStatsUpdate={fetchStats} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="customers">
-                <CustomerList />
-              </TabsContent>
-
-              <TabsContent value="transactions">
-                <TransactionList />
-              </TabsContent>
-            </Tabs>
           </div>
         );
     }
@@ -182,6 +195,33 @@ const Dashboard = () => {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('tree')}
+                      className={activeView === 'tree' ? 'bg-accent' : ''}
+                    >
+                      <TreePine className="h-4 w-4" />
+                      <span>Customer Tree</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('customers')}
+                      className={activeView === 'customers' ? 'bg-accent' : ''}
+                    >
+                      <List className="h-4 w-4" />
+                      <span>Customers</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('transactions')}
+                      className={activeView === 'transactions' ? 'bg-accent' : ''}
+                    >
+                      <Receipt className="h-4 w-4" />
+                      <span>Transactions</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -202,7 +242,10 @@ const Dashboard = () => {
             <div className="flex items-center gap-4">
               <SidebarTrigger />
               <h1 className="text-xl font-semibold">
-                {activeView === 'admin' ? 'Admin Management' : 'Dashboard'}
+                {activeView === 'admin' ? 'Admin Management' : 
+                 activeView === 'tree' ? 'Customer Tree' :
+                 activeView === 'customers' ? 'Customers' :
+                 activeView === 'transactions' ? 'Transactions' : 'Dashboard'}
               </h1>
             </div>
           </div>
