@@ -132,20 +132,24 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
       </div>
 
       {/* Scrollable Tree with fixed node sizes */}
-      <ScrollArea className="h-full w-full overflow-auto">
-        <div 
-          className="p-8 min-w-max min-h-max flex justify-center"
-          style={{ 
-            transform: `scale(${zoom / 100})`,
-            transformOrigin: 'center top'
-          }}
-        >
-          <div className="space-y-16">
-            {rootCustomers.map(customer => (
-              <div key={customer.id} className="flex justify-center">
-                <CustomerNode customer={customer} />
-              </div>
-            ))}
+      <ScrollArea className="h-full w-full">
+        <div className="overflow-auto" style={{ minWidth: '100%', minHeight: '100%' }}>
+          <div 
+            className="inline-block p-8"
+            style={{ 
+              transform: `scale(${zoom / 100})`,
+              transformOrigin: 'center top',
+              minWidth: '800px',
+              minHeight: '600px'
+            }}
+          >
+            <div className="space-y-16 flex flex-col items-center">
+              {rootCustomers.map(customer => (
+                <div key={customer.id} className="flex justify-center">
+                  <CustomerNode customer={customer} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </ScrollArea>
@@ -195,7 +199,7 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
   }
 
   return (
-    <div className="h-[600px] relative">
+    <div className="h-[600px] w-full relative overflow-hidden">
       <TreeContent />
       
       {/* Customer Detail Dialog */}

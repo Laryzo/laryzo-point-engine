@@ -251,8 +251,10 @@ const Dashboard = () => {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-auto">
-            {renderContent()}
+          <div className="flex-1 overflow-hidden">
+            <div className="h-full overflow-auto">
+              {renderContent()}
+            </div>
           </div>
         </div>
       </div>
