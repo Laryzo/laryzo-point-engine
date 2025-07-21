@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users, Mail, Phone, ZoomIn, ZoomOut, Maximize, Minimize } from 'lucide-react';
 
@@ -168,6 +168,9 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Customer Details</DialogTitle>
+              <DialogDescription>
+                Informasi detail customer yang dipilih
+              </DialogDescription>
             </DialogHeader>
             {selectedCustomer && (
               <div className="space-y-4">
@@ -207,6 +210,9 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Customer Details</DialogTitle>
+            <DialogDescription>
+              Informasi detail customer yang dipilih
+            </DialogDescription>
           </DialogHeader>
           {selectedCustomer && (
             <div className="space-y-4">
