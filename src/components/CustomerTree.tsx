@@ -82,8 +82,8 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
                   <CustomerNode customer={leftChild} />
                 </>
               ) : (
-                <div className="w-32 h-16 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
-                  <span className="text-xs">Available</span>
+                <div className="w-40 h-20 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                  <span className="text-sm">Available</span>
                 </div>
               )}
             </div>
@@ -94,8 +94,8 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
                   <CustomerNode customer={rightChild} />
                 </>
               ) : (
-                <div className="w-32 h-16 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
-                  <span className="text-xs">Available</span>
+                <div className="w-40 h-20 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                  <span className="text-sm">Available</span>
                 </div>
               )}
             </div>
@@ -131,18 +131,20 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
         </Button>
       </div>
 
-      {/* Scrollable Tree with vertical scrolling */}
+      {/* Scrollable Tree with fixed node sizes */}
       <ScrollArea className="h-full w-full overflow-auto">
         <div 
-          className="p-8 min-w-max min-h-max overflow-x-auto overflow-y-auto"
+          className="p-8 min-w-max min-h-max flex justify-center"
           style={{ 
             transform: `scale(${zoom / 100})`,
-            transformOrigin: 'top left'
+            transformOrigin: 'center top'
           }}
         >
-          <div className="space-y-8">
+          <div className="space-y-16">
             {rootCustomers.map(customer => (
-              <CustomerNode key={customer.id} customer={customer} />
+              <div key={customer.id} className="flex justify-center">
+                <CustomerNode customer={customer} />
+              </div>
             ))}
           </div>
         </div>
