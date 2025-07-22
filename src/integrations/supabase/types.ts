@@ -88,6 +88,7 @@ export type Database = {
           points: number | null
           product_code: string | null
           to_customer: string | null
+          transaction_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -97,6 +98,7 @@ export type Database = {
           points?: number | null
           product_code?: string | null
           to_customer?: string | null
+          transaction_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -106,6 +108,7 @@ export type Database = {
           points?: number | null
           product_code?: string | null
           to_customer?: string | null
+          transaction_id?: string | null
         }
         Relationships: [
           {
