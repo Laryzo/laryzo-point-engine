@@ -48,6 +48,16 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
 
   const distributePoints = async (transactionId: string, customerId: string, margin: number) => {
     try {
+      // Always create a point history record for the transaction
+      await supabase.from('point_history').insert({
+        transaction_id: transactionId,
+        from_customer: customerId,
+        to_customer: customerId,
+        level: 0,
+        points: 0, // Base transaction record
+        product_code: productCode,
+      });
+
       // Get customer hierarchy
       const { data: customer } = await supabase
         .from('customers')
@@ -55,6 +65,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
         .eq('id', customerId)
         .single();
 
+      // If customer has no parent, stop here (transaction is already recorded)
       if (!customer?.parent_id) return;
 
       // Simple point distribution: 10% of margin to parent, 5% to grandparent
@@ -63,6 +74,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
 
       // Give points to parent (level 1)
       await supabase.from('point_history').insert({
+        transaction_id: transactionId,
         from_customer: customerId,
         to_customer: customer.parent_id,
         level: 1,
@@ -79,6 +91,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
 
       if (parent?.parent_id) {
         await supabase.from('point_history').insert({
+          transaction_id: transactionId,
           from_customer: customerId,
           to_customer: parent.parent_id,
           level: 2,
