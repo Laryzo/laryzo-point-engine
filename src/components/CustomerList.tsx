@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Users, Mail, Phone } from 'lucide-react';
+import { Edit, Trash2, Users, Mail, Phone, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
@@ -14,6 +14,7 @@ interface Customer {
   parent_id: string | null;
   position: string | null;
   created_at: string;
+  totalPoints?: number;
 }
 
 export const CustomerList = () => {
@@ -28,13 +29,33 @@ export const CustomerList = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Fetch customers and their total points
+      const { data: customersData, error: customersError } = await supabase
         .from('customers')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setCustomers(data || []);
+      if (customersError) throw customersError;
+
+      // Fetch points for each customer
+      const customersWithPoints = await Promise.all(
+        (customersData || []).map(async (customer) => {
+          const { data: pointsData } = await supabase
+            .from('point_history')
+            .select('points')
+            .eq('to_customer', customer.id);
+
+          const totalPoints = pointsData?.reduce((sum, p) => sum + (Number(p.points) || 0), 0) || 0;
+          
+          return {
+            ...customer,
+            totalPoints
+          };
+        })
+      );
+
+      setCustomers(customersWithPoints);
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast({
@@ -122,6 +143,7 @@ export const CustomerList = () => {
               <TableHead>WhatsApp</TableHead>
               <TableHead>Parent</TableHead>
               <TableHead>Posisi</TableHead>
+              <TableHead>Total Points</TableHead>
               <TableHead>Tanggal Dibuat</TableHead>
               <TableHead>Aksi</TableHead>
             </TableRow>
@@ -166,6 +188,12 @@ export const CustomerList = () => {
                         {customer.position.toUpperCase()}
                       </span>
                     ) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Award className="w-3 h-3 text-primary" />
+                      <span className="font-medium">{customer.totalPoints?.toFixed(2) || '0.00'}</span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {new Date(customer.created_at).toLocaleDateString('id-ID')}

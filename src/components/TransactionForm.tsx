@@ -48,81 +48,47 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
 
   const distributePoints = async (transactionId: string, customerId: string, margin: number) => {
     try {
-      console.log('=== Starting distributePoints ===');
-      console.log('Transaction ID:', transactionId);
-      console.log('Customer ID:', customerId);
-      console.log('Margin:', margin);
-
-      // Always create a point history record for the transaction
-      console.log('Creating base transaction record (level 0)');
+      // Give 1% points to the customer who made the transaction
+      const customerPoints = margin * 0.01;
       await supabase.from('point_history').insert({
         transaction_id: transactionId,
         from_customer: customerId,
         to_customer: customerId,
         level: 0,
-        points: 0, // Base transaction record
+        points: customerPoints,
         product_code: productCode,
       });
 
-      // Get customer hierarchy
-      console.log('Getting customer hierarchy for:', customerId);
-      const { data: customer } = await supabase
-        .from('customers')
-        .select('parent_id')
-        .eq('id', customerId)
-        .single();
+      // Distribute 1% to each upline (up to 10 levels)
+      let currentCustomer = customerId;
+      
+      for (let level = 1; level <= 10; level++) {
+        // Get parent of current customer
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('parent_id')
+          .eq('id', currentCustomer)
+          .single();
 
-      console.log('Customer data:', customer);
+        // If no parent found, stop distribution
+        if (!customer?.parent_id) {
+          break;
+        }
 
-      // If customer has no parent, stop here (transaction is already recorded)
-      if (!customer?.parent_id) {
-        console.log('Customer has no parent, stopping here');
-        return;
-      }
-
-      // Simple point distribution: 10% of margin to parent, 5% to grandparent
-      const pointsToParent = margin * 0.1;
-      const pointsToGrandparent = margin * 0.05;
-
-      console.log('Points to parent:', pointsToParent);
-
-      // Give points to parent (level 1)
-      console.log('Creating parent record (level 1)');
-      await supabase.from('point_history').insert({
-        transaction_id: transactionId,
-        from_customer: customerId,
-        to_customer: customer.parent_id,
-        level: 1,
-        points: pointsToParent,
-        product_code: productCode,
-      });
-
-      // Get grandparent and give points (level 2)
-      console.log('Getting grandparent for:', customer.parent_id);
-      const { data: parent } = await supabase
-        .from('customers')
-        .select('parent_id')
-        .eq('id', customer.parent_id)
-        .single();
-
-      console.log('Parent data:', parent);
-
-      if (parent?.parent_id) {
-        console.log('Points to grandparent:', pointsToGrandparent);
-        console.log('Creating grandparent record (level 2)');
+        // Give 1% points to parent
+        const uplinePoints = margin * 0.01;
         await supabase.from('point_history').insert({
           transaction_id: transactionId,
           from_customer: customerId,
-          to_customer: parent.parent_id,
-          level: 2,
-          points: pointsToGrandparent,
+          to_customer: customer.parent_id,
+          level: level,
+          points: uplinePoints,
           product_code: productCode,
         });
-      } else {
-        console.log('No grandparent found');
-      }
 
-      console.log('=== Finished distributePoints ===');
+        // Move to next level (parent becomes current customer)
+        currentCustomer = customer.parent_id;
+      }
     } catch (error) {
       console.error('Error distributing points:', error);
     }

@@ -20,7 +20,6 @@ const Dashboard = () => {
   const [stats, setStats] = useState({
     totalCustomers: 0,
     totalTransactions: 0,
-    totalPoints: 0,
     totalRevenue: 0,
   });
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -33,19 +32,16 @@ const Dashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const [customersRes, transactionsRes, pointsRes] = await Promise.all([
+      const [customersRes, transactionsRes] = await Promise.all([
         supabase.from('customers').select('*'),
         supabase.from('transactions').select('*'),
-        supabase.from('point_history').select('points'),
       ]);
 
-      const totalPoints = pointsRes.data?.reduce((sum, p) => sum + (Number(p.points) || 0), 0) || 0;
       const totalRevenue = transactionsRes.data?.reduce((sum, t) => sum + (Number(t.margin) || 0) * (t.qty || 0), 0) || 0;
 
       setStats({
         totalCustomers: customersRes.data?.length || 0,
         totalTransactions: transactionsRes.data?.length || 0,
-        totalPoints,
         totalRevenue,
       });
     } catch (error) {
@@ -115,7 +111,7 @@ const Dashboard = () => {
         return (
           <div className="p-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
@@ -132,15 +128,6 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.totalTransactions}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Points</CardTitle>
-                  <Award className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalPoints.toFixed(2)}</div>
                 </CardContent>
               </Card>
               <Card>
