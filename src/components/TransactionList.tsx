@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Trash2, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,6 +31,14 @@ export const TransactionList = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editProductName, setEditProductName] = useState('');
+  const [editProductCode, setEditProductCode] = useState('');
+  const [editProductType, setEditProductType] = useState('');
+  const [editMargin, setEditMargin] = useState('');
+  const [editQty, setEditQty] = useState('');
+  const [editCustomerId, setEditCustomerId] = useState('');
+  const { admin } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -62,7 +75,61 @@ export const TransactionList = () => {
     }
   };
 
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setEditProductName(transaction.product_name);
+    setEditProductCode(transaction.product_code);
+    setEditProductType(transaction.product_type || '');
+    setEditMargin(transaction.margin.toString());
+    setEditQty(transaction.qty.toString());
+    setEditCustomerId(transaction.customer_id);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTransaction) return;
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({
+          product_name: editProductName,
+          product_code: editProductCode,
+          product_type: editProductType || null,
+          margin: Number(editMargin),
+          qty: Number(editQty),
+          customer_id: editCustomerId,
+        })
+        .eq('id', editingTransaction.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Berhasil",
+        description: "Data transaksi berhasil diperbarui",
+      });
+
+      setEditingTransaction(null);
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal memperbarui data transaksi",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDelete = async (id: string, productName: string) => {
+    // Only super admin can delete
+    if (admin?.role !== 'super_admin') {
+      toast({
+        title: "Error",
+        description: "Hanya Super Admin yang dapat menghapus transaksi",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm(`Hapus transaksi ${productName}? Data ini tidak dapat dikembalikan.`)) {
       return;
     }
@@ -185,16 +252,96 @@ export const TransactionList = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDelete(transaction.id, transaction.product_name)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEdit(transaction)}
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Edit Transaksi</DialogTitle>
+                            <DialogDescription>
+                              Perbarui informasi transaksi
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor="edit-product-name">Nama Produk</Label>
+                              <Input
+                                id="edit-product-name"
+                                value={editProductName}
+                                onChange={(e) => setEditProductName(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-product-code">Kode Produk</Label>
+                              <Input
+                                id="edit-product-code"
+                                value={editProductCode}
+                                onChange={(e) => setEditProductCode(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-product-type">Jenis Produk</Label>
+                              <Input
+                                id="edit-product-type"
+                                value={editProductType}
+                                onChange={(e) => setEditProductType(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-margin">Margin</Label>
+                              <Input
+                                id="edit-margin"
+                                type="number"
+                                value={editMargin}
+                                onChange={(e) => setEditMargin(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-qty">Quantity</Label>
+                              <Input
+                                id="edit-qty"
+                                type="number"
+                                value={editQty}
+                                onChange={(e) => setEditQty(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-customer">Customer</Label>
+                              <Select value={editCustomerId} onValueChange={setEditCustomerId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Pilih customer" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {customers.map((customer) => (
+                                    <SelectItem key={customer.id} value={customer.id}>
+                                      {customer.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button onClick={handleSaveEdit}>Simpan</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                      {admin?.role === 'super_admin' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDelete(transaction.id, transaction.product_name)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

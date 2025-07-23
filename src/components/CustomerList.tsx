@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Trash2, Users, Mail, Phone, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,6 +25,13 @@ interface Customer {
 export const CustomerList = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editWhatsapp, setEditWhatsapp] = useState('');
+  const [editParentId, setEditParentId] = useState('');
+  const [editPosition, setEditPosition] = useState('');
+  const { admin } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,7 +80,59 @@ export const CustomerList = () => {
     }
   };
 
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setEditName(customer.name);
+    setEditEmail(customer.email || '');
+    setEditWhatsapp(customer.whatsapp || '');
+    setEditParentId(customer.parent_id || '');
+    setEditPosition(customer.position || '');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCustomer) return;
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({
+          name: editName,
+          email: editEmail || null,
+          whatsapp: editWhatsapp || null,
+          parent_id: editParentId || null,
+          position: editPosition || null,
+        })
+        .eq('id', editingCustomer.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Berhasil",
+        description: "Data customer berhasil diperbarui",
+      });
+
+      setEditingCustomer(null);
+      fetchCustomers();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal memperbarui data customer",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDelete = async (id: string, name: string) => {
+    // Only super admin can delete
+    if (admin?.role !== 'super_admin') {
+      toast({
+        title: "Error",
+        description: "Hanya Super Admin yang dapat menghapus customer",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm(`Hapus customer ${name}? Data ini tidak dapat dikembalikan.`)) {
       return;
     }
@@ -200,16 +264,92 @@ export const CustomerList = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDelete(customer.id, customer.name)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEdit(customer)}
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Edit Customer</DialogTitle>
+                            <DialogDescription>
+                              Perbarui informasi customer
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor="edit-name">Nama</Label>
+                              <Input
+                                id="edit-name"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-email">Email</Label>
+                              <Input
+                                id="edit-email"
+                                value={editEmail}
+                                onChange={(e) => setEditEmail(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-whatsapp">WhatsApp</Label>
+                              <Input
+                                id="edit-whatsapp"
+                                value={editWhatsapp}
+                                onChange={(e) => setEditWhatsapp(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-parent">Parent</Label>
+                              <Select value={editParentId} onValueChange={setEditParentId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Pilih parent" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="">Tidak ada parent</SelectItem>
+                                  {customers.filter(c => c.id !== editingCustomer?.id).map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                      {c.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-position">Posisi</Label>
+                              <Select value={editPosition} onValueChange={setEditPosition}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Pilih posisi" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="">Tidak ada posisi</SelectItem>
+                                  <SelectItem value="left">LEFT</SelectItem>
+                                  <SelectItem value="right">RIGHT</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button onClick={handleSaveEdit}>Simpan</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                      {admin?.role === 'super_admin' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDelete(customer.id, customer.name)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

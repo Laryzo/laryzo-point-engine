@@ -9,8 +9,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Trash2, ArrowUp, RotateCcw } from 'lucide-react';
+import { Edit, Trash2, ArrowUp, RotateCcw, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Admin {
@@ -28,6 +29,11 @@ const AdminManagement = () => {
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [resetConfirmText, setResetConfirmText] = useState('');
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [newAdminRole, setNewAdminRole] = useState('admin');
   const { admin: currentAdmin } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -55,6 +61,48 @@ const AdminManagement = () => {
   useEffect(() => {
     fetchAdmins();
   }, []);
+
+  const handleAddAdmin = async () => {
+    if (!newAdminName || !newAdminEmail || !newAdminPassword) {
+      toast({
+        title: "Error",
+        description: "Semua field harus diisi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('admins')
+        .insert({
+          name: newAdminName,
+          email: newAdminEmail,
+          password_hash: newAdminPassword,
+          role: newAdminRole,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Berhasil",
+        description: "Admin baru berhasil ditambahkan",
+      });
+
+      setShowAddDialog(false);
+      setNewAdminName('');
+      setNewAdminEmail('');
+      setNewAdminPassword('');
+      setNewAdminRole('admin');
+      fetchAdmins();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal menambahkan admin",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleEdit = (admin: Admin) => {
     setEditingAdmin(admin);
@@ -197,39 +245,106 @@ const AdminManagement = () => {
             <CardDescription>Kelola admin sistem Laryzo Point Engine</CardDescription>
           </div>
           {isSuperAdmin && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset System
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Reset Sistem</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Ini akan menghapus SEMUA data termasuk customers, transactions, point history, dan admins.
-                    Ketik "RESET" untuk konfirmasi.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <Input
-                  placeholder="Ketik RESET"
-                  value={resetConfirmText}
-                  onChange={(e) => setResetConfirmText(e.target.value)}
-                />
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => setResetConfirmText('')}>
-                    Batal
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleResetSystem}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
+            <div className="flex space-x-2">
+              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="default" size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Tambah Admin
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Tambah Admin Baru</DialogTitle>
+                    <DialogDescription>
+                      Tambahkan admin baru ke sistem
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="new-name">Nama</Label>
+                      <Input
+                        id="new-name"
+                        value={newAdminName}
+                        onChange={(e) => setNewAdminName(e.target.value)}
+                        placeholder="Masukkan nama admin"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="new-email">Email</Label>
+                      <Input
+                        id="new-email"
+                        type="email"
+                        value={newAdminEmail}
+                        onChange={(e) => setNewAdminEmail(e.target.value)}
+                        placeholder="Masukkan email admin"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="new-password">Password</Label>
+                      <Input
+                        id="new-password"
+                        type="password"
+                        value={newAdminPassword}
+                        onChange={(e) => setNewAdminPassword(e.target.value)}
+                        placeholder="Masukkan password"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="new-role">Role</Label>
+                      <Select value={newAdminRole} onValueChange={setNewAdminRole}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="super_admin">Super Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                      Batal
+                    </Button>
+                    <Button onClick={handleAddAdmin}>Tambah</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <RotateCcw className="h-4 w-4 mr-2" />
                     Reset System
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset Sistem</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Ini akan menghapus SEMUA data termasuk customers, transactions, point history, dan admins.
+                      Ketik "RESET" untuk konfirmasi.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <Input
+                    placeholder="Ketik RESET"
+                    value={resetConfirmText}
+                    onChange={(e) => setResetConfirmText(e.target.value)}
+                  />
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setResetConfirmText('')}>
+                      Batal
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleResetSystem}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Reset System
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           )}
         </CardHeader>
         <CardContent>
