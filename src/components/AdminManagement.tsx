@@ -374,7 +374,7 @@ const AdminManagement = () => {
                   {isSuperAdmin && (
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Dialog>
+                        <Dialog open={editingAdmin?.id === admin.id} onOpenChange={(open) => !open && setEditingAdmin(null)}>
                           <DialogTrigger asChild>
                             <Button
                               variant="outline"

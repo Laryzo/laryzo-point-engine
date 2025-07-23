@@ -4,13 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite } from 'lucide-react';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
 import { CustomerList } from '@/components/CustomerList';
 import { TransactionList } from '@/components/TransactionList';
 import AdminManagement from '@/components/AdminManagement';
+import SatelliteApiInfo from '@/components/SatelliteApiInfo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -53,6 +54,8 @@ const Dashboard = () => {
     switch (activeView) {
       case 'admin':
         return <AdminManagement />;
+      case 'satellite-api':
+        return <SatelliteApiInfo />;
       case 'tree':
         return (
           <div className="p-6">
@@ -184,6 +187,15 @@ const Dashboard = () => {
                   )}
                   <SidebarMenuItem>
                     <SidebarMenuButton 
+                      onClick={() => setActiveView('satellite-api')}
+                      className={activeView === 'satellite-api' ? 'bg-accent' : ''}
+                    >
+                      <Satellite className="h-4 w-4" />
+                      <span>Satellite API</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
                       onClick={() => setActiveView('tree')}
                       className={activeView === 'tree' ? 'bg-accent' : ''}
                     >
@@ -230,6 +242,7 @@ const Dashboard = () => {
               <SidebarTrigger />
               <h1 className="text-xl font-semibold">
                 {activeView === 'admin' ? 'Admin Management' : 
+                 activeView === 'satellite-api' ? 'Satellite API' :
                  activeView === 'tree' ? 'Customer Tree' :
                  activeView === 'customers' ? 'Customers' :
                  activeView === 'transactions' ? 'Transactions' : 'Dashboard'}
