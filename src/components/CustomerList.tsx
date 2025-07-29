@@ -265,83 +265,13 @@ export const CustomerList = () => {
                   <TableCell>
                     <div className="flex space-x-2">
                       {(admin?.role === 'admin' || admin?.role === 'super_admin') && (
-                        <Dialog open={editingCustomer?.id === customer.id} onOpenChange={(open) => !open && setEditingCustomer(null)}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleEdit(customer)}
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Edit Customer</DialogTitle>
-                              <DialogDescription>
-                                Perbarui informasi customer
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <Label htmlFor="edit-name">Nama</Label>
-                                <Input
-                                  id="edit-name"
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-email">Email</Label>
-                                <Input
-                                  id="edit-email"
-                                  value={editEmail}
-                                  onChange={(e) => setEditEmail(e.target.value)}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-whatsapp">WhatsApp</Label>
-                                <Input
-                                  id="edit-whatsapp"
-                                  value={editWhatsapp}
-                                  onChange={(e) => setEditWhatsapp(e.target.value)}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-parent">Parent</Label>
-                                <Select value={editParentId} onValueChange={setEditParentId}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Pilih parent" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="">Tidak ada parent</SelectItem>
-                                    {customers.filter(c => c.id !== editingCustomer?.id).map((c) => (
-                                      <SelectItem key={c.id} value={c.id}>
-                                        {c.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-position">Posisi</Label>
-                                <Select value={editPosition} onValueChange={setEditPosition}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Pilih posisi" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="">Tidak ada posisi</SelectItem>
-                                    <SelectItem value="left">LEFT</SelectItem>
-                                    <SelectItem value="right">RIGHT</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <DialogFooter>
-                              <Button onClick={handleSaveEdit}>Simpan</Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(customer)}
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
                       )}
                       {admin?.role === 'super_admin' && (
                         <Button 
@@ -360,6 +290,77 @@ export const CustomerList = () => {
           </TableBody>
         </Table>
       </CardContent>
+      {/* Single Dialog for editing customer */}
+      {editingCustomer && (
+        <Dialog open={true} onOpenChange={(open) => !open && setEditingCustomer(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Customer</DialogTitle>
+              <DialogDescription>
+                Perbarui informasi customer
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Nama</Label>
+                <Input
+                  id="edit-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-whatsapp">WhatsApp</Label>
+                <Input
+                  id="edit-whatsapp"
+                  value={editWhatsapp}
+                  onChange={(e) => setEditWhatsapp(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-parent">Parent</Label>
+                <Select value={editParentId} onValueChange={setEditParentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih parent" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tidak ada parent</SelectItem>
+                    {customers.filter(c => c.id !== editingCustomer.id).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-position">Posisi</Label>
+                <Select value={editPosition} onValueChange={setEditPosition}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih posisi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tidak ada posisi</SelectItem>
+                    <SelectItem value="left">LEFT</SelectItem>
+                    <SelectItem value="right">RIGHT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleSaveEdit}>Simpan</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 };
