@@ -85,8 +85,8 @@ export const CustomerList = () => {
     setEditName(customer.name);
     setEditEmail(customer.email || '');
     setEditWhatsapp(customer.whatsapp || '');
-    setEditParentId(customer.parent_id || '');
-    setEditPosition(customer.position || '');
+    setEditParentId(customer.parent_id || 'none');
+    setEditPosition(customer.position || 'none');
   };
 
   const handleSaveEdit = async () => {
@@ -99,8 +99,8 @@ export const CustomerList = () => {
           name: editName,
           email: editEmail || null,
           whatsapp: editWhatsapp || null,
-          parent_id: editParentId || null,
-          position: editPosition || null,
+          parent_id: editParentId === 'none' ? null : editParentId || null,
+          position: editPosition === 'none' ? null : editPosition || null,
         })
         .eq('id', editingCustomer.id);
 
@@ -314,7 +314,7 @@ export const CustomerList = () => {
                                     <SelectValue placeholder="Pilih parent" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">Tidak ada parent</SelectItem>
+                                    <SelectItem value="none">Tidak ada parent</SelectItem>
                                     {customers.filter(c => c.id !== editingCustomer?.id).map((c) => (
                                       <SelectItem key={c.id} value={c.id}>
                                         {c.name}
@@ -330,7 +330,7 @@ export const CustomerList = () => {
                                     <SelectValue placeholder="Pilih posisi" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">Tidak ada posisi</SelectItem>
+                                    <SelectItem value="none">Tidak ada posisi</SelectItem>
                                     <SelectItem value="left">LEFT</SelectItem>
                                     <SelectItem value="right">RIGHT</SelectItem>
                                   </SelectContent>
