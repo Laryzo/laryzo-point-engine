@@ -2,7 +2,51 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
+}
+
+// Predefined API keys for satellite API (in production, store in Supabase secrets)
+const VALID_API_KEYS = [
+  'sat_key_demo_12345',
+  'sat_key_production_67890'
+];
+
+function validateApiKey(request: Request): boolean {
+  const apiKey = request.headers.get('x-api-key');
+  return apiKey !== null && VALID_API_KEYS.includes(apiKey);
+}
+
+function validateTransactionRequest(data: any): boolean {
+  return (
+    data?.customer_data?.name &&
+    typeof data.customer_data.name === 'string' &&
+    data.customer_data.name.trim() !== '' &&
+    data?.transaction_data &&
+    typeof data.transaction_data.product_code === 'string' &&
+    typeof data.transaction_data.product_name === 'string' &&
+    typeof data.transaction_data.product_type === 'string' &&
+    typeof data.transaction_data.qty === 'number' &&
+    typeof data.transaction_data.margin === 'number' &&
+    data.transaction_data.qty > 0 &&
+    data.transaction_data.margin >= 0
+  );
+}
+
+function sanitizeString(input: string): string {
+  return input.trim().slice(0, 255); // Limit length and trim whitespace
+}
+
+async function logRequest(supabase: any, request: Request, success: boolean, error?: string) {
+  const logData = {
+    timestamp: new Date().toISOString(),
+    method: request.method,
+    url: request.url,
+    success,
+    error: error || null,
+    ip: request.headers.get('x-forwarded-for') || 'unknown'
+  };
+  
+  console.log('API Request Log:', JSON.stringify(logData, null, 2));
 }
 
 interface TransactionRequest {
@@ -45,33 +89,81 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Validate API key
+    if (!validateApiKey(req)) {
+      await logRequest(supabase, req, false, 'Invalid API key');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid API key. Please provide a valid x-api-key header.'
+        } as SatelliteApiResponse),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
-    const requestData: TransactionRequest = await req.json();
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+      await logRequest(supabase, req, false, 'Invalid method');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Only POST requests are allowed'
+        } as SatelliteApiResponse),
+        {
+          status: 405,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Parse and validate request body
+    let requestData: TransactionRequest;
+    try {
+      const body = await req.json();
+      if (!validateTransactionRequest(body)) {
+        throw new Error('Invalid request format');
+      }
+      requestData = {
+        customer_data: {
+          name: sanitizeString(body.customer_data.name),
+          email: body.customer_data.email ? sanitizeString(body.customer_data.email) : undefined,
+          whatsapp: body.customer_data.whatsapp ? sanitizeString(body.customer_data.whatsapp) : undefined,
+          parent_id: body.customer_data.parent_id,
+          position: body.customer_data.position ? sanitizeString(body.customer_data.position) : undefined,
+        },
+        transaction_data: {
+          product_code: sanitizeString(body.transaction_data.product_code),
+          product_name: sanitizeString(body.transaction_data.product_name),
+          product_type: sanitizeString(body.transaction_data.product_type),
+          qty: Math.max(1, Math.floor(body.transaction_data.qty)),
+          margin: Math.max(0, body.transaction_data.margin)
+        }
+      };
+    } catch (error) {
+      await logRequest(supabase, req, false, 'Invalid request body');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid request body. Required fields: customer_data.name and transaction_data with valid fields'
+        } as SatelliteApiResponse),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
     
     console.log('Received satellite API request:', requestData);
 
-    // Validate request data
-    if (!requestData.customer_data?.name || !requestData.transaction_data) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Invalid request data. customer_data.name and transaction_data are required' 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     // Check if customer exists by name, if not create
     let customerId: string;
@@ -233,6 +325,7 @@ Deno.serve(async (req) => {
     };
 
     console.log('Satellite API response:', response);
+    await logRequest(supabase, req, true);
 
     return new Response(
       JSON.stringify(response),
@@ -241,6 +334,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Satellite API error:', error);
+    await logRequest(supabase, req, false, 'Unexpected error');
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

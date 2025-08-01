@@ -75,9 +75,19 @@ const SatelliteApiInfo = () => {
               <p className="text-sm mb-2">
                 <strong>Method:</strong> <Badge variant="secondary">POST</Badge>
               </p>
-              <p className="text-sm">
+              <p className="text-sm mb-2">
                 <strong>Content-Type:</strong> <code>application/json</code>
               </p>
+              <p className="text-sm mb-2">
+                <strong>Authorization:</strong> <code>x-api-key header required</code>
+              </p>
+              <div className="mt-3">
+                <p className="text-sm font-medium mb-1">Demo API Keys:</p>
+                <div className="bg-background p-2 rounded text-xs font-mono space-y-1">
+                  <div>Development: <code>sat_key_demo_12345</code></div>
+                  <div>Production: <code>sat_key_production_67890</code></div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -149,6 +159,7 @@ const SatelliteApiInfo = () => {
               <pre className="text-xs overflow-auto">
 {`curl -X POST ${apiUrl} \\
   -H "Content-Type: application/json" \\
+  -H "x-api-key: sat_key_demo_12345" \\
   -d '${JSON.stringify(exampleRequest, null, 2)}'`}
               </pre>
             </div>
@@ -164,6 +175,7 @@ const SatelliteApiInfo = () => {
               <ul className="list-disc ml-4 space-y-1">
                 <li><Badge variant="secondary">200</Badge> - Success</li>
                 <li><Badge variant="destructive">400</Badge> - Bad Request (data tidak valid)</li>
+                <li><Badge variant="destructive">401</Badge> - Unauthorized (API key tidak valid)</li>
                 <li><Badge variant="destructive">405</Badge> - Method Not Allowed</li>
                 <li><Badge variant="destructive">500</Badge> - Internal Server Error</li>
               </ul>
