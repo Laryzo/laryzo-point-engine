@@ -115,7 +115,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
       if (error) throw error;
 
       // Distribute points based on transaction
-      await distributePoints(transaction.id, customerId, margin * qty);
+      await distributePoints(transaction.id, customerId, margin);
 
       toast({
         title: "Success",
