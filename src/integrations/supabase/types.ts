@@ -127,39 +127,6 @@ export type Database = {
           },
         ]
       }
-      point_history_backup: {
-        Row: {
-          created_at: string | null
-          from_customer: string | null
-          id: string | null
-          level: number | null
-          points: number | null
-          product_code: string | null
-          to_customer: string | null
-          transaction_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          from_customer?: string | null
-          id?: string | null
-          level?: number | null
-          points?: number | null
-          product_code?: string | null
-          to_customer?: string | null
-          transaction_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          from_customer?: string | null
-          id?: string | null
-          level?: number | null
-          points?: number | null
-          product_code?: string | null
-          to_customer?: string | null
-          transaction_id?: string | null
-        }
-        Relationships: []
-      }
       transactions: {
         Row: {
           created_at: string | null
@@ -206,6 +173,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_admins_exist: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_authenticated_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
