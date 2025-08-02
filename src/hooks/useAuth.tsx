@@ -99,6 +99,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
+      console.log('Attempting login with email:', email);
+      
       // First check if admin exists and verify password
       const { data: adminData, error: adminError } = await supabase
         .from('admins')
@@ -106,15 +108,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('email', email)
         .single();
 
+      console.log('Admin query result:', { adminData, adminError });
+
       if (adminError || !adminData) {
+        console.log('Admin not found or error:', adminError);
         return { error: 'Invalid email or password' };
       }
 
       // Verify password with bcrypt
       const passwordMatch = await bcrypt.compare(password, adminData.password_hash);
+      console.log('Password match result:', passwordMatch);
+      
       if (!passwordMatch) {
+        console.log('Password does not match');
         return { error: 'Invalid email or password' };
       }
+
+      console.log('Password verified, attempting Supabase auth...');
 
       // Sign in with Supabase Auth
       const { error: authError } = await supabase.auth.signInWithPassword({
@@ -122,7 +132,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password: adminData.id, // Use admin ID as password for Supabase Auth
       });
 
+      console.log('Supabase auth result:', { authError });
+
       if (authError) {
+        console.log('Creating new Supabase user...');
         // Create Supabase user if it doesn't exist
         const { error: signUpError } = await supabase.auth.signUp({
           email,
@@ -132,11 +145,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         });
 
+        console.log('Supabase signup result:', { signUpError });
+
         if (signUpError) {
+          console.log('Signup failed:', signUpError);
           return { error: 'Authentication failed' };
         }
       }
 
+      console.log('Login successful');
       return { error: null };
     } catch (error) {
       console.error('Login error:', error);

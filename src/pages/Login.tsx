@@ -84,7 +84,9 @@ const Login = () => {
             </Button>
           </form>
           <div className="mt-4 text-sm text-muted-foreground text-center">
-            Demo: admin@laryzo.com / any password
+            Demo credentials:<br/>
+            Email: admin@laryzo.com atau super-admin@laryzo.com<br/>
+            Password: admin123
           </div>
         </CardContent>
       </Card>
