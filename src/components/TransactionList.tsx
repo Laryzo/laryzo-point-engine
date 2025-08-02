@@ -4,12 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Trash2, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { TransactionEditForm } from './TransactionEditForm';
 
 interface Transaction {
   id: string;
@@ -29,15 +26,8 @@ interface Customer {
 
 export const TransactionList = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [editProductName, setEditProductName] = useState('');
-  const [editProductCode, setEditProductCode] = useState('');
-  const [editProductType, setEditProductType] = useState('');
-  const [editMargin, setEditMargin] = useState('');
-  const [editQty, setEditQty] = useState('');
-  const [editCustomerId, setEditCustomerId] = useState('');
   const { admin } = useAuth();
   const { toast } = useToast();
 
@@ -48,21 +38,19 @@ export const TransactionList = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [transactionsRes, customersRes] = await Promise.all([
-        supabase
-          .from('transactions')
-          .select('*')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('customers')
-          .select('id, name')
-      ]);
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          customers (
+            id,
+            name
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-      if (transactionsRes.error) throw transactionsRes.error;
-      if (customersRes.error) throw customersRes.error;
-
-      setTransactions(transactionsRes.data || []);
-      setCustomers(customersRes.data || []);
+      if (error) throw error;
+      setTransactions(data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -77,46 +65,11 @@ export const TransactionList = () => {
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
-    setEditProductName(transaction.product_name);
-    setEditProductCode(transaction.product_code);
-    setEditProductType(transaction.product_type || '');
-    setEditMargin(transaction.margin.toString());
-    setEditQty(transaction.qty.toString());
-    setEditCustomerId(transaction.customer_id);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingTransaction) return;
-
-    try {
-      const { error } = await supabase
-        .from('transactions')
-        .update({
-          product_name: editProductName,
-          product_code: editProductCode,
-          product_type: editProductType || null,
-          margin: Number(editMargin),
-          qty: Number(editQty),
-          customer_id: editCustomerId,
-        })
-        .eq('id', editingTransaction.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Berhasil",
-        description: "Data transaksi berhasil diperbarui",
-      });
-
-      setEditingTransaction(null);
-      fetchData();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Gagal memperbarui data transaksi",
-        variant: "destructive",
-      });
-    }
+  const handleEditSuccess = () => {
+    setEditingTransaction(null);
+    fetchData();
   };
 
   const handleDelete = async (id: string, productName: string) => {
@@ -158,9 +111,8 @@ export const TransactionList = () => {
     }
   };
 
-  const getCustomerName = (customerId: string) => {
-    const customer = customers.find(c => c.id === customerId);
-    return customer ? customer.name : 'Customer tidak ditemukan';
+  const getCustomerName = (transaction: any) => {
+    return transaction.customers?.name || 'Customer tidak ditemukan';
   };
 
   if (loading) {
@@ -234,7 +186,7 @@ export const TransactionList = () => {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell>{getCustomerName(transaction.customer_id)}</TableCell>
+                  <TableCell>{getCustomerName(transaction)}</TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-1">
                       <TrendingUp className="w-3 h-3 text-green-600" />
@@ -252,87 +204,13 @@ export const TransactionList = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleEdit(transaction)}
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Edit Transaksi</DialogTitle>
-                            <DialogDescription>
-                              Perbarui informasi transaksi
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label htmlFor="edit-product-name">Nama Produk</Label>
-                              <Input
-                                id="edit-product-name"
-                                value={editProductName}
-                                onChange={(e) => setEditProductName(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="edit-product-code">Kode Produk</Label>
-                              <Input
-                                id="edit-product-code"
-                                value={editProductCode}
-                                onChange={(e) => setEditProductCode(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="edit-product-type">Jenis Produk</Label>
-                              <Input
-                                id="edit-product-type"
-                                value={editProductType}
-                                onChange={(e) => setEditProductType(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="edit-margin">Margin</Label>
-                              <Input
-                                id="edit-margin"
-                                type="number"
-                                value={editMargin}
-                                onChange={(e) => setEditMargin(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="edit-qty">Quantity</Label>
-                              <Input
-                                id="edit-qty"
-                                type="number"
-                                value={editQty}
-                                onChange={(e) => setEditQty(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="edit-customer">Customer</Label>
-                              <Select value={editCustomerId} onValueChange={setEditCustomerId}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Pilih customer" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {customers.map((customer) => (
-                                    <SelectItem key={customer.id} value={customer.id}>
-                                      {customer.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button onClick={handleSaveEdit}>Simpan</Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEdit(transaction)}
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
                       {admin?.role === 'super_admin' && (
                         <Button 
                           variant="outline" 
@@ -350,6 +228,14 @@ export const TransactionList = () => {
           </TableBody>
         </Table>
       </CardContent>
+      
+      {editingTransaction && (
+        <TransactionEditForm 
+          transaction={editingTransaction}
+          onClose={() => setEditingTransaction(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </Card>
   );
 };

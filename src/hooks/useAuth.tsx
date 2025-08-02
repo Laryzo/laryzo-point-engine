@@ -74,13 +74,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkIfFirstAdmin = async () => {
     try {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from('admins')
         .select('*', { count: 'exact', head: true });
       
-      setIsFirstAdmin(count === 0);
+      if (error) {
+        console.error('Error checking admin count:', error);
+        // If we can't access admins table (due to RLS), assume admins exist
+        setIsFirstAdmin(false);
+      } else {
+        setIsFirstAdmin(count === 0);
+      }
     } catch (error) {
       console.error('Error checking admin count:', error);
+      // If there's an error, assume admins exist to prevent showing registration
+      setIsFirstAdmin(false);
     }
   };
 
