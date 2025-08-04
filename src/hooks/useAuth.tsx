@@ -116,8 +116,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Verify password with bcrypt
+      console.log('Input password:', password);
+      console.log('Stored hash:', adminData.password_hash);
+      
       const passwordMatch = await bcrypt.compare(password, adminData.password_hash);
       console.log('Password match result:', passwordMatch);
+      
+      // Temporary: Try direct comparison as well
+      const directMatch = password === adminData.password_hash;
+      console.log('Direct match result:', directMatch);
       
       if (!passwordMatch) {
         console.log('Password does not match');
