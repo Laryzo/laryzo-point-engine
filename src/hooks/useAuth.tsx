@@ -173,9 +173,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (name: string, email: string, password: string) => {
     try {
+      console.log('Starting registration process...');
+      
       // Hash password with bcrypt
       const saltRounds = 12;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
+      console.log('Password hashed successfully');
 
       // Create admin record
       const { data: adminData, error } = await supabase
@@ -190,20 +193,101 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) {
+        console.error('Error creating admin record:', error);
         return { error: 'Registration failed' };
       }
+      
+      console.log('Admin record created:', adminData);
 
-      // Create Supabase Auth user
+      // Create Supabase Auth user with a fixed password pattern
+      const supabasePassword = `admin_${adminData.id}`;
+      console.log('Creating Supabase auth user...');
+      
       const { error: authError } = await supabase.auth.signUp({
         email,
-        password: adminData.id, // Use admin ID as password for Supabase Auth
+        password: supabasePassword,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            admin_id: adminData.id,
+            role: 'super_admin'
+          }
         }
       });
 
       if (authError) {
-        // Clean up admin record if auth creation fails
+        console.error('Supabase auth error:', authError);
+        
+        // If user already exists, try to sign in instead
+        if (authError.message?.includes('already registered')) {
+          console.log('User already exists, attempting sign in...');
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password: supabasePassword,
+          });
+          
+          if (signInError) {
+            console.error('Sign in failed:', signInError);
+            await supabase.from('admins').delete().eq('id', adminData.id);
+            return { error: 'Authentication setup failed' };
+          }
+        } else {
+          // Clean up admin record if auth creation fails
+          await supabase.from('admins').delete().eq('id', adminData.id);
+          return { error: 'Authentication setup failed' };
+        }
+      }
+      
+      console.log('Registration completed successfully');
+      setIsFirstAdmin(false);
+      return { error: null };
+    } catch (error) {
+      console.error('Registration error:', error);
+      return { error: 'Registration failed' };
+    }
+  };
+
+  const resetSystem = async () => {
+    try {
+      console.log('Resetting system...');
+      
+      // Sign out current user
+      await supabase.auth.signOut();
+      
+      // Clear all data
+      await supabase.from('point_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('customers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('admins').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // Reset state
+      setAdmin(null);
+      setUser(null);
+      setSession(null);
+      setIsFirstAdmin(true);
+      
+      console.log('System reset completed');
+      return { error: null };
+    } catch (error) {
+      console.error('Reset system error:', error);
+      return { error: 'Reset failed' };
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ admin, user, session, loading, login, logout, register, resetSystem, isFirstAdmin }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
         await supabase.from('admins').delete().eq('id', adminData.id);
         return { error: 'Authentication setup failed' };
       }
