@@ -126,10 +126,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       console.log('Password verified, attempting Supabase auth...');
 
+      // Create a fixed password for Supabase Auth using admin ID
+      const supabasePassword = `admin_${adminData.id}`;
+
       // Sign in with Supabase Auth
       const { error: authError } = await supabase.auth.signInWithPassword({
         email,
-        password: adminData.id, // Use admin ID as password for Supabase Auth
+        password: supabasePassword,
       });
 
       console.log('Supabase auth result:', { authError });
@@ -139,7 +142,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Create Supabase user if it doesn't exist
         const { error: signUpError } = await supabase.auth.signUp({
           email,
-          password: adminData.id,
+          password: supabasePassword,
           options: {
             emailRedirectTo: `${window.location.origin}/dashboard`
           }
