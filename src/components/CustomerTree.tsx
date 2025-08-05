@@ -61,9 +61,9 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
     const rightChild = children.find(c => c.position === 'right');
 
     return (
-      <div className="flex flex-col items-center space-y-4">
+      <div className="flex flex-col items-center">
         <Card 
-          className="w-32 hover:shadow-md transition-shadow cursor-pointer hover:bg-accent"
+          className="w-32 hover:shadow-md transition-shadow cursor-pointer hover:bg-accent relative z-10"
           onClick={() => setSelectedCustomer(customer)}
         >
           <CardContent className="p-3">
@@ -74,30 +74,49 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
         </Card>
 
         {(leftChild || rightChild) && (
-          <div className="flex space-x-6">
-            <div className="flex flex-col items-center">
-              {leftChild ? (
-                <>
-                  <div className="text-xs text-muted-foreground mb-2">L</div>
-                  <CustomerNode customer={leftChild} />
-                </>
-              ) : (
-                <div className="w-40 h-20 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
-                  <span className="text-sm">Available</span>
+          <div className="relative mt-8">
+            {/* Vertical line from parent */}
+            <div className="absolute w-0.5 h-8 bg-border left-1/2 transform -translate-x-0.5 -top-8"></div>
+            
+            {/* Horizontal line connecting children */}
+            <div className="absolute w-full h-0.5 bg-border top-0 left-0"></div>
+            
+            <div className="flex space-x-12 relative">
+              <div className="flex flex-col items-center relative">
+                {/* Vertical line to left child */}
+                <div className="absolute w-0.5 h-8 bg-border left-1/2 transform -translate-x-0.5 top-0"></div>
+                
+                <div className="mt-8">
+                  {leftChild ? (
+                    <>
+                      <div className="text-xs text-muted-foreground mb-2 text-center">L</div>
+                      <CustomerNode customer={leftChild} />
+                    </>
+                  ) : (
+                    <div className="w-32 h-20 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                      <span className="text-sm">Available</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="flex flex-col items-center">
-              {rightChild ? (
-                <>
-                  <div className="text-xs text-muted-foreground mb-2">R</div>
-                  <CustomerNode customer={rightChild} />
-                </>
-              ) : (
-                <div className="w-40 h-20 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
-                  <span className="text-sm">Available</span>
+              </div>
+              
+              <div className="flex flex-col items-center relative">
+                {/* Vertical line to right child */}
+                <div className="absolute w-0.5 h-8 bg-border left-1/2 transform -translate-x-0.5 top-0"></div>
+                
+                <div className="mt-8">
+                  {rightChild ? (
+                    <>
+                      <div className="text-xs text-muted-foreground mb-2 text-center">R</div>
+                      <CustomerNode customer={rightChild} />
+                    </>
+                  ) : (
+                    <div className="w-32 h-20 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                      <span className="text-sm">Available</span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
