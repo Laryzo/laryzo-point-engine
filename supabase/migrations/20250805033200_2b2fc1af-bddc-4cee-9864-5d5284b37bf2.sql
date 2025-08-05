@@ -1,0 +1,1 @@
+UPDATE admins SET role = 'super_admin' WHERE email = 'super-admin@laryzo.com';
