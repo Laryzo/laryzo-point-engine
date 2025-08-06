@@ -9,7 +9,9 @@ import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
 import { CustomerList } from '@/components/CustomerList';
+import { CustomerListEnhanced } from '@/components/CustomerListEnhanced';
 import { TransactionList } from '@/components/TransactionList';
+import { TransactionListEnhanced } from '@/components/TransactionListEnhanced';
 import AdminManagement from '@/components/AdminManagement';
 import SatelliteApiInfo from '@/components/SatelliteApiInfo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -91,7 +93,7 @@ const Dashboard = () => {
                 Add Customer
               </Button>
             </div>
-            <CustomerList />
+            <CustomerListEnhanced />
           </div>
         );
       case 'transactions':
@@ -107,7 +109,7 @@ const Dashboard = () => {
                 Add Transaction
               </Button>
             </div>
-            <TransactionList />
+            <TransactionListEnhanced />
           </div>
         );
       default:

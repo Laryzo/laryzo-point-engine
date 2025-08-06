@@ -7,13 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { LogIn } from 'lucide-react';
+import { LogIn, HelpCircle } from 'lucide-react';
 import AdminRegister from '@/components/AdminRegister';
+import { ForgotPasswordModal } from '@/components/ForgotPasswordModal';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { login, isFirstAdmin } = useAuth();
   const navigate = useNavigate();
 
@@ -83,6 +85,20 @@ const Login = () => {
               {loading ? "Logging in..." : "Login"}
             </Button>
           </form>
+          
+          {/* Forgot Password Links */}
+          <div className="mt-4 flex justify-center">
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => setShowForgotPassword(true)}
+              className="p-0 h-auto font-normal text-sm text-muted-foreground hover:text-primary"
+            >
+              <HelpCircle className="w-4 h-4 mr-1" />
+              Lupa Password atau Email?
+            </Button>
+          </div>
+          
           <div className="mt-4 text-sm text-muted-foreground text-center">
             Demo credentials:<br/>
             Email: admin@laryzo.com atau super-admin@laryzo.com<br/>
@@ -90,6 +106,12 @@ const Login = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal 
+        open={showForgotPassword} 
+        onOpenChange={setShowForgotPassword} 
+      />
     </div>
   );
 };
