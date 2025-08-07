@@ -73,12 +73,16 @@ const AdminManagement = () => {
     }
 
     try {
+      // Hash password using bcrypt before sending to database
+      const bcrypt = await import('bcryptjs');
+      const hashedPassword = await bcrypt.hash(newAdminPassword, 10);
+
       const { error } = await supabase
         .from('admins')
         .insert({
           name: newAdminName,
           email: newAdminEmail,
-          password_hash: newAdminPassword,
+          password_hash: hashedPassword,
           role: newAdminRole,
         });
 
@@ -96,9 +100,10 @@ const AdminManagement = () => {
       setNewAdminRole('admin');
       fetchAdmins();
     } catch (error) {
+      console.error('Error adding admin:', error);
       toast({
         title: "Error",
-        description: "Gagal menambahkan admin",
+        description: error.message || "Gagal menambahkan admin",
         variant: "destructive",
       });
     }
