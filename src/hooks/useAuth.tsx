@@ -89,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name,
             email,
             password_hash: hashedPassword,
+            role: isFirstAdmin ? 'super_admin' : 'admin',
           }
         ])
         .select()
