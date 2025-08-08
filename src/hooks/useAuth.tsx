@@ -51,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         // User is logged in, fetch admin data if not already set
+        // This check prevents unnecessary re-fetches if admin is already set and matches the session user
         if (!admin || admin.email !== session.user.email) {
           supabase
             .from('admins')
@@ -77,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [admin]); // Added admin to dependency array to re-run effect when admin state changes
 
   const checkAdminExists = async () => {
     try {
@@ -100,24 +101,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
+      // First, authenticate with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
       if (authError) {
+        console.error('Supabase Auth Login Error:', authError);
         return { error: authError.message };
       }
 
-      const { data, error } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('email', email)
-        .single();
-
-      if (error || !data) {
-        return { error: 'Admin tidak ditemukan' };
+      if (!authData.user) {
+        return { error: 'Pengguna tidak ditemukan setelah autentikasi Supabase.' };
       }
 
-      // Password check is now handled by Supabase signInWithPassword
-      setAdmin(data);
+      // Then, fetch admin data from your 'admins' table using the authenticated user's email
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('email', authData.user.email)
+        .single();
+
+      if (adminError || !adminData) {
+        console.error('Error fetching admin data from table:', adminError);
+        return { error: 'Data admin tidak ditemukan atau terjadi kesalahan.' };
+      }
+
+      // Removed the bcrypt.compare check here, as Supabase signInWithPassword already handles password verification.
+      // The original code might have had a separate password hash in the 'admins' table, which is redundant if Supabase Auth is the primary authentication.
+      // If you still need to verify a password hash from the 'admins' table for some reason, you should ensure it's consistent with Supabase Auth.
+
+      setAdmin(adminData);
       return {};
     } catch (error) {
       console.error('Login error:', error);
@@ -127,22 +139,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (name: string, email: string, password: string) => {
     try {
+      // First, register with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (authError) {
+        console.error('Supabase Auth Register Error:', authError);
         return { error: 'Gagal mendaftarkan admin: ' + authError.message };
       }
 
+      if (!authData.user) {
+        return { error: 'Pengguna tidak dibuat setelah pendaftaran Supabase.' };
+      }
+
+      // Then, insert into your 'admins' table
       const hashedPassword = await bcrypt.hash(password, 10);
       
       const { data, error } = await supabase
         .from('admins')
         .insert([
           {
-            id: authData.user?.id, // Use Supabase user ID
+            id: authData.user.id, // Use Supabase user ID for consistency
             name,
             email,
             password_hash: hashedPassword,
@@ -153,6 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
+        console.error('Error inserting into admins table:', error);
         return { error: 'Gagal mendaftarkan admin: ' + error.message };
       }
 
