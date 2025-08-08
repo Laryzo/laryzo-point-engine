@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Share2, AlertTriangle } from 'lucide-react';
+import { Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,7 +16,8 @@ interface Column {
 interface EnhancedTableProps {
   data: any[];
   columns: Column[];
-  onShare?: (item: any) => void;
+  onEdit?: (item: any) => void;
+  onDelete?: (item: any) => Promise<void>;
   renderEditModal?: (item: any, onClose: () => void) => React.ReactNode;
   loading?: boolean;
   emptyMessage?: string;
@@ -26,14 +27,18 @@ interface EnhancedTableProps {
 export const EnhancedTable: React.FC<EnhancedTableProps> = ({
   data,
   columns,
-  onShare,
+  onEdit,
+  onDelete,
   renderEditModal,
   loading = false,
   emptyMessage = "Tidak ada data",
   title = "Data"
 }) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<'share' | null>(null);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [deletingItem, setDeletingItem] = useState<any>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'edit' | 'delete' | null>(null);
   
   const { admin } = useAuth();
   const { toast } = useToast();
@@ -61,27 +66,113 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
     setSelectedItems(newSelected);
   };
 
-  const handleShareClick = (item: any) => {
-    if (onShare) {
-      onShare(item);
+  const handleEditClick = (item: any) => {
+    if (admin?.role !== 'admin' && admin?.role !== 'super_admin') {
+      toast({
+        title: "Error",
+        description: "Anda tidak memiliki izin untuk mengedit data",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEditingItem(item);
+    if (onEdit) {
+      onEdit(item);
     }
   };
 
-  const handleBulkShare = () => {
+  const handleDeleteClick = (item: any) => {
+    if (admin?.role !== 'super_admin') {
+      toast({
+        title: "Error",
+        description: "Hanya Super Admin yang dapat menghapus data",
+        variant: "destructive",
+      });
+      return;
+    }
+    setDeletingItem(item);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDelete = async () => {
+    if (deletingItem && onDelete) {
+      try {
+        await onDelete(deletingItem);
+        setShowDeleteConfirmation(false);
+        setDeletingItem(null);
+      } catch (error) {
+        console.error('Error deleting item:', error);
+      }
+    }
+  };
+
+  const handleBulkEdit = () => {
     if (selectedItems.size === 0) {
       toast({
         title: "Info",
-        description: "Pilih item yang ingin dibagikan",
+        description: "Pilih item yang ingin diedit",
       });
       return;
     }
     
-    setBulkAction('share');
-    // Implement bulk share logic here
+    if (admin?.role !== 'admin' && admin?.role !== 'super_admin') {
+      toast({
+        title: "Error",
+        description: "Anda tidak memiliki izin untuk mengedit data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBulkAction('edit');
+    // Implement bulk edit logic here
     toast({
       title: "Info",
-      description: `${selectedItems.size} item dipilih untuk dibagikan`,
+      description: `${selectedItems.size} item dipilih untuk diedit`,
     });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) {
+      toast({
+        title: "Info",
+        description: "Pilih item yang ingin dihapus",
+      });
+      return;
+    }
+
+    if (admin?.role !== 'super_admin') {
+      toast({
+        title: "Error",
+        description: "Hanya Super Admin yang dapat menghapus data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm(`Hapus ${selectedItems.size} item? Data ini tidak dapat dikembalikan.`)) {
+      return;
+    }
+
+    try {
+      for (const itemId of selectedItems) {
+        const item = data.find(d => d.id === itemId);
+        if (item && onDelete) {
+          await onDelete(item);
+        }
+      }
+      setSelectedItems(new Set());
+      toast({
+        title: "Berhasil",
+        description: `${selectedItems.size} item berhasil dihapus`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal menghapus beberapa item",
+        variant: "destructive",
+      });
+    }
   };
 
   const isAllSelected = data.length > 0 && selectedItems.size === data.length;
@@ -115,11 +206,19 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleBulkShare}
+            onClick={handleBulkEdit}
             className="ml-auto"
           >
-            <Share2 className="w-4 h-4 mr-2" />
-            Bagikan Terpilih
+            <Edit className="w-4 h-4 mr-2" />
+            Edit Terpilih
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBulkDelete}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Hapus Terpilih
           </Button>
         </div>
       )}
@@ -160,10 +259,21 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
                 <div className="flex items-center gap-2">
                   <Checkbox
                     checked={false}
-                    onCheckedChange={(checked) => checked && handleShareClick(item)}
-                    aria-label="Share"
+                    onCheckedChange={(checked) => checked && handleEditClick(item)}
+                    aria-label="Edit"
                   />
-                  <span className="text-xs text-muted-foreground">Bagikan</span>
+                  <span className="text-xs text-muted-foreground">Edit</span>
+                  
+                  {admin?.role === 'super_admin' && (
+                    <>
+                      <Checkbox
+                        checked={false}
+                        onCheckedChange={(checked) => checked && handleDeleteClick(item)}
+                        aria-label="Delete"
+                      />
+                      <span className="text-xs text-muted-foreground">Hapus</span>
+                    </>
+                  )}
                 </div>
               </TableCell>
             </TableRow>
@@ -171,6 +281,43 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
         </TableBody>
       </Table>
 
+      {/* Edit Modal */}
+      {editingItem && renderEditModal && (
+        <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
+          <DialogContent className="sm:max-w-[425px]">
+            {renderEditModal(editingItem, () => setEditingItem(null))}
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Konfirmasi Hapus
+            </DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus item ini? Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirmation(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+            >
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

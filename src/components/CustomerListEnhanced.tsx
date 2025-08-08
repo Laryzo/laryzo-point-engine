@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { EnhancedTable } from '@/components/ui/enhanced-table';
-import { Users, Mail, Phone, Award, Share2 } from 'lucide-react';
+import { Users, Mail, Phone, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
@@ -118,43 +118,29 @@ export const CustomerListEnhanced = () => {
     }
   };
 
-  const handleShare = async (customer: Customer) => {
-    const shareData = {
-      title: `Customer: ${customer.name}`,
-      text: `Informasi Customer Laryzo Point Engine\n\nNama: ${customer.name}\nEmail: ${customer.email || 'Tidak ada'}\nWhatsApp: ${customer.whatsapp || 'Tidak ada'}\nTotal Points: ${customer.totalPoints?.toFixed(2) || '0.00'}`,
-      url: window.location.href
-    };
+  const handleDelete = async (customer: Customer) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customer.id);
 
-    if (navigator.share && navigator.canShare(shareData)) {
-      try {
-        await navigator.share(shareData);
-        toast({
-          title: "Berhasil",
-          description: "Data customer berhasil dibagikan",
-        });
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Error sharing:', error);
-          fallbackShare(shareData.text);
-        }
-      }
-    } else {
-      fallbackShare(shareData.text);
-    }
-  };
+      if (error) throw error;
 
-  const fallbackShare = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
       toast({
         title: "Berhasil",
-        description: "Data customer berhasil disalin ke clipboard",
+        description: `Customer ${customer.name} berhasil dihapus`,
       });
-    }).catch(() => {
+
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error deleting customer:', error);
       toast({
-        title: "Info",
-        description: "Silakan salin data customer secara manual",
+        title: "Error",
+        description: "Gagal menghapus customer",
+        variant: "destructive",
       });
-    });
+    }
   };
 
   const columns = [
@@ -305,7 +291,8 @@ export const CustomerListEnhanced = () => {
         <EnhancedTable
           data={customers}
           columns={columns}
-          onShare={handleShare}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
           renderEditModal={renderEditModal}
           loading={loading}
           emptyMessage="Tambahkan customer pertama Anda"

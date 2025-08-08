@@ -4,8 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Share2, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Edit, Trash2, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { TransactionEditForm } from './TransactionEditForm';
 
 interface Transaction {
   id: string;
@@ -26,6 +27,7 @@ interface Customer {
 export const TransactionList = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const { admin } = useAuth();
   const { toast } = useToast();
 
@@ -61,44 +63,52 @@ export const TransactionList = () => {
     }
   };
 
-  const handleShare = async (transaction: Transaction) => {
-    const total = (transaction.margin || 0) * (transaction.qty || 0);
-    const shareData = {
-      title: `Transaksi: ${transaction.product_name}`,
-      text: `Informasi Transaksi Laryzo Point Engine\n\nProduk: ${transaction.product_name}\nKode: ${transaction.product_code}\nJenis: ${transaction.product_type || 'Tidak ada'}\nCustomer: ${getCustomerName(transaction)}\nMargin: Rp ${(transaction.margin || 0).toLocaleString()}\nQty: ${transaction.qty}\nTotal: Rp ${total.toLocaleString()}\nTanggal: ${new Date(transaction.created_at).toLocaleDateString('id-ID')}`,
-      url: window.location.href
-    };
-
-    if (navigator.share && navigator.canShare(shareData)) {
-      try {
-        await navigator.share(shareData);
-        toast({
-          title: "Berhasil",
-          description: "Data transaksi berhasil dibagikan",
-        });
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Error sharing:', error);
-          fallbackShare(shareData.text);
-        }
-      }
-    } else {
-      fallbackShare(shareData.text);
-    }
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
   };
 
-  const fallbackShare = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
+  const handleEditSuccess = () => {
+    setEditingTransaction(null);
+    fetchData();
+  };
+
+  const handleDelete = async (id: string, productName: string) => {
+    // Only super admin can delete
+    if (admin?.role !== 'super_admin') {
+      toast({
+        title: "Error",
+        description: "Hanya Super Admin yang dapat menghapus transaksi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm(`Hapus transaksi ${productName}? Data ini tidak dapat dikembalikan.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
       toast({
         title: "Berhasil",
-        description: "Data transaksi berhasil disalin ke clipboard",
+        description: `Transaksi ${productName} berhasil dihapus`,
       });
-    }).catch(() => {
+
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
       toast({
-        title: "Info",
-        description: "Silakan salin data transaksi secara manual",
+        title: "Error",
+        description: "Gagal menghapus transaksi",
+        variant: "destructive",
       });
-    });
+    }
   };
 
   const getCustomerName = (transaction: any) => {
@@ -197,11 +207,19 @@ export const TransactionList = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleShare(transaction)}
-                        title="Bagikan data transaksi"
+                        onClick={() => handleEdit(transaction)}
                       >
-                        <Share2 className="w-3 h-3" />
+                        <Edit className="w-3 h-3" />
                       </Button>
+                      {admin?.role === 'super_admin' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDelete(transaction.id, transaction.product_name)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -210,6 +228,14 @@ export const TransactionList = () => {
           </TableBody>
         </Table>
       </CardContent>
+      
+      {editingTransaction && (
+        <TransactionEditForm 
+          transaction={editingTransaction}
+          onClose={() => setEditingTransaction(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </Card>
   );
 };

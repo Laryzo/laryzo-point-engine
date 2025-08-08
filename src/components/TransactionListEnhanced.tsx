@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EnhancedTable } from '@/components/ui/enhanced-table';
-import { ShoppingCart, TrendingUp, Share2 } from 'lucide-react';
+import { ShoppingCart, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TransactionEditForm } from './TransactionEditForm';
 
@@ -68,44 +68,29 @@ export const TransactionListEnhanced = () => {
     fetchData();
   };
 
-  const handleShare = async (transaction: Transaction) => {
-    const total = (transaction.margin || 0) * (transaction.qty || 0);
-    const shareData = {
-      title: `Transaksi: ${transaction.product_name}`,
-      text: `Informasi Transaksi Laryzo Point Engine\n\nProduk: ${transaction.product_name}\nKode: ${transaction.product_code}\nJenis: ${transaction.product_type || 'Tidak ada'}\nCustomer: ${getCustomerName(transaction)}\nMargin: Rp ${(transaction.margin || 0).toLocaleString()}\nQty: ${transaction.qty}\nTotal: Rp ${total.toLocaleString()}\nTanggal: ${new Date(transaction.created_at).toLocaleDateString('id-ID')}`,
-      url: window.location.href
-    };
+  const handleDelete = async (transaction: Transaction) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', transaction.id);
 
-    if (navigator.share && navigator.canShare(shareData)) {
-      try {
-        await navigator.share(shareData);
-        toast({
-          title: "Berhasil",
-          description: "Data transaksi berhasil dibagikan",
-        });
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Error sharing:', error);
-          fallbackShare(shareData.text);
-        }
-      }
-    } else {
-      fallbackShare(shareData.text);
-    }
-  };
+      if (error) throw error;
 
-  const fallbackShare = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
       toast({
         title: "Berhasil",
-        description: "Data transaksi berhasil disalin ke clipboard",
+        description: `Transaksi ${transaction.product_name} berhasil dihapus`,
       });
-    }).catch(() => {
+
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
       toast({
-        title: "Info",
-        description: "Silakan salin data transaksi secara manual",
+        title: "Error",
+        description: "Gagal menghapus transaksi",
+        variant: "destructive",
       });
-    });
+    }
   };
 
   const getCustomerName = (transaction: Transaction) => {
@@ -184,7 +169,8 @@ export const TransactionListEnhanced = () => {
           <EnhancedTable
             data={transactions}
             columns={columns}
-            onShare={handleShare}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
             loading={loading}
             emptyMessage="Tambahkan transaksi pertama Anda"
             title="Transaksi"
