@@ -28,7 +28,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isFirstAdmin, setIsFirstAdmin] = useState(false);
 
   useEffect(() => {
+    const checkAuthSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (session) {
+        const { data: adminData, error: adminError } = await supabase
+          .from('admins')
+          .select('*')
+          .eq('email', session.user.email)
+          .single();
+
+        if (adminData) {
+          setAdmin(adminData);
+        } else if (adminError) {
+          console.error('Error fetching admin data:', adminError);
+        }
+      }
+      setLoading(false);
+    };
+
+    checkAuthSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        // User is logged in, fetch admin data if not already set
+        if (!admin || admin.email !== session.user.email) {
+          supabase
+            .from('admins')
+            .select('*')
+            .eq('email', session.user.email)
+            .single()
+            .then(({ data: adminData, error: adminError }) => {
+              if (adminData) {
+                setAdmin(adminData);
+              } else if (adminError) {
+                console.error('Error fetching admin data on auth state change:', adminError);
+              }
+            });
+        }
+      } else {
+        // User is logged out
+        setAdmin(null);
+      }
+      setLoading(false);
+    });
+
     checkAdminExists();
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const checkAdminExists = async () => {
@@ -47,13 +95,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error in checkAdminExists:', error);
       setIsFirstAdmin(true);
-    } finally {
-      setLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
     try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (authError) {
+        return { error: authError.message };
+      }
+
       const { data, error } = await supabase
         .from('admins')
         .select('*')
@@ -64,12 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: 'Admin tidak ditemukan' };
       }
 
-      const isValidPassword = await bcrypt.compare(password, data.password_hash);
-      
-      if (!isValidPassword) {
-        return { error: 'Password salah' };
-      }
-
+      // Password check is now handled by Supabase signInWithPassword
       setAdmin(data);
       return {};
     } catch (error) {
@@ -80,12 +127,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (name: string, email: string, password: string) => {
     try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (authError) {
+        return { error: 'Gagal mendaftarkan admin: ' + authError.message };
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
       
       const { data, error } = await supabase
         .from('admins')
         .insert([
           {
+            id: authData.user?.id, // Use Supabase user ID
             name,
             email,
             password_hash: hashedPassword,
@@ -108,8 +165,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    setAdmin(null);
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error logging out:', error);
+    } else {
+      setAdmin(null);
+    }
   };
 
   const resetSystem = async () => {
@@ -152,3 +214,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
