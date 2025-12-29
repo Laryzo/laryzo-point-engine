@@ -14,7 +14,179 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admins: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          name: string | null
+          password_hash: string
+          role: Database["public"]["Enums"]["admin_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          name?: string | null
+          password_hash: string
+          role?: Database["public"]["Enums"]["admin_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string | null
+          password_hash?: string
+          role?: Database["public"]["Enums"]["admin_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string | null
+          parent_id: string | null
+          points: number | null
+          position: Database["public"]["Enums"]["customer_position"] | null
+          updated_at: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          parent_id?: string | null
+          points?: number | null
+          position?: Database["public"]["Enums"]["customer_position"] | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          parent_id?: string | null
+          points?: number | null
+          position?: Database["public"]["Enums"]["customer_position"] | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      point_history: {
+        Row: {
+          created_at: string | null
+          from_customer: string | null
+          id: string
+          level: number | null
+          points: number | null
+          product_code: string | null
+          to_customer: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          from_customer?: string | null
+          id?: string
+          level?: number | null
+          points?: number | null
+          product_code?: string | null
+          to_customer?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          from_customer?: string | null
+          id?: string
+          level?: number | null
+          points?: number | null
+          product_code?: string | null
+          to_customer?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_history_from_customer_fkey"
+            columns: ["from_customer"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_history_to_customer_fkey"
+            columns: ["to_customer"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_history_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          id: string
+          margin: number | null
+          product_code: string | null
+          product_name: string | null
+          product_type: string | null
+          qty: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          margin?: number | null
+          product_code?: string | null
+          product_name?: string | null
+          product_type?: string | null
+          qty?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          margin?: number | null
+          product_code?: string | null
+          product_name?: string | null
+          product_type?: string | null
+          qty?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +195,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      admin_role: "admin" | "super_admin"
+      customer_position: "left" | "right"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +323,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      admin_role: ["admin", "super_admin"],
+      customer_position: ["left", "right"],
+    },
   },
 } as const
