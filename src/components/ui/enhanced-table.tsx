@@ -183,12 +183,21 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
       return;
     }
 
-    setBulkAction('edit');
-    // Implement bulk edit logic here
-    toast({
-      title: "Info",
-      description: `${selectedItems.size} item dipilih untuk diedit`,
-    });
+    // If only one item selected, open edit modal directly
+    if (selectedItems.size === 1) {
+      const itemId = Array.from(selectedItems)[0];
+      const item = filteredData.find(d => d.id === itemId);
+      if (item && onEdit) {
+        onEdit(item);
+        setSelectedItems(new Set());
+      }
+    } else {
+      // Multiple items selected
+      toast({
+        title: "Info",
+        description: `Pilih hanya 1 item untuk diedit`,
+      });
+    }
   };
 
   const handleBulkDelete = async () => {
