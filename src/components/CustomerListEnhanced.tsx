@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { EnhancedTable } from '@/components/ui/enhanced-table';
+import { ShareWhatsAppModal } from '@/components/ShareWhatsAppModal';
 import { Users, Mail, Phone, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -30,6 +31,8 @@ export const CustomerListEnhanced = () => {
   const [editWhatsapp, setEditWhatsapp] = useState('');
   const [editParentId, setEditParentId] = useState('');
   const [editPosition, setEditPosition] = useState('');
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [customersToShare, setCustomersToShare] = useState<Customer[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -141,6 +144,11 @@ export const CustomerListEnhanced = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleShareWhatsApp = (selectedCustomers: Customer[]) => {
+    setCustomersToShare(selectedCustomers);
+    setShowWhatsAppModal(true);
   };
 
   const columns = [
@@ -293,12 +301,20 @@ export const CustomerListEnhanced = () => {
           columns={columns}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onShareWhatsApp={handleShareWhatsApp}
+          shareWhatsAppEnabled={true}
           renderEditModal={renderEditModal}
           loading={loading}
           emptyMessage="Tambahkan customer pertama Anda"
           title="Customer"
         />
       </CardContent>
+
+      <ShareWhatsAppModal
+        open={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        customers={customersToShare}
+      />
     </Card>
   );
 };
