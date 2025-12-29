@@ -6,10 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EnhancedTable } from '@/components/ui/enhanced-table';
 import { ShareWhatsAppModal } from '@/components/ShareWhatsAppModal';
-import { Users, Mail, Phone, Award } from 'lucide-react';
+import { Users, Mail, Phone, Award, Download, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 
 interface Customer {
   id: string;
@@ -149,6 +151,38 @@ export const CustomerListEnhanced = () => {
   const handleShareWhatsApp = (selectedCustomers: Customer[]) => {
     setCustomersToShare(selectedCustomers);
     setShowWhatsAppModal(true);
+  };
+
+  const formatCustomersForExport = (customersToExport: Customer[]) => {
+    return customersToExport.map(customer => ({
+      'Nama': customer.name || '-',
+      'Email': customer.email || '-',
+      'WhatsApp': customer.whatsapp || '-',
+      'Parent': customers.find(c => c.id === customer.parent_id)?.name || '-',
+      'Posisi': customer.position?.toUpperCase() || '-',
+      'Total Poin': customer.totalPoints?.toFixed(2) || '0.00',
+      'Tanggal Dibuat': new Date(customer.created_at).toLocaleDateString('id-ID')
+    }));
+  };
+
+  const handleExport = (selectedCustomers: Customer[], format: 'csv' | 'excel') => {
+    const exportData = formatCustomersForExport(selectedCustomers);
+    const filename = `customers_${new Date().toISOString().split('T')[0]}`;
+    
+    if (format === 'csv') {
+      exportToCSV(exportData, filename);
+    } else {
+      exportToExcel(exportData, filename);
+    }
+    
+    toast({
+      title: "Berhasil",
+      description: `${selectedCustomers.length} customer berhasil di-export ke ${format.toUpperCase()}`,
+    });
+  };
+
+  const exportAllCustomers = (format: 'csv' | 'excel') => {
+    handleExport(customers, format);
   };
 
   const columns = [
@@ -292,8 +326,26 @@ export const CustomerListEnhanced = () => {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Daftar Customer ({customers.length})</CardTitle>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export Semua
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => exportAllCustomers('csv')}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Export CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => exportAllCustomers('excel')}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Export Excel (.xlsx)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </CardHeader>
       <CardContent>
         <EnhancedTable
@@ -303,6 +355,8 @@ export const CustomerListEnhanced = () => {
           onDelete={handleDelete}
           onShareWhatsApp={handleShareWhatsApp}
           shareWhatsAppEnabled={true}
+          onExport={handleExport}
+          exportEnabled={true}
           renderEditModal={renderEditModal}
           loading={loading}
           emptyMessage="Tambahkan customer pertama Anda"

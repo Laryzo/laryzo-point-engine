@@ -3,7 +3,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Edit, Trash2, AlertTriangle, MessageCircle } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Edit, Trash2, AlertTriangle, MessageCircle, Download, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,6 +21,8 @@ interface EnhancedTableProps {
   onDelete?: (item: any) => Promise<void>;
   onShareWhatsApp?: (items: any[]) => void;
   shareWhatsAppEnabled?: boolean;
+  onExport?: (items: any[], format: 'csv' | 'excel') => void;
+  exportEnabled?: boolean;
   renderEditModal?: (item: any, onClose: () => void) => React.ReactNode;
   loading?: boolean;
   emptyMessage?: string;
@@ -33,6 +36,8 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
   onDelete,
   onShareWhatsApp,
   shareWhatsAppEnabled = false,
+  onExport,
+  exportEnabled = false,
   renderEditModal,
   loading = false,
   emptyMessage = "Tidak ada data",
@@ -194,6 +199,21 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
     }
   };
 
+  const handleExport = (format: 'csv' | 'excel') => {
+    if (selectedItems.size === 0) {
+      toast({
+        title: "Info",
+        description: "Pilih item yang ingin di-export",
+      });
+      return;
+    }
+
+    const selectedData = data.filter(d => selectedItems.has(d.id));
+    if (onExport) {
+      onExport(selectedData, format);
+    }
+  };
+
   const isAllSelected = data.length > 0 && selectedItems.size === data.length;
   const isIndeterminate = selectedItems.size > 0 && selectedItems.size < data.length;
 
@@ -233,11 +253,35 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
               Share WhatsApp ({selectedItems.size})
             </Button>
           )}
+          {exportEnabled && onExport && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`bg-emerald-600 text-white hover:bg-emerald-700 ${!shareWhatsAppEnabled ? "ml-auto" : ""}`}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export ({selectedItems.size})
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleExport('csv')}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('excel')}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Export Excel (.xlsx)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button
             variant="outline"
             size="sm"
             onClick={handleBulkEdit}
-            className={!shareWhatsAppEnabled ? "ml-auto" : ""}
+            className={!shareWhatsAppEnabled && !exportEnabled ? "ml-auto" : ""}
           >
             <Edit className="w-4 h-4 mr-2" />
             Edit Terpilih
