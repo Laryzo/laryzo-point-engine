@@ -19,6 +19,8 @@ interface Transaction {
   product_type: string;
   qty: number;
   margin: number;
+  harga_konsumen?: number;
+  harga_pokok?: number;
   customer_id: string;
 }
 
@@ -33,10 +35,14 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
   const [productName, setProductName] = useState(transaction.product_name || '');
   const [productType, setProductType] = useState(transaction.product_type || '');
   const [qty, setQty] = useState(transaction.qty || 1);
-  const [margin, setMargin] = useState(transaction.margin || 0);
+  const [hargaKonsumen, setHargaKonsumen] = useState(transaction.harga_konsumen || 0);
+  const [hargaPokok, setHargaPokok] = useState(transaction.harga_pokok || 0);
   const [customerId, setCustomerId] = useState(transaction.customer_id || '');
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
+
+  // Auto-calculate profit
+  const profit = hargaKonsumen - hargaPokok;
 
   useEffect(() => {
     fetchCustomers();
@@ -56,7 +62,7 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
     }
   };
 
-  const recalculatePoints = async (transactionId: string, customerId: string, margin: number, productCode: string) => {
+  const recalculatePoints = async (transactionId: string, customerId: string, calculatedProfit: number, productCode: string) => {
     try {
       // First, delete existing point history for this transaction
       await supabase
@@ -65,7 +71,7 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
         .eq('transaction_id', transactionId);
 
       // Give 1% points to the customer who made the transaction
-      const customerPoints = margin * 0.01;
+      const customerPoints = calculatedProfit * 0.01;
       await supabase.from('point_history').insert({
         transaction_id: transactionId,
         from_customer: customerId,
@@ -84,7 +90,7 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
           .from('customers')
           .select('parent_id')
           .eq('id', currentCustomer)
-          .single();
+          .maybeSingle();
 
         // If no parent found, stop distribution
         if (!customer?.parent_id) {
@@ -92,7 +98,7 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
         }
 
         // Give 1% points to parent
-        const uplinePoints = margin * 0.01;
+        const uplinePoints = calculatedProfit * 0.01;
         await supabase.from('point_history').insert({
           transaction_id: transactionId,
           from_customer: customerId,
@@ -124,15 +130,17 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
           product_name: productName,
           product_type: productType,
           qty,
-          margin,
+          margin: profit,
+          harga_konsumen: hargaKonsumen,
+          harga_pokok: hargaPokok,
           customer_id: customerId,
         })
         .eq('id', transaction.id);
 
       if (updateError) throw updateError;
 
-      // Recalculate points based on updated transaction
-      await recalculatePoints(transaction.id, customerId, margin, productCode);
+      // Recalculate points based on updated transaction profit
+      await recalculatePoints(transaction.id, customerId, profit, productCode);
 
       toast({
         title: "Success",
@@ -208,16 +216,37 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="margin">Margin (Rp) *</Label>
+              <Label htmlFor="hargaKonsumen">Harga Konsumen (Rp) *</Label>
               <Input
-                id="margin"
+                id="hargaKonsumen"
                 type="number"
                 min="0"
-                value={margin}
-                onChange={(e) => setMargin(parseFloat(e.target.value) || 0)}
-                placeholder="50000"
+                value={hargaKonsumen}
+                onChange={(e) => setHargaKonsumen(parseFloat(e.target.value) || 0)}
+                placeholder="100000"
                 required
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="hargaPokok">Harga Pokok (Rp) *</Label>
+              <Input
+                id="hargaPokok"
+                type="number"
+                min="0"
+                value={hargaPokok}
+                onChange={(e) => setHargaPokok(parseFloat(e.target.value) || 0)}
+                placeholder="80000"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Profit (Rp)</Label>
+              <div className={`p-2 rounded border ${profit >= 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                Rp {profit.toLocaleString()}
+              </div>
             </div>
           </div>
 

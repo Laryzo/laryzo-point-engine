@@ -23,10 +23,14 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
   const [productName, setProductName] = useState('');
   const [productType, setProductType] = useState('');
   const [qty, setQty] = useState(1);
-  const [margin, setMargin] = useState(0);
+  const [hargaKonsumen, setHargaKonsumen] = useState(0);
+  const [hargaPokok, setHargaPokok] = useState(0);
   const [customerId, setCustomerId] = useState('');
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
+
+  // Auto-calculate profit (margin)
+  const profit = hargaKonsumen - hargaPokok;
 
   useEffect(() => {
     fetchCustomers();
@@ -46,10 +50,10 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
     }
   };
 
-  const distributePoints = async (transactionId: string, customerId: string, margin: number) => {
+  const distributePoints = async (transactionId: string, customerId: string, calculatedProfit: number) => {
     try {
       // Give 1% points to the customer who made the transaction
-      const customerPoints = margin * 0.01;
+      const customerPoints = calculatedProfit * 0.01;
       await supabase.from('point_history').insert({
         transaction_id: transactionId,
         from_customer: customerId,
@@ -68,7 +72,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
           .from('customers')
           .select('parent_id')
           .eq('id', currentCustomer)
-          .single();
+          .maybeSingle();
 
         // If no parent found, stop distribution
         if (!customer?.parent_id) {
@@ -76,7 +80,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
         }
 
         // Give 1% points to parent
-        const uplinePoints = margin * 0.01;
+        const uplinePoints = calculatedProfit * 0.01;
         await supabase.from('point_history').insert({
           transaction_id: transactionId,
           from_customer: customerId,
@@ -106,7 +110,9 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
           product_name: productName,
           product_type: productType,
           qty,
-          margin,
+          margin: profit,
+          harga_konsumen: hargaKonsumen,
+          harga_pokok: hargaPokok,
           customer_id: customerId,
         }])
         .select()
@@ -114,8 +120,8 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
 
       if (error) throw error;
 
-      // Distribute points based on transaction
-      await distributePoints(transaction.id, customerId, margin);
+      // Distribute points based on transaction profit
+      await distributePoints(transaction.id, customerId, profit);
 
       toast({
         title: "Success",
@@ -191,16 +197,37 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="margin">Margin (Rp) *</Label>
+              <Label htmlFor="hargaKonsumen">Harga Konsumen (Rp) *</Label>
               <Input
-                id="margin"
+                id="hargaKonsumen"
                 type="number"
                 min="0"
-                value={margin}
-                onChange={(e) => setMargin(parseFloat(e.target.value) || 0)}
-                placeholder="50000"
+                value={hargaKonsumen}
+                onChange={(e) => setHargaKonsumen(parseFloat(e.target.value) || 0)}
+                placeholder="100000"
                 required
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="hargaPokok">Harga Pokok (Rp) *</Label>
+              <Input
+                id="hargaPokok"
+                type="number"
+                min="0"
+                value={hargaPokok}
+                onChange={(e) => setHargaPokok(parseFloat(e.target.value) || 0)}
+                placeholder="80000"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Profit (Rp)</Label>
+              <div className={`p-2 rounded border ${profit >= 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                Rp {profit.toLocaleString()}
+              </div>
             </div>
           </div>
 

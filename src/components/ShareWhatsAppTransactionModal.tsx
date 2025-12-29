@@ -14,6 +14,8 @@ interface Transaction {
   product_code: string;
   product_type: string;
   margin: number;
+  harga_konsumen?: number;
+  harga_pokok?: number;
   qty: number;
   customer_id: string;
   created_at: string;
@@ -36,7 +38,8 @@ Detail Transaksi Anda:
 📦 Produk: {produk}
 🔖 Kode: {kode}
 📊 Qty: {qty}
-💰 Total: Rp {total}
+💰 Harga: Rp {harga}
+💵 Total: Rp {total}
 📅 Tanggal: {tanggal}
 
 Terima kasih atas transaksi Anda!`;
@@ -54,13 +57,14 @@ export const ShareWhatsAppTransactionModal: React.FC<ShareWhatsAppTransactionMod
   const invalidTransactions = transactions.filter(t => !t.customers?.whatsapp);
 
   const formatMessage = (transaction: Transaction): string => {
-    const total = (transaction.margin || 0) * (transaction.qty || 0);
+    const hargaKonsumen = transaction.harga_konsumen || 0;
+    const total = hargaKonsumen * (transaction.qty || 0);
     return template
       .replace(/{customer}/g, transaction.customers?.name || 'Customer')
       .replace(/{produk}/g, transaction.product_name || '-')
       .replace(/{kode}/g, transaction.product_code || '-')
       .replace(/{jenis}/g, transaction.product_type || '-')
-      .replace(/{margin}/g, (transaction.margin || 0).toLocaleString())
+      .replace(/{harga}/g, hargaKonsumen.toLocaleString())
       .replace(/{qty}/g, String(transaction.qty || 0))
       .replace(/{total}/g, total.toLocaleString())
       .replace(/{tanggal}/g, new Date(transaction.created_at).toLocaleDateString('id-ID'));
@@ -140,6 +144,7 @@ export const ShareWhatsAppTransactionModal: React.FC<ShareWhatsAppTransactionMod
               <code className="bg-muted px-1 rounded">{'{produk}'}</code>{' '}
               <code className="bg-muted px-1 rounded">{'{kode}'}</code>{' '}
               <code className="bg-muted px-1 rounded">{'{qty}'}</code>{' '}
+              <code className="bg-muted px-1 rounded">{'{harga}'}</code>{' '}
               <code className="bg-muted px-1 rounded">{'{total}'}</code>{' '}
               <code className="bg-muted px-1 rounded">{'{tanggal}'}</code>
             </p>

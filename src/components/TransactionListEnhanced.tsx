@@ -16,6 +16,8 @@ interface Transaction {
   product_code: string;
   product_type: string;
   margin: number;
+  harga_konsumen?: number;
+  harga_pokok?: number;
   qty: number;
   customer_id: string;
   created_at: string;
@@ -111,9 +113,11 @@ export const TransactionListEnhanced = () => {
       'Kode Produk': tx.product_code || '-',
       'Jenis': tx.product_type || '-',
       'Customer': tx.customers?.name || '-',
-      'Margin': tx.margin || 0,
+      'Harga Konsumen': tx.harga_konsumen || 0,
+      'Harga Pokok': tx.harga_pokok || 0,
+      'Profit': tx.margin || 0,
       'Qty': tx.qty || 0,
-      'Total': (tx.margin || 0) * (tx.qty || 0),
+      'Total Profit': (tx.margin || 0) * (tx.qty || 0),
       'Tanggal': new Date(tx.created_at).toLocaleDateString('id-ID')
     }));
   };
@@ -173,8 +177,22 @@ export const TransactionListEnhanced = () => {
       render: (value: string, row: Transaction) => getCustomerName(row)
     },
     {
+      key: 'harga_konsumen',
+      label: 'Harga Konsumen',
+      render: (value: number) => (
+        <span>Rp {(value || 0).toLocaleString()}</span>
+      )
+    },
+    {
+      key: 'harga_pokok',
+      label: 'Harga Pokok',
+      render: (value: number) => (
+        <span>Rp {(value || 0).toLocaleString()}</span>
+      )
+    },
+    {
       key: 'margin',
-      label: 'Margin',
+      label: 'Profit',
       render: (value: number) => (
         <div className="flex items-center space-x-1">
           <TrendingUp className="w-3 h-3 text-green-600" />
@@ -188,7 +206,7 @@ export const TransactionListEnhanced = () => {
     },
     {
       key: 'total',
-      label: 'Total',
+      label: 'Total Profit',
       render: (value: any, row: Transaction) => {
         const total = (row.margin || 0) * (row.qty || 0);
         return (
