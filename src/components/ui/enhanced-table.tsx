@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Edit, Trash2, AlertTriangle, MessageCircle, Download, FileSpreadsheet } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Edit, Trash2, AlertTriangle, MessageCircle, Download, FileSpreadsheet, Search, Filter, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -13,6 +15,8 @@ interface Column {
   key: string;
   label: string;
   render?: (value: any, row: any) => React.ReactNode;
+  filterable?: boolean;
+  filterOptions?: { value: string; label: string }[];
 }
 
 interface EnhancedTableProps {
@@ -28,6 +32,7 @@ interface EnhancedTableProps {
   loading?: boolean;
   emptyMessage?: string;
   title?: string;
+  searchableColumns?: string[];
 }
 
 export const EnhancedTable: React.FC<EnhancedTableProps> = ({
@@ -42,16 +47,53 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
   renderEditModal,
   loading = false,
   emptyMessage = "Tidak ada data",
-  title = "Data"
+  title = "Data",
+  searchableColumns = []
 }) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deletingItem, setDeletingItem] = useState<any>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [bulkAction, setBulkAction] = useState<'edit' | 'delete' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [showFilters, setShowFilters] = useState(false);
   
   const { admin } = useAuth();
   const { toast } = useToast();
+
+  // Get filterable columns
+  const filterableColumns = columns.filter(col => col.filterable && col.filterOptions);
+
+  // Filter and search data
+  const filteredData = useMemo(() => {
+    let result = [...data];
+
+    // Apply search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const searchCols = searchableColumns.length > 0 
+        ? searchableColumns 
+        : columns.map(c => c.key);
+      
+      result = result.filter(item => 
+        searchCols.some(key => {
+          const value = item[key];
+          if (value === null || value === undefined) return false;
+          return String(value).toLowerCase().includes(query);
+        })
+      );
+    }
+
+    // Apply filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value !== 'all') {
+        result = result.filter(item => String(item[key]) === value);
+      }
+    });
+
+    return result;
+  }, [data, searchQuery, filters, searchableColumns, columns]);
 
   // Reset selections when data changes
   useEffect(() => {
@@ -60,11 +102,18 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedItems(new Set(data.map(item => item.id)));
+      setSelectedItems(new Set(filteredData.map(item => item.id)));
     } else {
       setSelectedItems(new Set());
     }
   };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilters({});
+  };
+
+  const hasActiveFilters = searchQuery.trim() || Object.values(filters).some(v => v && v !== 'all');
 
   const handleSelectItem = (itemId: string, checked: boolean) => {
     const newSelected = new Set(selectedItems);
@@ -215,8 +264,8 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
     }
   };
 
-  const isAllSelected = data.length > 0 && selectedItems.size === data.length;
-  const isIndeterminate = selectedItems.size > 0 && selectedItems.size < data.length;
+  const isAllSelected = filteredData.length > 0 && selectedItems.size === filteredData.length;
+  const isIndeterminate = selectedItems.size > 0 && selectedItems.size < filteredData.length;
 
   if (loading) {
     return (
@@ -237,6 +286,84 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Search and Filter Bar */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          {filterableColumns.length > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showFilters ? "secondary" : "outline"}
+                    size="icon"
+                    onClick={() => setShowFilters(!showFilters)}
+                  >
+                    <Filter className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Filter</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="text-muted-foreground"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Reset
+            </Button>
+          )}
+        </div>
+
+        {/* Filter Options */}
+        {showFilters && filterableColumns.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap p-3 bg-muted/50 rounded-lg">
+            {filterableColumns.map((col) => (
+              <div key={col.key} className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{col.label}:</span>
+                <Select
+                  value={filters[col.key] || 'all'}
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, [col.key]: value }))}
+                >
+                  <SelectTrigger className="w-[150px] h-8">
+                    <SelectValue placeholder="Semua" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua</SelectItem>
+                    {col.filterOptions?.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Results count */}
+        {hasActiveFilters && (
+          <div className="text-sm text-muted-foreground">
+            Menampilkan {filteredData.length} dari {data.length} data
+          </div>
+        )}
+      </div>
+
       {/* Bulk Actions */}
       {selectedItems.size > 0 && (
         <div className="flex items-center gap-2 p-4 bg-muted rounded-lg flex-wrap">
@@ -341,22 +468,30 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>
-                <Checkbox
-                  checked={selectedItems.has(item.id)}
-                  onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
-                  aria-label={`Select item ${item.id}`}
-                />
+          {filteredData.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={columns.length + 1} className="text-center py-8 text-muted-foreground">
+                Tidak ada data yang cocok dengan pencarian
               </TableCell>
-              {columns.map((column) => (
-                <TableCell key={column.key}>
-                  {column.render ? column.render(item[column.key], item) : item[column.key]}
-                </TableCell>
-              ))}
             </TableRow>
-          ))}
+          ) : (
+            filteredData.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedItems.has(item.id)}
+                    onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
+                    aria-label={`Select item ${item.id}`}
+                  />
+                </TableCell>
+                {columns.map((column) => (
+                  <TableCell key={column.key}>
+                    {column.render ? column.render(item[column.key], item) : item[column.key]}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
 
