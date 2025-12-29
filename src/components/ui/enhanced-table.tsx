@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Edit, Trash2, AlertTriangle } from 'lucide-react';
+import { Edit, Trash2, AlertTriangle, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,6 +18,8 @@ interface EnhancedTableProps {
   columns: Column[];
   onEdit?: (item: any) => void;
   onDelete?: (item: any) => Promise<void>;
+  onShareWhatsApp?: (items: any[]) => void;
+  shareWhatsAppEnabled?: boolean;
   renderEditModal?: (item: any, onClose: () => void) => React.ReactNode;
   loading?: boolean;
   emptyMessage?: string;
@@ -29,6 +31,8 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
   columns,
   onEdit,
   onDelete,
+  onShareWhatsApp,
+  shareWhatsAppEnabled = false,
   renderEditModal,
   loading = false,
   emptyMessage = "Tidak ada data",
@@ -175,6 +179,21 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
     }
   };
 
+  const handleShareWhatsApp = () => {
+    if (selectedItems.size === 0) {
+      toast({
+        title: "Info",
+        description: "Pilih customer yang ingin di-share",
+      });
+      return;
+    }
+
+    const selectedData = data.filter(d => selectedItems.has(d.id));
+    if (onShareWhatsApp) {
+      onShareWhatsApp(selectedData);
+    }
+  };
+
   const isAllSelected = data.length > 0 && selectedItems.size === data.length;
   const isIndeterminate = selectedItems.size > 0 && selectedItems.size < data.length;
 
@@ -199,15 +218,26 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
     <div className="space-y-4">
       {/* Bulk Actions */}
       {selectedItems.size > 0 && (
-        <div className="flex items-center gap-2 p-4 bg-muted rounded-lg">
+        <div className="flex items-center gap-2 p-4 bg-muted rounded-lg flex-wrap">
           <span className="text-sm text-muted-foreground">
             {selectedItems.size} item dipilih
           </span>
+          {shareWhatsAppEnabled && onShareWhatsApp && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShareWhatsApp}
+              className="bg-green-600 text-white hover:bg-green-700 ml-auto"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Share WhatsApp ({selectedItems.size})
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
             onClick={handleBulkEdit}
-            className="ml-auto"
+            className={!shareWhatsAppEnabled ? "ml-auto" : ""}
           >
             <Edit className="w-4 h-4 mr-2" />
             Edit Terpilih
