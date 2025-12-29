@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EnhancedTable } from '@/components/ui/enhanced-table';
-import { ShoppingCart, TrendingUp } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Download, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TransactionEditForm } from './TransactionEditForm';
+import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 
 interface Transaction {
   id: string;
@@ -97,6 +100,39 @@ export const TransactionListEnhanced = () => {
     return transaction.customers?.name || 'Customer tidak ditemukan';
   };
 
+  const formatTransactionsForExport = (transactionsToExport: Transaction[]) => {
+    return transactionsToExport.map(tx => ({
+      'Produk': tx.product_name || '-',
+      'Kode Produk': tx.product_code || '-',
+      'Jenis': tx.product_type || '-',
+      'Customer': tx.customers?.name || '-',
+      'Margin': tx.margin || 0,
+      'Qty': tx.qty || 0,
+      'Total': (tx.margin || 0) * (tx.qty || 0),
+      'Tanggal': new Date(tx.created_at).toLocaleDateString('id-ID')
+    }));
+  };
+
+  const handleExport = (selectedTransactions: Transaction[], format: 'csv' | 'excel') => {
+    const exportData = formatTransactionsForExport(selectedTransactions);
+    const filename = `transactions_${new Date().toISOString().split('T')[0]}`;
+    
+    if (format === 'csv') {
+      exportToCSV(exportData, filename);
+    } else {
+      exportToExcel(exportData, filename);
+    }
+    
+    toast({
+      title: "Berhasil",
+      description: `${selectedTransactions.length} transaksi berhasil di-export ke ${format.toUpperCase()}`,
+    });
+  };
+
+  const exportAllTransactions = (format: 'csv' | 'excel') => {
+    handleExport(transactions, format);
+  };
+
   const columns = [
     {
       key: 'product_name',
@@ -162,8 +198,26 @@ export const TransactionListEnhanced = () => {
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Riwayat Transaksi ({transactions.length})</CardTitle>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export Semua
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => exportAllTransactions('csv')}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Export CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAllTransactions('excel')}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Export Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </CardHeader>
         <CardContent>
           <EnhancedTable
@@ -171,6 +225,8 @@ export const TransactionListEnhanced = () => {
             columns={columns}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onExport={handleExport}
+            exportEnabled={true}
             loading={loading}
             emptyMessage="Tambahkan transaksi pertama Anda"
             title="Transaksi"
