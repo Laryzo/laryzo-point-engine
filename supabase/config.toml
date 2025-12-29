@@ -1,1 +1,4 @@
 project_id = "jkqtqxwtyqrlhblnaohz"
+
+[functions.calculate-points]
+verify_jwt = false
