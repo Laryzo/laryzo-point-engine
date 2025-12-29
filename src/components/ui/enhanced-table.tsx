@@ -187,8 +187,15 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
     if (selectedItems.size === 1) {
       const itemId = Array.from(selectedItems)[0];
       const item = filteredData.find(d => d.id === itemId);
-      if (item && onEdit) {
-        onEdit(item);
+      if (item) {
+        // Set editingItem for renderEditModal to work
+        if (renderEditModal) {
+          setEditingItem(item);
+        }
+        // Also call onEdit callback for parent components that handle edit externally
+        if (onEdit) {
+          onEdit(item);
+        }
         setSelectedItems(new Set());
       }
     } else {
@@ -507,7 +514,7 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
       {/* Edit Modal */}
       {editingItem && renderEditModal && (
         <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
             {renderEditModal(editingItem, () => setEditingItem(null))}
           </DialogContent>
         </Dialog>
