@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EnhancedTable } from '@/components/ui/enhanced-table';
+import { ShareWhatsAppTransactionModal } from '@/components/ShareWhatsAppTransactionModal';
 import { ShoppingCart, TrendingUp, Download, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TransactionEditForm } from './TransactionEditForm';
@@ -21,6 +22,7 @@ interface Transaction {
   customers?: {
     id: string;
     name: string;
+    whatsapp?: string;
   };
 }
 
@@ -28,6 +30,8 @@ export const TransactionListEnhanced = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [transactionsToShare, setTransactionsToShare] = useState<Transaction[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -43,7 +47,8 @@ export const TransactionListEnhanced = () => {
           *,
           customers (
             id,
-            name
+            name,
+            whatsapp
           )
         `)
         .order('created_at', { ascending: false });
@@ -131,6 +136,11 @@ export const TransactionListEnhanced = () => {
 
   const exportAllTransactions = (format: 'csv' | 'excel') => {
     handleExport(transactions, format);
+  };
+
+  const handleShareWhatsApp = (selectedTransactions: Transaction[]) => {
+    setTransactionsToShare(selectedTransactions);
+    setShowWhatsAppModal(true);
   };
 
   const columns = [
@@ -227,6 +237,8 @@ export const TransactionListEnhanced = () => {
             onDelete={handleDelete}
             onExport={handleExport}
             exportEnabled={true}
+            onShareWhatsApp={handleShareWhatsApp}
+            shareWhatsAppEnabled={true}
             loading={loading}
             emptyMessage="Tambahkan transaksi pertama Anda"
             title="Transaksi"
@@ -241,6 +253,12 @@ export const TransactionListEnhanced = () => {
           onSuccess={handleEditSuccess}
         />
       )}
+
+      <ShareWhatsAppTransactionModal
+        open={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        transactions={transactionsToShare}
+      />
     </>
   );
 };
