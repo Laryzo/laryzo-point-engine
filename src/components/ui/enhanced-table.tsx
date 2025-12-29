@@ -311,7 +311,6 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
             {columns.map((column) => (
               <TableHead key={column.key}>{column.label}</TableHead>
             ))}
-            <TableHead>Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -329,27 +328,6 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
                   {column.render ? column.render(item[column.key], item) : item[column.key]}
                 </TableCell>
               ))}
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={false}
-                    onCheckedChange={(checked) => checked && handleEditClick(item)}
-                    aria-label="Edit"
-                  />
-                  <span className="text-xs text-muted-foreground">Edit</span>
-                  
-                  {admin?.role === 'super_admin' && (
-                    <>
-                      <Checkbox
-                        checked={false}
-                        onCheckedChange={(checked) => checked && handleDeleteClick(item)}
-                        aria-label="Delete"
-                      />
-                      <span className="text-xs text-muted-foreground">Hapus</span>
-                    </>
-                  )}
-                </div>
-              </TableCell>
             </TableRow>
           ))}
         </TableBody>
