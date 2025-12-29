@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Edit, Trash2, AlertTriangle, MessageCircle, Download, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -242,58 +243,84 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
           <span className="text-sm text-muted-foreground">
             {selectedItems.size} item dipilih
           </span>
-          {shareWhatsAppEnabled && onShareWhatsApp && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleShareWhatsApp}
-              className="bg-green-600 text-white hover:bg-green-700 ml-auto"
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Share WhatsApp ({selectedItems.size})
-            </Button>
-          )}
-          {exportEnabled && onExport && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+          <TooltipProvider>
+            {shareWhatsAppEnabled && onShareWhatsApp && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleShareWhatsApp}
+                    className="bg-green-600 text-white hover:bg-green-700 ml-auto"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>WhatsApp</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {exportEnabled && onExport && (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className={`bg-emerald-600 text-white hover:bg-emerald-700 ${!shareWhatsAppEnabled ? "ml-auto" : ""}`}
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Export</p>
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleExport('csv')}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('excel')}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Export Excel (.xlsx)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button
                   variant="outline"
-                  size="sm"
-                  className={`bg-emerald-600 text-white hover:bg-emerald-700 ${!shareWhatsAppEnabled ? "ml-auto" : ""}`}
+                  size="icon"
+                  onClick={handleBulkEdit}
+                  className={!shareWhatsAppEnabled && !exportEnabled ? "ml-auto" : ""}
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export ({selectedItems.size})
+                  <Edit className="w-4 h-4" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleExport('csv')}>
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Export CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('excel')}>
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Export Excel (.xlsx)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleBulkEdit}
-            className={!shareWhatsAppEnabled && !exportEnabled ? "ml-auto" : ""}
-          >
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Terpilih
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleBulkDelete}
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Hapus Terpilih
-          </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Hapus</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )}
 
