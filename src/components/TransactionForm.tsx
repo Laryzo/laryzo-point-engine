@@ -142,7 +142,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Add New Transaction</DialogTitle>
           <DialogDescription>
@@ -150,7 +150,8 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="overflow-y-auto flex-1 pr-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="productCode">Product Code *</Label>
@@ -256,6 +257,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
             </Button>
           </div>
         </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
