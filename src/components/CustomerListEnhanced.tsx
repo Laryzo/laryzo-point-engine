@@ -96,7 +96,7 @@ export const CustomerListEnhanced = () => {
           email: editEmail || null,
           whatsapp: editWhatsapp || null,
           parent_id: editParentId === 'none' ? null : editParentId || null,
-          position: editPosition === 'none' ? null : editPosition || null,
+          position: editPosition === 'none' ? null : (editPosition as 'left' | 'right' | null),
         })
         .eq('id', editingCustomer.id);
 

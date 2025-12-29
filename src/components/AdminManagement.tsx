@@ -79,12 +79,12 @@ const AdminManagement = () => {
 
       const { error } = await supabase
         .from('admins')
-        .insert({
+        .insert([{
           name: newAdminName,
           email: newAdminEmail,
           password_hash: hashedPassword,
-          role: newAdminRole,
-        });
+          role: newAdminRole as 'admin' | 'super_admin',
+        }]);
 
       if (error) throw error;
 
