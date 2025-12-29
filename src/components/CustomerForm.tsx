@@ -154,7 +154,7 @@ export const CustomerForm = ({ onClose, onSuccess }: CustomerFormProps) => {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Tambah Customer Baru</DialogTitle>
           <DialogDescription>
@@ -162,52 +162,54 @@ export const CustomerForm = ({ onClose, onSuccess }: CustomerFormProps) => {
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nama *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nama customer"
-              required
-            />
-          </div>
+        <div className="overflow-y-auto flex-1 pr-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nama *</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nama customer"
+                required
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="customer@email.com"
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="customer@email.com"
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="whatsapp">WhatsApp</Label>
-            <Input
-              id="whatsapp"
-              value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
-              placeholder="+62xxx"
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp">WhatsApp</Label>
+              <Input
+                id="whatsapp"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="+62xxx"
+              />
+            </div>
 
-          <div className="bg-muted p-3 rounded-md text-sm text-muted-foreground">
-            Customer akan ditempatkan secara otomatis pada posisi tersedia di genealogi
-          </div>
+            <div className="bg-muted p-3 rounded-md text-sm text-muted-foreground">
+              Customer akan ditempatkan secara otomatis pada posisi tersedia di genealogi
+            </div>
 
-          <div className="flex space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Batal
-            </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Menambahkan..." : "Tambah Customer"}
-            </Button>
-          </div>
-        </form>
+            <div className="flex space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                Batal
+              </Button>
+              <Button type="submit" disabled={loading} className="flex-1">
+                {loading ? "Menambahkan..." : "Tambah Customer"}
+              </Button>
+            </div>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
