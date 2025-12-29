@@ -161,7 +161,7 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Edit Transaction</DialogTitle>
           <DialogDescription>
@@ -169,112 +169,114 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="productCode">Product Code *</Label>
-              <Input
-                id="productCode"
-                value={productCode}
-                onChange={(e) => setProductCode(e.target.value)}
-                placeholder="PROD001"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="productType">Product Type</Label>
-              <Input
-                id="productType"
-                value={productType}
-                onChange={(e) => setProductType(e.target.value)}
-                placeholder="Digital Product"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="productName">Product Name *</Label>
-            <Input
-              id="productName"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="Product name"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="qty">Quantity *</Label>
-              <Input
-                id="qty"
-                type="number"
-                min="1"
-                value={qty}
-                onChange={(e) => setQty(parseInt(e.target.value) || 1)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="hargaKonsumen">Harga Konsumen (Rp) *</Label>
-              <Input
-                id="hargaKonsumen"
-                type="number"
-                min="0"
-                value={hargaKonsumen}
-                onChange={(e) => setHargaKonsumen(parseFloat(e.target.value) || 0)}
-                placeholder="100000"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="hargaPokok">Harga Pokok (Rp) *</Label>
-              <Input
-                id="hargaPokok"
-                type="number"
-                min="0"
-                value={hargaPokok}
-                onChange={(e) => setHargaPokok(parseFloat(e.target.value) || 0)}
-                placeholder="80000"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Profit (Rp)</Label>
-              <div className={`p-2 rounded border ${profit >= 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                Rp {profit.toLocaleString()}
+        <div className="overflow-y-auto flex-1 pr-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="productCode">Product Code *</Label>
+                <Input
+                  id="productCode"
+                  value={productCode}
+                  onChange={(e) => setProductCode(e.target.value)}
+                  placeholder="PROD001"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="productType">Product Type</Label>
+                <Input
+                  id="productType"
+                  value={productType}
+                  onChange={(e) => setProductType(e.target.value)}
+                  placeholder="Digital Product"
+                />
               </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="customer">Customer *</Label>
-            <Select value={customerId} onValueChange={setCustomerId} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select customer" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="productName">Product Name *</Label>
+              <Input
+                id="productName"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="Product name"
+                required
+              />
+            </div>
 
-          <div className="flex space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Updating..." : "Update Transaction"}
-            </Button>
-          </div>
-        </form>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="qty">Quantity *</Label>
+                <Input
+                  id="qty"
+                  type="number"
+                  min="1"
+                  value={qty}
+                  onChange={(e) => setQty(parseInt(e.target.value) || 1)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="hargaKonsumen">Harga Konsumen (Rp) *</Label>
+                <Input
+                  id="hargaKonsumen"
+                  type="number"
+                  min="0"
+                  value={hargaKonsumen}
+                  onChange={(e) => setHargaKonsumen(parseFloat(e.target.value) || 0)}
+                  placeholder="100000"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="hargaPokok">Harga Pokok (Rp) *</Label>
+                <Input
+                  id="hargaPokok"
+                  type="number"
+                  min="0"
+                  value={hargaPokok}
+                  onChange={(e) => setHargaPokok(parseFloat(e.target.value) || 0)}
+                  placeholder="80000"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Profit (Rp)</Label>
+                <div className={`p-2 rounded border ${profit >= 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                  Rp {profit.toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="customer">Customer *</Label>
+              <Select value={customerId} onValueChange={setCustomerId} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex space-x-2 pt-4 pb-2">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading} className="flex-1">
+                {loading ? "Updating..." : "Update Transaction"}
+              </Button>
+            </div>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
