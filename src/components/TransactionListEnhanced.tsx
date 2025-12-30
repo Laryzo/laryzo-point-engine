@@ -163,6 +163,7 @@ export const TransactionListEnhanced = () => {
       'Kode Produk': tx.product_code || '-',
       'Jenis': tx.product_type || '-',
       'Customer': tx.customers?.name || '-',
+      'Level': tx.customerLevel ?? 0,
       'Harga Konsumen': tx.harga_konsumen || 0,
       'Harga Pokok': tx.harga_pokok || 0,
       'Profit': tx.margin || 0,
