@@ -50,7 +50,7 @@ export const CustomerListEnhanced = () => {
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('name', { ascending: true });
 
       if (customersError) throw customersError;
 
