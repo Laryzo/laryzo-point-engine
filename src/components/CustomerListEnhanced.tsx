@@ -156,7 +156,11 @@ export const CustomerListEnhanced = () => {
   };
 
   const formatCustomersForExport = (customersToExport: Customer[]) => {
-    return customersToExport.map(customer => ({
+    // Sort by created_at ascending (oldest first, newest last)
+    const sorted = [...customersToExport].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    return sorted.map(customer => ({
       'Nama': customer.name || '-',
       'Email': customer.email || '-',
       'WhatsApp': customer.whatsapp || '-',

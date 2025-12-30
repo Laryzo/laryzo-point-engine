@@ -111,7 +111,11 @@ export const TransactionListEnhanced = () => {
   };
 
   const formatTransactionsForExport = (transactionsToExport: Transaction[]) => {
-    return transactionsToExport.map(tx => ({
+    // Sort by created_at ascending (oldest first, newest last)
+    const sorted = [...transactionsToExport].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    return sorted.map(tx => ({
       'Produk': tx.product_name || '-',
       'Kode Produk': tx.product_code || '-',
       'Jenis': tx.product_type || '-',
