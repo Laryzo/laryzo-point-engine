@@ -280,8 +280,8 @@ export const ImportExcel = ({ onSuccess }: ImportExcelProps) => {
       </Button>
 
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5" />
               Import Data dari Excel
@@ -293,7 +293,6 @@ export const ImportExcel = ({ onSuccess }: ImportExcelProps) => {
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-4">
           {step === 'mapping' && (
             <div className="space-y-6">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -452,7 +451,6 @@ export const ImportExcel = ({ onSuccess }: ImportExcelProps) => {
               </div>
             </div>
           )}
-          </ScrollArea>
         </DialogContent>
       </Dialog>
     </>
