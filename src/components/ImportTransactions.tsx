@@ -247,6 +247,32 @@ export const ImportTransactions = ({ onSuccess }: ImportTransactionsProps) => {
                 <Badge variant="secondary">{excelColumns.length} kolom</Badge>
               </div>
 
+              {/* Auto-filled Fields Info */}
+              <Card className="bg-muted/50 border-dashed">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-600" />
+                    Field Terisi Otomatis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Profit:</span>
+                      <p className="font-medium">Harga Konsumen - Harga Pokok</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Total Profit:</span>
+                      <p className="font-medium">Profit × Quantity</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Tanggal:</span>
+                      <p className="font-medium">Tanggal saat import</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Transaction Mappings */}
               <Card>
                 <CardHeader className="pb-3">
