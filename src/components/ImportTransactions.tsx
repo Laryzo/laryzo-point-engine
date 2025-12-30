@@ -118,10 +118,8 @@ export const ImportTransactions = ({ onSuccess }: ImportTransactionsProps) => {
     let errors = 0;
 
     try {
-      // Reverse order: last row becomes first (parent), first row becomes last (child)
-      const reversedData = [...excelData].reverse();
-      
-      for (const row of reversedData) {
+      // Original order: first row becomes first (parent), last row becomes last (child)
+      for (const row of excelData) {
         const productName = getMappedValue(row, 'product_name');
         const productCode = getMappedValue(row, 'product_code');
         const productType = getMappedValue(row, 'product_type');
