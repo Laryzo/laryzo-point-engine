@@ -158,10 +158,8 @@ export const ImportExcel = ({ onSuccess }: ImportExcelProps) => {
     let errors = 0;
 
     try {
-      // Reverse order: last row becomes parent (top), first row becomes child (bottom)
-      const reversedData = [...excelData].reverse();
-      
-      for (const row of reversedData) {
+      // Original order: first row becomes parent (top), last row becomes child (bottom)
+      for (const row of excelData) {
         const customerName = getMappedValue(row, 'name');
         const customerEmail = getMappedValue(row, 'email');
         const customerWhatsapp = getMappedValue(row, 'whatsapp');
