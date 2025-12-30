@@ -27,7 +27,9 @@ interface Transaction {
     id: string;
     name: string;
     whatsapp?: string;
+    parent_id?: string | null;
   };
+  customerLevel?: number;
 }
 
 export const TransactionListEnhanced = () => {
@@ -53,15 +55,42 @@ export const TransactionListEnhanced = () => {
           customers (
             id,
             name,
-            whatsapp
+            whatsapp,
+            parent_id
           )
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      // Fetch all customers for level calculation
+      const { data: allCustomers } = await supabase
+        .from('customers')
+        .select('id, parent_id');
+
+      // Build a map for quick parent lookup
+      const customerMap = new Map<string, { id: string; parent_id: string | null }>();
+      (allCustomers || []).forEach(c => customerMap.set(c.id, c));
+
+      // Calculate level for a customer (count ancestors)
+      const calculateLevel = (customerId: string): number => {
+        let level = 0;
+        let current = customerMap.get(customerId);
+        while (current?.parent_id) {
+          level++;
+          current = customerMap.get(current.parent_id);
+        }
+        return level;
+      };
+
+      // Add level to each transaction
+      const dataWithLevel = (data || []).map(tx => ({
+        ...tx,
+        customerLevel: tx.customer_id ? calculateLevel(tx.customer_id) : 0
+      }));
       
       // Sort by created_at descending, then by customer name descending for consistent order
-      const sortedData = (data || []).sort((a, b) => {
+      const sortedData = dataWithLevel.sort((a, b) => {
         const dateCompare = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         if (dateCompare !== 0) return dateCompare;
         // Secondary sort: extract number from customer name for proper numeric sorting
@@ -196,6 +225,15 @@ export const TransactionListEnhanced = () => {
       key: 'customer_id',
       label: 'Customer',
       render: (value: string, row: Transaction) => getCustomerName(row)
+    },
+    {
+      key: 'customerLevel',
+      label: 'Level',
+      render: (value: number) => (
+        <span className="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary font-medium">
+          Level {value}
+        </span>
+      )
     },
     {
       key: 'harga_konsumen',
