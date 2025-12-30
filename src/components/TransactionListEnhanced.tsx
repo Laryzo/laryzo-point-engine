@@ -59,7 +59,21 @@ export const TransactionListEnhanced = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTransactions(data || []);
+      
+      // Sort by created_at descending, then by customer name descending for consistent order
+      const sortedData = (data || []).sort((a, b) => {
+        const dateCompare = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (dateCompare !== 0) return dateCompare;
+        // Secondary sort: extract number from customer name for proper numeric sorting
+        const getNum = (name: string | undefined) => {
+          if (!name) return 0;
+          const match = name.match(/(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        };
+        return getNum(b.customers?.name) - getNum(a.customers?.name);
+      });
+      
+      setTransactions(sortedData);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
