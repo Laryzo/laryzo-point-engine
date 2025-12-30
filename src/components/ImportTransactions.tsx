@@ -181,10 +181,32 @@ export const ImportTransactions = ({ onSuccess }: ImportTransactionsProps) => {
       setStep('result');
       
       if (transactionsCreated > 0) {
+        // Trigger point calculation after import
         toast({
           title: "Import berhasil!",
-          description: `${transactionsCreated} transaksi diimport`,
+          description: `${transactionsCreated} transaksi diimport. Menghitung distribusi point...`,
         });
+        
+        try {
+          const { data, error } = await supabase.functions.invoke('calculate-points');
+          if (error) {
+            console.error('Error calculating points:', error);
+            toast({
+              title: "Warning",
+              description: "Transaksi diimport tapi distribusi point gagal. Silakan hitung ulang manual.",
+              variant: "destructive",
+            });
+          } else {
+            console.log('Point calculation result:', data);
+            toast({
+              title: "Distribusi Point Selesai",
+              description: `${data?.point_records_created || 0} record point dibuat untuk ${data?.customers_updated || 0} customer`,
+            });
+          }
+        } catch (pointError) {
+          console.error('Error invoking calculate-points:', pointError);
+        }
+        
         onSuccess?.();
       }
     } catch (error) {
