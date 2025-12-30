@@ -102,6 +102,56 @@ export const ImportExcel = ({ onSuccess }: ImportExcelProps) => {
     return row[mapping.excelColumn];
   };
 
+  // Find available slot in binary tree (same logic as CustomerForm)
+  const findAvailableSlot = async () => {
+    try {
+      const { data: allCustomers, error } = await supabase
+        .from('customers')
+        .select('id, name, parent_id')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      if (!allCustomers || allCustomers.length === 0) {
+        return { parent_id: null, position: null };
+      }
+
+      // Binary tree placement logic - find first available slot in order
+      // Start from root nodes, then go level by level (breadth-first)
+      const queue = allCustomers.filter(c => !c.parent_id);
+      
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        
+        const { data: children, error: childError } = await supabase
+          .from('customers')
+          .select('position')
+          .eq('parent_id', current.id);
+
+        if (childError) continue;
+
+        const hasLeft = children?.some(c => c.position === 'left') || false;
+        const hasRight = children?.some(c => c.position === 'right') || false;
+
+        if (!hasLeft) {
+          return { parent_id: current.id, position: 'left' as const };
+        } else if (!hasRight) {
+          return { parent_id: current.id, position: 'right' as const };
+        } else {
+          // Both slots filled, add children to queue for next level
+          const currentChildren = allCustomers.filter(c => c.parent_id === current.id);
+          queue.push(...currentChildren);
+        }
+      }
+
+      // If no slots found, create new root
+      return { parent_id: null, position: null };
+    } catch (error) {
+      console.error('Error finding available slot:', error);
+      return { parent_id: null, position: null };
+    }
+  };
+
   const handleImport = async () => {
     setImporting(true);
     let customersCreated = 0;
@@ -138,12 +188,17 @@ export const ImportExcel = ({ onSuccess }: ImportExcelProps) => {
             // Skip duplicate customer
             continue;
           } else {
+            // Find available slot in binary tree
+            const { parent_id, position } = await findAvailableSlot();
+
             const { error: customerError } = await supabase
               .from('customers')
               .insert({
                 name: String(customerName),
                 email: customerEmail ? String(customerEmail) : null,
                 whatsapp: customerWhatsapp ? String(customerWhatsapp) : null,
+                parent_id,
+                position,
               });
 
             if (customerError) {
