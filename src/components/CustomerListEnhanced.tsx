@@ -23,6 +23,7 @@ interface Customer {
   position: string | null;
   created_at: string;
   totalPoints?: number;
+  level?: number;
 }
 
 export const CustomerListEnhanced = () => {
@@ -55,6 +56,21 @@ export const CustomerListEnhanced = () => {
 
       if (customersError) throw customersError;
 
+      // Build a map for quick parent lookup
+      const customerMap = new Map<string, typeof customersData[0]>();
+      (customersData || []).forEach(c => customerMap.set(c.id, c));
+
+      // Calculate level for each customer (count ancestors)
+      const calculateLevel = (customerId: string): number => {
+        let level = 0;
+        let current = customerMap.get(customerId);
+        while (current?.parent_id) {
+          level++;
+          current = customerMap.get(current.parent_id);
+        }
+        return level;
+      };
+
       const customersWithPoints = await Promise.all(
         (customersData || []).map(async (customer) => {
           const { data: pointsData } = await supabase
@@ -63,10 +79,12 @@ export const CustomerListEnhanced = () => {
             .eq('to_customer', customer.id);
 
           const totalPoints = pointsData?.reduce((sum, p) => sum + (Number(p.points) || 0), 0) || 0;
+          const level = calculateLevel(customer.id);
           
           return {
             ...customer,
-            totalPoints
+            totalPoints,
+            level
           };
         })
       );
@@ -214,6 +232,15 @@ export const CustomerListEnhanced = () => {
           <Users className="w-4 h-4 text-primary" />
           <span className="font-medium">{value}</span>
         </div>
+      )
+    },
+    {
+      key: 'level',
+      label: 'Level',
+      render: (value: number) => (
+        <span className="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary font-medium">
+          Level {value}
+        </span>
       )
     },
     {
