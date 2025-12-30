@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EnhancedTable } from '@/components/ui/enhanced-table';
 import { ShareWhatsAppModal } from '@/components/ShareWhatsAppModal';
-import { Users, Mail, Phone, Award, Download, FileSpreadsheet } from 'lucide-react';
+import { ImportExcel } from '@/components/ImportExcel';
+import { Users, Mail, Phone, Award, Download, FileSpreadsheet, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 
@@ -35,6 +36,7 @@ export const CustomerListEnhanced = () => {
   const [editPosition, setEditPosition] = useState('');
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [customersToShare, setCustomersToShare] = useState<Customer[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -328,24 +330,46 @@ export const CustomerListEnhanced = () => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Daftar Customer ({customers.length})</CardTitle>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Export Semua
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => exportAllCustomers('csv')}>
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Export CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => exportAllCustomers('excel')}>
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Export Excel (.xlsx)
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Upload className="w-4 h-4 mr-2" />
+                Import Excel
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Import Customer dari Excel</DialogTitle>
+                <DialogDescription>
+                  Upload file Excel (.xlsx, .xls) dan mapping kolom ke field database
+                </DialogDescription>
+              </DialogHeader>
+              <ImportExcel onSuccess={() => {
+                setShowImportModal(false);
+                fetchCustomers();
+              }} />
+            </DialogContent>
+          </Dialog>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export Semua
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => exportAllCustomers('csv')}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Export CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAllCustomers('excel')}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Export Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </CardHeader>
       <CardContent>
         <EnhancedTable

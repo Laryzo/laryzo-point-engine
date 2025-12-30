@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EnhancedTable } from '@/components/ui/enhanced-table';
 import { ShareWhatsAppTransactionModal } from '@/components/ShareWhatsAppTransactionModal';
-import { ShoppingCart, TrendingUp, Download, FileSpreadsheet } from 'lucide-react';
+import { ImportTransactions } from '@/components/ImportTransactions';
+import { ShoppingCart, TrendingUp, Download, FileSpreadsheet, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TransactionEditForm } from './TransactionEditForm';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
@@ -34,6 +36,7 @@ export const TransactionListEnhanced = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [transactionsToShare, setTransactionsToShare] = useState<Transaction[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -228,24 +231,46 @@ export const TransactionListEnhanced = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Riwayat Transaksi ({transactions.length})</CardTitle>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Export Semua
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => exportAllTransactions('csv')}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAllTransactions('excel')}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Export Excel (.xlsx)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import Excel
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Import Transaksi dari Excel</DialogTitle>
+                  <DialogDescription>
+                    Upload file Excel (.xlsx, .xls) dan mapping kolom ke field transaksi
+                  </DialogDescription>
+                </DialogHeader>
+                <ImportTransactions onSuccess={() => {
+                  setShowImportModal(false);
+                  fetchData();
+                }} />
+              </DialogContent>
+            </Dialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Semua
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => exportAllTransactions('csv')}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportAllTransactions('excel')}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Export Excel (.xlsx)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </CardHeader>
         <CardContent>
           <EnhancedTable
