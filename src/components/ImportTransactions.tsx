@@ -20,15 +20,16 @@ interface ImportTransactionsProps {
   onSuccess?: () => void;
 }
 
+// Field sesuai dengan TransactionForm: product_code, product_type, product_name, qty, harga_konsumen, harga_pokok
 const transactionFields = [
-  { value: 'product_name', label: 'Nama Produk' },
-  { value: 'product_code', label: 'Kode Produk' },
-  { value: 'product_type', label: 'Tipe Produk' },
-  { value: 'harga_pokok', label: 'Harga Pokok' },
-  { value: 'harga_konsumen', label: 'Harga Konsumen' },
-  { value: 'qty', label: 'Quantity' },
-  { value: 'customer_name', label: 'Nama Customer (untuk matching)' },
-  { value: 'customer_whatsapp', label: 'WhatsApp Customer (untuk matching)' },
+  { value: 'product_code', label: 'Product Code *' },
+  { value: 'product_type', label: 'Product Type' },
+  { value: 'product_name', label: 'Product Name *' },
+  { value: 'qty', label: 'Quantity *' },
+  { value: 'harga_konsumen', label: 'Harga Konsumen (Rp) *' },
+  { value: 'harga_pokok', label: 'Harga Pokok (Rp) *' },
+  { value: 'customer_name', label: 'Customer (nama untuk matching)' },
+  { value: 'customer_whatsapp', label: 'Customer (WhatsApp untuk matching)' },
   { value: 'skip', label: '-- Lewati --' },
 ];
 
