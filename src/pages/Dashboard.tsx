@@ -4,8 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Upload } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Upload, FileSpreadsheet } from 'lucide-react';
 import { ImportExcel } from '@/components/ImportExcel';
+import { ImportTransactions } from '@/components/ImportTransactions';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
@@ -118,7 +119,7 @@ const Dashboard = () => {
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-2xl font-bold">Import Data</h2>
+                <h2 className="text-2xl font-bold">Import Data Customer</h2>
                 <p className="text-muted-foreground">Import customer dan transaction data dari file Excel</p>
               </div>
             </div>
@@ -131,6 +132,28 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <ImportExcel onSuccess={fetchStats} />
+              </CardContent>
+            </Card>
+          </div>
+        );
+      case 'import-transactions':
+        return (
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Import Data Transaksi</h2>
+                <p className="text-muted-foreground">Import data transaksi dari file Excel</p>
+              </div>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Import Transaksi dari Excel</CardTitle>
+                <CardDescription>
+                  Upload file Excel (.xlsx, .xls) dan mapping kolom ke field transaksi
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ImportTransactions onSuccess={fetchStats} />
               </CardContent>
             </Card>
           </div>
@@ -252,7 +275,16 @@ const Dashboard = () => {
                       className={activeView === 'import' ? 'bg-accent' : ''}
                     >
                       <Upload className="h-4 w-4" />
-                      <span>Import Data</span>
+                      <span>Import Customer</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('import-transactions')}
+                      className={activeView === 'import-transactions' ? 'bg-accent' : ''}
+                    >
+                      <FileSpreadsheet className="h-4 w-4" />
+                      <span>Import Transaksi</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
@@ -280,7 +312,8 @@ const Dashboard = () => {
                  activeView === 'tree' ? 'Customer Tree' :
                  activeView === 'customers' ? 'Customers' :
                  activeView === 'transactions' ? 'Transactions' :
-                 activeView === 'import' ? 'Import Data' : 'Dashboard'}
+                 activeView === 'import' ? 'Import Customer' : 
+                 activeView === 'import-transactions' ? 'Import Transaksi' : 'Dashboard'}
               </h1>
             </div>
           </div>
