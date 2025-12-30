@@ -50,7 +50,8 @@ export const CustomerListEnhanced = () => {
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('name', { ascending: false });
 
       if (customersError) throw customersError;
 
@@ -69,6 +70,19 @@ export const CustomerListEnhanced = () => {
           };
         })
       );
+
+      // Sort by created_at descending, then by name descending for consistent order
+      // This ensures: 031 at top, then 030, 029... 002, Han at bottom
+      customersWithPoints.sort((a, b) => {
+        const dateCompare = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (dateCompare !== 0) return dateCompare;
+        // Secondary sort: extract number from name for proper numeric sorting
+        const getNum = (name: string) => {
+          const match = name?.match(/(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        };
+        return getNum(b.name) - getNum(a.name);
+      });
 
       setCustomers(customersWithPoints);
     } catch (error) {
