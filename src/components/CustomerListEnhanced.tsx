@@ -194,6 +194,7 @@ export const CustomerListEnhanced = () => {
     );
     return sorted.map(customer => ({
       'Nama': customer.name || '-',
+      'Level': customer.level ?? 0,
       'Email': customer.email || '-',
       'WhatsApp': customer.whatsapp || '-',
       'Parent': customers.find(c => c.id === customer.parent_id)?.name || '-',
