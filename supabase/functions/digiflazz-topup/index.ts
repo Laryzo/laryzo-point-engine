@@ -1,0 +1,327 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+interface Order {
+  id: string
+  customer_id: string
+  product_id: string
+  points_used: number
+  input_value: string
+  status: string
+  ref_id: string | null
+}
+
+interface Product {
+  id: string
+  name: string
+  digiflazz_sku: string
+  point_price: number
+  cost_price: number
+}
+
+interface Customer {
+  id: string
+  name: string
+  points: number
+  parent_id: string | null
+}
+
+async function distributePoints(
+  supabase: any,
+  customerId: string,
+  orderId: string,
+  profit: number,
+  productCode: string
+) {
+  const pointsToDistribute: Array<{
+    from_customer: string
+    to_customer: string
+    points: number
+    level: number
+    transaction_id: string
+    product_code: string
+  }> = []
+
+  // 1% to customer themselves (level 0)
+  const customerPoints = profit * 0.01
+  pointsToDistribute.push({
+    from_customer: customerId,
+    to_customer: customerId,
+    points: customerPoints,
+    level: 0,
+    transaction_id: orderId,
+    product_code: productCode
+  })
+
+  // Get upline chain (up to 10 levels)
+  let currentCustomerId = customerId
+  for (let level = 1; level <= 10; level++) {
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('parent_id')
+      .eq('id', currentCustomerId)
+      .single()
+
+    if (!customer?.parent_id) break
+
+    const uplinePoints = profit * 0.01
+    pointsToDistribute.push({
+      from_customer: customerId,
+      to_customer: customer.parent_id,
+      points: uplinePoints,
+      level,
+      transaction_id: orderId,
+      product_code: productCode
+    })
+
+    currentCustomerId = customer.parent_id
+  }
+
+  // Insert all point history records
+  if (pointsToDistribute.length > 0) {
+    const { error: historyError } = await supabase
+      .from('point_history')
+      .insert(pointsToDistribute)
+
+    if (historyError) {
+      console.error('Error inserting point history:', historyError)
+      throw historyError
+    }
+
+    // Update customer points
+    for (const record of pointsToDistribute) {
+      const { error: updateError } = await supabase.rpc('increment_customer_points', {
+        customer_uuid: record.to_customer,
+        points_to_add: record.points
+      }).catch(() => {
+        // Fallback if RPC doesn't exist - update directly
+        return supabase
+          .from('customers')
+          .update({ points: supabase.raw(`points + ${record.points}`) })
+          .eq('id', record.to_customer)
+      })
+    }
+  }
+
+  return pointsToDistribute
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+  try {
+    const username = Deno.env.get('DIGIFLAZZ_USERNAME')
+    const apiKey = Deno.env.get('DIGIFLAZZ_API_KEY')
+
+    if (!username || !apiKey) {
+      console.error('Digiflazz credentials not configured')
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Digiflazz credentials not configured' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const { order_id, testing = false } = await req.json()
+
+    if (!order_id) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'order_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log(`Processing order: ${order_id}`)
+
+    // Get order details
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', order_id)
+      .single()
+
+    if (orderError || !order) {
+      console.error('Order not found:', orderError)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Order not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (order.status !== 'pending') {
+      return new Response(
+        JSON.stringify({ success: false, error: `Order already processed with status: ${order.status}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Get product details
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', order.product_id)
+      .single()
+
+    if (productError || !product) {
+      console.error('Product not found:', productError)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Product not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Get customer details
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', order.customer_id)
+      .single()
+
+    if (customerError || !customer) {
+      console.error('Customer not found:', customerError)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Customer not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Verify customer has enough points
+    if (customer.points < order.points_used) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Insufficient points' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Generate unique ref_id
+    const refId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+    // Deduct points from customer first
+    const { error: deductError } = await supabase
+      .from('customers')
+      .update({ points: customer.points - order.points_used })
+      .eq('id', customer.id)
+
+    if (deductError) {
+      console.error('Failed to deduct points:', deductError)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to deduct points' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Create MD5 signature for transaction
+    const encoder = new TextEncoder()
+    const signData = encoder.encode(username + apiKey + refId)
+    const hashBuffer = await crypto.subtle.digest('MD5', signData)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const sign = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+
+    console.log(`Sending topup request to Digiflazz for SKU: ${product.digiflazz_sku}`)
+
+    // Check development mode from system_settings
+    const { data: settingsData } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'digiflazz_mode')
+      .single()
+
+    const isDevelopment = settingsData?.value === 'development' || testing
+
+    // Send request to Digiflazz
+    const digiflazzResponse = await fetch('https://api.digiflazz.com/v1/transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        buyer_sku_code: product.digiflazz_sku,
+        customer_no: order.input_value,
+        ref_id: refId,
+        sign,
+        testing: isDevelopment
+      })
+    })
+
+    const digiflazzResult = await digiflazzResponse.json()
+    console.log('Digiflazz response:', JSON.stringify(digiflazzResult))
+
+    const txData = digiflazzResult.data || {}
+    const status = txData.status?.toLowerCase() || 'failed'
+
+    // Update order with Digiflazz response
+    const updateData: Record<string, any> = {
+      ref_id: refId,
+      digiflazz_status: status,
+      digiflazz_message: txData.message || txData.rc,
+      digiflazz_sn: txData.sn || null
+    }
+
+    if (status === 'sukses') {
+      updateData.status = 'completed'
+      updateData.processed_at = new Date().toISOString()
+
+      // Calculate profit and distribute points
+      const profit = product.point_price - product.cost_price
+      if (profit > 0) {
+        const distributed = await distributePoints(
+          supabase,
+          customer.id,
+          order_id,
+          profit,
+          product.digiflazz_sku || product.name
+        )
+        console.log(`Distributed points to ${distributed.length} recipients`)
+      }
+
+    } else if (status === 'pending') {
+      updateData.status = 'processing'
+    } else {
+      // Failed - refund points
+      updateData.status = 'failed'
+      await supabase
+        .from('customers')
+        .update({ points: customer.points })
+        .eq('id', customer.id)
+      console.log('Refunded points due to failed transaction')
+    }
+
+    const { error: updateOrderError } = await supabase
+      .from('orders')
+      .update(updateData)
+      .eq('id', order_id)
+
+    if (updateOrderError) {
+      console.error('Failed to update order:', updateOrderError)
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: status !== 'gagal',
+        status: updateData.status,
+        sn: txData.sn,
+        message: txData.message,
+        ref_id: refId
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+
+  } catch (error) {
+    console.error('Error processing topup:', error)
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+})
