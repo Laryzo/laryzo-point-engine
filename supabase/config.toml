@@ -2,3 +2,21 @@ project_id = "jkqtqxwtyqrlhblnaohz"
 
 [functions.calculate-points]
 verify_jwt = false
+
+[functions.satellite-api]
+verify_jwt = false
+
+[functions.digiflazz-price-list]
+verify_jwt = false
+
+[functions.digiflazz-topup]
+verify_jwt = false
+
+[functions.process-physical-order]
+verify_jwt = false
+
+[functions.digiflazz-check-status]
+verify_jwt = false
+
+[functions.digiflazz-webhook]
+verify_jwt = false

@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog } from 'lucide-react';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
@@ -14,6 +14,9 @@ import { TransactionList } from '@/components/TransactionList';
 import { TransactionListEnhanced } from '@/components/TransactionListEnhanced';
 import AdminManagement from '@/components/AdminManagement';
 import SatelliteApiInfo from '@/components/SatelliteApiInfo';
+import ProductManagement from '@/pages/ProductManagement';
+import OrderManagement from '@/pages/OrderManagement';
+import SystemSettings from '@/pages/SystemSettings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -24,6 +27,9 @@ const Dashboard = () => {
     totalCustomers: 0,
     totalTransactions: 0,
     totalRevenue: 0,
+    totalOrders: 0,
+    pendingOrders: 0,
+    completedOrders: 0,
   });
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
@@ -35,17 +41,22 @@ const Dashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const [customersRes, transactionsRes] = await Promise.all([
+      const [customersRes, transactionsRes, ordersRes] = await Promise.all([
         supabase.from('customers').select('*'),
         supabase.from('transactions').select('*'),
+        supabase.from('orders').select('*'),
       ]);
 
       const totalRevenue = transactionsRes.data?.reduce((sum, t) => sum + (Number(t.margin) || 0) * (t.qty || 0), 0) || 0;
+      const orders = ordersRes.data || [];
 
       setStats({
         totalCustomers: customersRes.data?.length || 0,
         totalTransactions: transactionsRes.data?.length || 0,
         totalRevenue,
+        totalOrders: orders.length,
+        pendingOrders: orders.filter(o => o.status === 'pending' || o.status === 'processing').length,
+        completedOrders: orders.filter(o => o.status === 'completed').length,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -58,6 +69,12 @@ const Dashboard = () => {
         return <AdminManagement />;
       case 'satellite-api':
         return <SatelliteApiInfo />;
+      case 'products':
+        return <ProductManagement />;
+      case 'orders':
+        return <OrderManagement />;
+      case 'settings':
+        return <SystemSettings />;
       case 'tree':
         return (
           <div className="p-6">
@@ -116,7 +133,7 @@ const Dashboard = () => {
         return (
           <div className="p-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
@@ -142,6 +159,33 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">Rp {stats.totalRevenue.toLocaleString()}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalOrders}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Orders</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-yellow-600">{stats.pendingOrders}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                  <Award className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{stats.completedOrders}</div>
                 </CardContent>
               </Card>
             </div>
@@ -223,6 +267,33 @@ const Dashboard = () => {
                       <span>Transactions</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('products')}
+                      className={activeView === 'products' ? 'bg-accent' : ''}
+                    >
+                      <Package className="h-4 w-4" />
+                      <span>Products</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('orders')}
+                      className={activeView === 'orders' ? 'bg-accent' : ''}
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      <span>Orders</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('settings')}
+                      className={activeView === 'settings' ? 'bg-accent' : ''}
+                    >
+                      <Cog className="h-4 w-4" />
+                      <span>Settings</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -248,6 +319,9 @@ const Dashboard = () => {
                  activeView === 'tree' ? 'Customer Tree' :
                  activeView === 'customers' ? 'Customers' :
                  activeView === 'transactions' ? 'Transactions' :
+                 activeView === 'products' ? 'Products' :
+                 activeView === 'orders' ? 'Orders' :
+                 activeView === 'settings' ? 'Settings' :
                  'Dashboard'}
               </h1>
             </div>
