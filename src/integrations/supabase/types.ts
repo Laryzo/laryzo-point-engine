@@ -44,6 +44,44 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_auth: {
+        Row: {
+          created_at: string
+          customer_id: string
+          email: string
+          id: string
+          last_login: string | null
+          password_hash: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          email: string
+          id?: string
+          last_login?: string | null
+          password_hash: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          email?: string
+          id?: string
+          last_login?: string | null
+          password_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_auth_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           created_at: string | null
@@ -84,6 +122,84 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          customer_id: string
+          digiflazz_message: string | null
+          digiflazz_sn: string | null
+          digiflazz_status: string | null
+          id: string
+          input_value: string | null
+          points_earned: number
+          points_used: number
+          processed_at: string | null
+          product_id: string
+          ref_id: string | null
+          shipping_address: string | null
+          shipping_status: string | null
+          status: string
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          customer_id: string
+          digiflazz_message?: string | null
+          digiflazz_sn?: string | null
+          digiflazz_status?: string | null
+          id?: string
+          input_value?: string | null
+          points_earned?: number
+          points_used?: number
+          processed_at?: string | null
+          product_id: string
+          ref_id?: string | null
+          shipping_address?: string | null
+          shipping_status?: string | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          customer_id?: string
+          digiflazz_message?: string | null
+          digiflazz_sn?: string | null
+          digiflazz_status?: string | null
+          id?: string
+          input_value?: string | null
+          points_earned?: number
+          points_used?: number
+          processed_at?: string | null
+          product_id?: string
+          ref_id?: string | null
+          shipping_address?: string | null
+          shipping_status?: string | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -142,6 +258,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      products: {
+        Row: {
+          cost_price: number
+          created_at: string
+          description: string | null
+          digiflazz_sku: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          point_price: number
+          ppob_type: string | null
+          requires_input: string | null
+          requires_shipping: boolean
+          stock: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          cost_price?: number
+          created_at?: string
+          description?: string | null
+          digiflazz_sku?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          point_price?: number
+          ppob_type?: string | null
+          requires_input?: string | null
+          requires_shipping?: boolean
+          stock?: number
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          cost_price?: number
+          created_at?: string
+          description?: string | null
+          digiflazz_sku?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          point_price?: number
+          ppob_type?: string | null
+          requires_input?: string | null
+          requires_shipping?: boolean
+          stock?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
       }
       transactions: {
         Row: {
