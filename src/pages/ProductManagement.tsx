@@ -228,9 +228,13 @@ const ProductManagement = () => {
             {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Sync Digiflazz
           </Button>
-          <Button onClick={() => { resetForm(); setShowForm(true); }}>
+          <Button onClick={() => { 
+            resetForm(); 
+            setFormData(prev => ({ ...prev, type: activeTab === 'physical' ? 'physical' : 'ppob' }));
+            setShowForm(true); 
+          }}>
             <Plus className="w-4 h-4 mr-2" />
-            Tambah Produk
+            Tambah Produk {activeTab === 'physical' ? 'Fisik' : 'PPOB'}
           </Button>
         </div>
       </div>
@@ -370,7 +374,7 @@ const ProductManagement = () => {
 
       {/* Product Form Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Produk' : 'Tambah Produk'}</DialogTitle>
           </DialogHeader>
