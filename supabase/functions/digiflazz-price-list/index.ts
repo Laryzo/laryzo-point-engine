@@ -28,16 +28,37 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
   try {
-    const username = Deno.env.get('DIGIFLAZZ_USERNAME')
-    const apiKey = Deno.env.get('DIGIFLAZZ_API_KEY')
+    // Get credentials from environment or system_settings
+    let username = Deno.env.get('DIGIFLAZZ_USERNAME')
+    let apiKey = Deno.env.get('DIGIFLAZZ_API_KEY')
+
+    // If not in env, try to get from system_settings
+    if (!username || !apiKey) {
+      const { data: settings } = await supabase
+        .from('system_settings')
+        .select('key, value')
+        .in('key', ['digiflazz_username', 'digiflazz_api_key'])
+
+      const settingsMap = (settings || []).reduce((acc: Record<string, string>, s: any) => {
+        acc[s.key] = s.value
+        return acc
+      }, {})
+
+      username = username || settingsMap.digiflazz_username
+      apiKey = apiKey || settingsMap.digiflazz_api_key
+    }
 
     if (!username || !apiKey) {
       console.error('Digiflazz credentials not configured')
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Digiflazz credentials not configured. Please add DIGIFLAZZ_USERNAME and DIGIFLAZZ_API_KEY secrets.' 
+          error: 'Kredensial Digiflazz belum dikonfigurasi. Silakan isi di menu Pengaturan Sistem.' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
