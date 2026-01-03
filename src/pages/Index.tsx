@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, Users, Award, ArrowRight, LogIn } from "lucide-react";
+import { TrendingUp, Users, Award, ArrowRight, LogIn, Coins } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -18,14 +18,16 @@ const Index = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg">
+              <Link to="/portal/login">
+                <Coins className="w-4 h-4 mr-2" />
+                Customer Portal
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
               <Link to="/login">
                 <LogIn className="w-4 h-4 mr-2" />
                 Admin Login
               </Link>
-            </Button>
-            <Button variant="outline" size="lg">
-              Learn More
-              <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
         </div>
