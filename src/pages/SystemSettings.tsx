@@ -22,10 +22,12 @@ const SystemSettings = () => {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<Setting[]>([]);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Record<string, string>>({
     point_to_rupiah: '100',
     min_order_points: '1000',
-    digiflazz_mode: 'development'
+    digiflazz_mode: 'development',
+    digiflazz_username: '',
+    digiflazz_api_key: '',
   });
 
   useEffect(() => {
@@ -52,7 +54,9 @@ const SystemSettings = () => {
       setFormData({
         point_to_rupiah: settingsMap.point_to_rupiah || '100',
         min_order_points: settingsMap.min_order_points || '1000',
-        digiflazz_mode: settingsMap.digiflazz_mode || 'development'
+        digiflazz_mode: settingsMap.digiflazz_mode || 'development',
+        digiflazz_username: settingsMap.digiflazz_username || '',
+        digiflazz_api_key: settingsMap.digiflazz_api_key || '',
       });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -64,14 +68,29 @@ const SystemSettings = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Update each setting
+      // Update or insert each setting
       for (const [key, value] of Object.entries(formData)) {
-        const { error } = await supabase
+        // Try to update first
+        const { data: existingData } = await supabase
           .from('system_settings')
-          .update({ value })
-          .eq('key', key);
-        
-        if (error) throw error;
+          .select('id')
+          .eq('key', key)
+          .single();
+
+        if (existingData) {
+          // Update existing
+          const { error } = await supabase
+            .from('system_settings')
+            .update({ value })
+            .eq('key', key);
+          if (error) throw error;
+        } else {
+          // Insert new
+          const { error } = await supabase
+            .from('system_settings')
+            .insert({ key, value, description: `Setting for ${key}` });
+          if (error) throw error;
+        }
       }
       
       toast({ title: 'Berhasil', description: 'Pengaturan berhasil disimpan' });
@@ -179,23 +198,46 @@ const SystemSettings = () => {
                 </AlertDescription>
               </Alert>
             )}
+          </CardContent>
+        </Card>
 
-            <div className="pt-4 border-t">
-              <h4 className="font-medium mb-2">Kredensial API</h4>
-              <p className="text-sm text-muted-foreground mb-2">
-                Kredensial Digiflazz dikonfigurasi melalui secrets. Hubungi administrator untuk mengubah.
+        {/* Digiflazz Credentials */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Kredensial Digiflazz API</CardTitle>
+            <CardDescription>Masukkan kredensial API Digiflazz Anda di bawah ini</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Username Digiflazz</Label>
+              <Input 
+                type="text"
+                value={formData.digiflazz_username || ''}
+                onChange={(e) => setFormData({ ...formData, digiflazz_username: e.target.value })}
+                placeholder="Masukkan username Digiflazz"
+              />
+              <p className="text-sm text-muted-foreground">
+                Username dari akun Digiflazz Anda
               </p>
-              <div className="text-sm">
-                <div className="flex justify-between py-1">
-                  <span className="text-muted-foreground">DIGIFLAZZ_USERNAME:</span>
-                  <span className="font-mono">••••••••</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-muted-foreground">DIGIFLAZZ_API_KEY:</span>
-                  <span className="font-mono">••••••••</span>
-                </div>
-              </div>
             </div>
+            <div className="space-y-2">
+              <Label>API Key Digiflazz</Label>
+              <Input 
+                type="password"
+                value={formData.digiflazz_api_key || ''}
+                onChange={(e) => setFormData({ ...formData, digiflazz_api_key: e.target.value })}
+                placeholder="Masukkan API Key Digiflazz"
+              />
+              <p className="text-sm text-muted-foreground">
+                API Key dari akun Digiflazz Anda (Production/Development sesuai mode)
+              </p>
+            </div>
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Pastikan menggunakan API Key yang sesuai dengan mode yang dipilih. Gunakan API Key Development untuk testing dan API Key Production untuk transaksi nyata.
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
 

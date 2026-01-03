@@ -1,42 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '@/hooks/useCustomerAuth';
+import { useCustomerNotifications } from '@/hooks/useCustomerNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Coins, ShoppingBag, History, LogOut, Package, Clock } from 'lucide-react';
+import { Coins, ShoppingBag, History, LogOut, Package, Clock, User } from 'lucide-react';
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
   const { customer, logout, refreshCustomer } = useCustomerAuth();
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [recentPoints, setRecentPoints] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (customer) {
-      fetchRecentData();
-      // Set up realtime subscription for points
-      const channel = supabase
-        .channel('customer-points')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'customers',
-            filter: `id=eq.${customer.id}`,
-          },
-          () => {
-            refreshCustomer();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [customer?.id]);
 
   const fetchRecentData = async () => {
     if (!customer) return;
@@ -61,6 +36,22 @@ const CustomerDashboard = () => {
 
     if (points) setRecentPoints(points);
   };
+
+  // Realtime notifications
+  useCustomerNotifications({
+    customerId: customer?.id || null,
+    onPointsUpdate: () => {
+      refreshCustomer();
+      fetchRecentData();
+    },
+    onOrderUpdate: fetchRecentData,
+  });
+
+  useEffect(() => {
+    if (customer) {
+      fetchRecentData();
+    }
+  }, [customer?.id]);
 
   const handleLogout = () => {
     logout();
@@ -125,7 +116,7 @@ const CustomerDashboard = () => {
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <Card 
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => navigate('/portal/shop')}
@@ -157,6 +148,17 @@ const CustomerDashboard = () => {
                 <History className="h-6 w-6 text-primary" />
               </div>
               <span className="text-sm font-medium">Riwayat Poin</span>
+            </CardContent>
+          </Card>
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/portal/profile')}
+          >
+            <CardContent className="p-4 flex flex-col items-center text-center">
+              <div className="p-3 bg-primary/10 rounded-full mb-2">
+                <User className="h-6 w-6 text-primary" />
+              </div>
+              <span className="text-sm font-medium">Profil</span>
             </CardContent>
           </Card>
         </div>
