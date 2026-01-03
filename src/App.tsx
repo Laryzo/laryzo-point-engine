@@ -16,6 +16,7 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerShop from "./pages/CustomerShop";
 import CustomerOrders from "./pages/CustomerOrders";
 import CustomerPointHistory from "./pages/CustomerPointHistory";
+import CustomerProfile from "./pages/CustomerProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,52 +37,37 @@ const AdminRoutes = () => {
   );
 };
 
-const CustomerRoutes = () => {
+const CustomerPortalRoutes = () => {
   const { customer } = useCustomerAuth();
 
   return (
     <Routes>
-      <Route path="/portal/login" element={customer ? <Navigate to="/portal" replace /> : <CustomerLogin />} />
-      <Route path="/portal" element={
+      <Route path="login" element={customer ? <Navigate to="/portal" replace /> : <CustomerLogin />} />
+      <Route path="/" element={
         <CustomerProtectedRoute>
           <CustomerDashboard />
         </CustomerProtectedRoute>
       } />
-      <Route path="/portal/shop" element={
+      <Route path="shop" element={
         <CustomerProtectedRoute>
           <CustomerShop />
         </CustomerProtectedRoute>
       } />
-      <Route path="/portal/orders" element={
+      <Route path="orders" element={
         <CustomerProtectedRoute>
           <CustomerOrders />
         </CustomerProtectedRoute>
       } />
-      <Route path="/portal/points" element={
+      <Route path="points" element={
         <CustomerProtectedRoute>
           <CustomerPointHistory />
         </CustomerProtectedRoute>
       } />
-    </Routes>
-  );
-};
-
-const AppRoutes = () => {
-  return (
-    <Routes>
-      {/* Admin Routes */}
-      <Route path="/*" element={
-        <AuthProvider>
-          <AdminRoutes />
-        </AuthProvider>
+      <Route path="profile" element={
+        <CustomerProtectedRoute>
+          <CustomerProfile />
+        </CustomerProtectedRoute>
       } />
-      {/* Customer Portal Routes */}
-      <Route path="/portal/*" element={
-        <CustomerAuthProvider>
-          <CustomerRoutes />
-        </CustomerAuthProvider>
-      } />
-      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
@@ -92,7 +78,21 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppRoutes />
+        <Routes>
+          {/* Admin Routes */}
+          <Route path="/*" element={
+            <AuthProvider>
+              <AdminRoutes />
+            </AuthProvider>
+          } />
+          {/* Customer Portal Routes */}
+          <Route path="/portal/*" element={
+            <CustomerAuthProvider>
+              <CustomerPortalRoutes />
+            </CustomerAuthProvider>
+          } />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
