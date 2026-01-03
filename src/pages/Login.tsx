@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import { LogIn, HelpCircle } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { LogIn, HelpCircle, Home } from 'lucide-react';
 import AdminRegister from '@/components/AdminRegister';
 import { ForgotPasswordModal } from '@/components/ForgotPasswordModal';
 
@@ -49,6 +49,14 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="absolute top-4 left-4">
+        <Button asChild variant="outline" size="sm">
+          <Link to="/">
+            <Home className="w-4 h-4 mr-2" />
+            Home
+          </Link>
+        </Button>
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
