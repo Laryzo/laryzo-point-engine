@@ -36,6 +36,43 @@ export const CustomerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, []);
 
+  const findAvailableSlot = async (): Promise<{ parent_id: string | null; position: 'left' | 'right' | null }> => {
+    const { data: allCustomers, error } = await supabase
+      .from('customers')
+      .select('id, name, parent_id')
+      .order('created_at', { ascending: true });
+
+    if (error || !allCustomers || allCustomers.length === 0) {
+      return { parent_id: null, position: null };
+    }
+
+    // Binary tree placement - breadth-first search
+    const queue = allCustomers.filter(c => !c.parent_id);
+    
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      
+      const { data: children } = await supabase
+        .from('customers')
+        .select('position')
+        .eq('parent_id', current.id);
+
+      const hasLeft = children?.some(c => c.position === 'left') || false;
+      const hasRight = children?.some(c => c.position === 'right') || false;
+
+      if (!hasLeft) {
+        return { parent_id: current.id, position: 'left' };
+      } else if (!hasRight) {
+        return { parent_id: current.id, position: 'right' };
+      } else {
+        const currentChildren = allCustomers.filter(c => c.parent_id === current.id);
+        queue.push(...currentChildren);
+      }
+    }
+
+    return { parent_id: null, position: null };
+  };
+
   const fetchCustomer = async (customerId: string) => {
     try {
       const { data, error } = await supabase
@@ -137,10 +174,13 @@ export const CustomerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { error: 'Email sudah terdaftar' };
       }
 
-      // Create customer first
+      // Find available slot in binary tree
+      const { parent_id, position } = await findAvailableSlot();
+
+      // Create customer with tree placement
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
-        .insert([{ name, email, whatsapp, points: 0 }])
+        .insert([{ name, email, whatsapp, points: 0, parent_id, position }])
         .select()
         .single();
 
