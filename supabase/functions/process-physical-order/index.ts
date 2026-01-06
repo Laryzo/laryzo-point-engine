@@ -91,19 +91,17 @@ async function distributePoints(
       throw historyError
     }
 
-    // Update customer points
+    // Update customer points using atomic RPC function
     for (const record of pointsToDistribute) {
-      const { data: currentCustomer } = await supabase
-        .from('customers')
-        .select('points')
-        .eq('id', record.to_customer)
-        .single()
+      const { data: success, error: rpcError } = await supabase.rpc('increment_customer_points', {
+        customer_uuid: record.to_customer,
+        points_to_add: record.points
+      })
 
-      if (currentCustomer) {
-        await supabase
-          .from('customers')
-          .update({ points: (currentCustomer.points || 0) + record.points })
-          .eq('id', record.to_customer)
+      if (rpcError) {
+        console.error('Error incrementing points via RPC:', rpcError)
+      } else if (!success) {
+        console.log(`Points increment skipped for customer ${record.to_customer} (blocked or not found)`)
       }
     }
   }

@@ -456,6 +456,10 @@ export type Database = {
     }
     Functions: {
       get_current_customer_id: { Args: never; Returns: string }
+      increment_customer_points: {
+        Args: { customer_uuid: string; points_to_add: number }
+        Returns: boolean
+      }
       is_authenticated_admin: { Args: never; Returns: boolean }
       is_authenticated_customer: { Args: never; Returns: boolean }
     }

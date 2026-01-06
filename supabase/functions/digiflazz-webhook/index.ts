@@ -8,6 +8,14 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+// Validate ref_id format (must match our generated format: ORD-timestamp-random)
+function isValidRefId(refId: string): boolean {
+  if (!refId || typeof refId !== 'string') return false
+  // Format: ORD-{timestamp}-{alphanumeric}
+  const refIdPattern = /^ORD-\d{13}-[a-z0-9]{9}$/
+  return refIdPattern.test(refId)
+}
+
 async function distributePoints(
   supabase: any,
   customerId: string,
@@ -70,19 +78,17 @@ async function distributePoints(
       throw historyError
     }
 
-    // Update customer points
+    // Update customer points using atomic RPC function
     for (const record of pointsToDistribute) {
-      const { data: currentCustomer } = await supabase
-        .from('customers')
-        .select('points')
-        .eq('id', record.to_customer)
-        .single()
+      const { data: success, error: rpcError } = await supabase.rpc('increment_customer_points', {
+        customer_uuid: record.to_customer,
+        points_to_add: record.points
+      })
 
-      if (currentCustomer) {
-        await supabase
-          .from('customers')
-          .update({ points: (currentCustomer.points || 0) + record.points })
-          .eq('id', record.to_customer)
+      if (rpcError) {
+        console.error('Error incrementing points via RPC:', rpcError)
+      } else if (!success) {
+        console.log(`Points increment skipped for customer ${record.to_customer} (blocked or not found)`)
       }
     }
   }
@@ -105,6 +111,7 @@ Deno.serve(async (req) => {
 
     const { data } = webhookData
     if (!data || !data.ref_id) {
+      console.warn('Invalid webhook data - missing ref_id')
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid webhook data' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -112,6 +119,16 @@ Deno.serve(async (req) => {
     }
 
     const { ref_id, status, sn, message } = data
+    
+    // Security: Validate ref_id format to prevent forged webhooks
+    if (!isValidRefId(ref_id)) {
+      console.warn('Rejected webhook with invalid ref_id format:', ref_id)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid ref_id format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const statusLower = status?.toLowerCase() || 'unknown'
 
     // Find order by ref_id
@@ -129,13 +146,18 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Skip if already completed or failed
+    // Security: Skip if already completed or failed (prevent duplicate processing)
     if (order.status === 'completed' || order.status === 'failed') {
-      console.log(`Order ${order.id} already has final status: ${order.status}`)
+      console.log(`Order ${order.id} already has final status: ${order.status} - ignoring webhook`)
       return new Response(
         JSON.stringify({ success: true, message: 'Order already processed' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // Security: Verify order is in expected state (processing or pending)
+    if (order.status !== 'processing' && order.status !== 'pending') {
+      console.warn(`Unexpected order status ${order.status} for webhook processing`)
     }
 
     // Update order
@@ -152,7 +174,7 @@ Deno.serve(async (req) => {
       updateData.status = 'completed'
       updateData.processed_at = new Date().toISOString()
 
-      // Distribute points
+      // Distribute points using atomic RPC
       const product = order.products
       if (product) {
         const profit = product.point_price - product.cost_price
@@ -171,18 +193,15 @@ Deno.serve(async (req) => {
     } else if (statusLower === 'gagal') {
       updateData.status = 'failed'
 
-      // Refund points
-      const { data: customer } = await supabase
-        .from('customers')
-        .select('points')
-        .eq('id', order.customer_id)
-        .single()
-
-      if (customer) {
-        await supabase
-          .from('customers')
-          .update({ points: customer.points + order.points_used })
-          .eq('id', order.customer_id)
+      // Refund points using atomic RPC
+      const { data: refundSuccess, error: refundError } = await supabase.rpc('increment_customer_points', {
+        customer_uuid: order.customer_id,
+        points_to_add: order.points_used
+      })
+      
+      if (refundError) {
+        console.error('Error refunding points:', refundError)
+      } else {
         console.log('Refunded points due to failed transaction via webhook')
       }
     }
