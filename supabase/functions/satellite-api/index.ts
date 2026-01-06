@@ -2,9 +2,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
 import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
+// For external API integrations, we use API key authentication instead of CORS origin validation
+// This allows authorized external systems to call this API from any origin
+// Security is enforced via x-api-key header validation against database-stored keys
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 // Validation schemas with strict rules
