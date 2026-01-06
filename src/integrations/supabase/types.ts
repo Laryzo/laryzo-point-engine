@@ -455,6 +455,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_current_customer_id: { Args: never; Returns: string }
       is_authenticated_admin: { Args: never; Returns: boolean }
       is_authenticated_customer: { Args: never; Returns: boolean }
     }

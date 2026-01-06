@@ -4,10 +4,34 @@ import { Resend } from "npm:resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// CORS configuration - restrict to trusted origins
+const ALLOWED_ORIGINS = [
+  'https://lovable.dev',
+  'https://jkqtqxwtyqrlhblnaohz.lovableproject.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+]
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed => 
+    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com')
+  )
+  
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin'
+  }
+}
+
+function isOriginAllowed(origin: string | null): boolean {
+  if (!origin) return false
+  return ALLOWED_ORIGINS.some(allowed => 
+    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com')
+  )
+}
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -19,8 +43,20 @@ interface RequestBody {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const origin = req.headers.get('origin')
+  const corsHeaders = getCorsHeaders(origin)
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Validate origin for non-preflight requests
+  if (!isOriginAllowed(origin)) {
+    console.warn('Blocked auth-recover-email request from unauthorized origin:', origin)
+    return new Response(
+      JSON.stringify({ error: 'Origin not allowed' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
 
   try {
