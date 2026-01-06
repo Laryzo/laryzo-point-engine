@@ -90,6 +90,7 @@ export type Database = {
           name: string | null
           parent_id: string | null
           points: number | null
+          points_blocked: boolean | null
           position: Database["public"]["Enums"]["customer_position"] | null
           updated_at: string | null
           whatsapp: string | null
@@ -101,6 +102,7 @@ export type Database = {
           name?: string | null
           parent_id?: string | null
           points?: number | null
+          points_blocked?: boolean | null
           position?: Database["public"]["Enums"]["customer_position"] | null
           updated_at?: string | null
           whatsapp?: string | null
@@ -112,6 +114,7 @@ export type Database = {
           name?: string | null
           parent_id?: string | null
           points?: number | null
+          points_blocked?: boolean | null
           position?: Database["public"]["Enums"]["customer_position"] | null
           updated_at?: string | null
           whatsapp?: string | null
