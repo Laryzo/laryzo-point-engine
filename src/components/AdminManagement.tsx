@@ -11,8 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Trash2, ArrowUp, RotateCcw, Plus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Edit, Trash2, ArrowUp, Plus } from 'lucide-react';
 
 interface Admin {
   id: string;
@@ -28,6 +27,7 @@ const AdminManagement = () => {
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  // Removed: resetConfirmText state - system reset removed for security
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newAdminName, setNewAdminName] = useState('');
@@ -36,7 +36,6 @@ const AdminManagement = () => {
   const [newAdminRole, setNewAdminRole] = useState('admin');
   const { admin: currentAdmin } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const fetchAdmins = async () => {
     try {
@@ -202,38 +201,8 @@ const AdminManagement = () => {
     }
   };
 
-  const handleResetSystem = async () => {
-    if (resetConfirmText !== 'RESET') {
-      toast({
-        title: "Error",
-        description: "Ketik 'RESET' untuk konfirmasi",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // Delete in order: point_history, transactions, customers, admins
-      await supabase.from('point_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('customers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('admins').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-      toast({
-        title: "Berhasil",
-        description: "Sistem di-reset",
-      });
-
-      // Redirect to admin register
-      navigate('/');
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Gagal mereset sistem",
-        variant: "destructive",
-      });
-    }
-  };
+  // System reset functionality has been removed for security reasons
+  // This was a critical vulnerability that allowed total data loss from client-side
 
   const isSuperAdmin = currentAdmin?.role === 'super_admin';
 
@@ -316,39 +285,7 @@ const AdminManagement = () => {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Reset System
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reset Sistem</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Ini akan menghapus SEMUA data termasuk customers, transactions, point history, dan admins.
-                      Ketik "RESET" untuk konfirmasi.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <Input
-                    placeholder="Ketik RESET"
-                    value={resetConfirmText}
-                    onChange={(e) => setResetConfirmText(e.target.value)}
-                  />
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setResetConfirmText('')}>
-                      Batal
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleResetSystem}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Reset System
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {/* System Reset button removed for security - this was a critical vulnerability */}
             </div>
           )}
         </CardHeader>

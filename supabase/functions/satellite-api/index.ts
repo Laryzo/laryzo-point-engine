@@ -1,10 +1,61 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
 import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
 }
+
+// Validation schemas with strict rules
+const CustomerDataSchema = z.object({
+  name: z.string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name must be less than 100 characters')
+    .regex(/^[a-zA-Z0-9\s\-\.]+$/, 'Name contains invalid characters'),
+  email: z.string()
+    .email('Invalid email format')
+    .max(255, 'Email must be less than 255 characters')
+    .optional()
+    .or(z.literal('')),
+  whatsapp: z.string()
+    .regex(/^\+?[0-9]{10,15}$/, 'Invalid phone number format')
+    .optional()
+    .or(z.literal('')),
+  parent_id: z.string()
+    .uuid('Invalid parent ID format')
+    .optional()
+    .or(z.literal('')),
+  position: z.enum(['left', 'right'])
+    .optional(),
+})
+
+const TransactionDataSchema = z.object({
+  product_code: z.string()
+    .min(1, 'Product code is required')
+    .max(50, 'Product code must be less than 50 characters')
+    .regex(/^[A-Za-z0-9_\-]+$/, 'Product code contains invalid characters'),
+  product_name: z.string()
+    .min(1, 'Product name is required')
+    .max(255, 'Product name must be less than 255 characters'),
+  product_type: z.enum(['ppob', 'physical', 'service'], {
+    errorMap: () => ({ message: 'Product type must be ppob, physical, or service' })
+  }),
+  qty: z.number()
+    .int('Quantity must be an integer')
+    .positive('Quantity must be positive')
+    .max(1000, 'Quantity exceeds maximum allowed (1000)'),
+  margin: z.number()
+    .nonnegative('Margin cannot be negative')
+    .max(10000000, 'Margin exceeds maximum allowed (10,000,000)'),
+})
+
+const RequestSchema = z.object({
+  customer_data: CustomerDataSchema,
+  transaction_data: TransactionDataSchema,
+})
+
+type ValidatedRequest = z.infer<typeof RequestSchema>
 
 async function validateApiKey(supabase: ReturnType<typeof createClient>, request: Request): Promise<{ valid: boolean; keyId?: string }> {
   const apiKey = request.headers.get('x-api-key')
@@ -36,13 +87,12 @@ async function validateApiKey(supabase: ReturnType<typeof createClient>, request
           .from('satellite_api_keys')
           .update({ 
             last_used_at: new Date().toISOString(),
-            request_count: supabase.rpc ? undefined : 1 // Will use increment in query
+            request_count: supabase.rpc ? undefined : 1
           })
           .eq('id', keyRecord.id)
         
         // Increment request count
         await supabase.rpc('increment_satellite_key_count', { key_id: keyRecord.id }).catch(() => {
-          // Fallback if RPC doesn't exist - just log
           console.log('RPC increment not available, skipping count update')
         })
         
@@ -54,26 +104,6 @@ async function validateApiKey(supabase: ReturnType<typeof createClient>, request
   }
   
   return { valid: false }
-}
-
-function validateTransactionRequest(data: any): boolean {
-  return (
-    data?.customer_data?.name &&
-    typeof data.customer_data.name === 'string' &&
-    data.customer_data.name.trim() !== '' &&
-    data?.transaction_data &&
-    typeof data.transaction_data.product_code === 'string' &&
-    typeof data.transaction_data.product_name === 'string' &&
-    typeof data.transaction_data.product_type === 'string' &&
-    typeof data.transaction_data.qty === 'number' &&
-    typeof data.transaction_data.margin === 'number' &&
-    data.transaction_data.qty > 0 &&
-    data.transaction_data.margin >= 0
-  )
-}
-
-function sanitizeString(input: string): string {
-  return input.trim().slice(0, 255)
 }
 
 async function logRequest(supabase: ReturnType<typeof createClient>, request: Request, success: boolean, keyId?: string, error?: string) {
@@ -88,23 +118,6 @@ async function logRequest(supabase: ReturnType<typeof createClient>, request: Re
   }
   
   console.log('API Request Log:', JSON.stringify(logData, null, 2))
-}
-
-interface TransactionRequest {
-  customer_data: {
-    name: string
-    email?: string
-    whatsapp?: string
-    parent_id?: string
-    position?: string
-  }
-  transaction_data: {
-    product_code: string
-    product_name: string
-    product_type: string
-    qty: number
-    margin: number
-  }
 }
 
 interface SatelliteApiResponse {
@@ -122,6 +135,7 @@ interface SatelliteApiResponse {
     }>
   }
   error?: string
+  validation_errors?: z.ZodError['errors']
 }
 
 Deno.serve(async (req) => {
@@ -168,35 +182,48 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Parse and validate request body
-    let requestData: TransactionRequest
+    // Parse and validate request body with Zod
+    let requestData: ValidatedRequest
     try {
       const body = await req.json()
-      if (!validateTransactionRequest(body)) {
-        throw new Error('Invalid request format')
+      
+      // Validate with Zod schema
+      const parseResult = RequestSchema.safeParse(body)
+      
+      if (!parseResult.success) {
+        await logRequest(supabase, req, false, keyId, 'Validation failed')
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Invalid input data',
+            validation_errors: parseResult.error.errors
+          } as SatelliteApiResponse),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
       }
-      requestData = {
-        customer_data: {
-          name: sanitizeString(body.customer_data.name),
-          email: body.customer_data.email ? sanitizeString(body.customer_data.email) : undefined,
-          whatsapp: body.customer_data.whatsapp ? sanitizeString(body.customer_data.whatsapp) : undefined,
-          parent_id: body.customer_data.parent_id,
-          position: body.customer_data.position ? sanitizeString(body.customer_data.position) : undefined,
-        },
-        transaction_data: {
-          product_code: sanitizeString(body.transaction_data.product_code),
-          product_name: sanitizeString(body.transaction_data.product_name),
-          product_type: sanitizeString(body.transaction_data.product_type),
-          qty: Math.max(1, Math.floor(body.transaction_data.qty)),
-          margin: Math.max(0, body.transaction_data.margin)
-        }
+      
+      requestData = parseResult.data
+      
+      // Clean up empty optional fields
+      if (requestData.customer_data.email === '') {
+        requestData.customer_data.email = undefined
       }
+      if (requestData.customer_data.whatsapp === '') {
+        requestData.customer_data.whatsapp = undefined
+      }
+      if (requestData.customer_data.parent_id === '') {
+        requestData.customer_data.parent_id = undefined
+      }
+      
     } catch (error) {
-      await logRequest(supabase, req, false, keyId, 'Invalid request body')
+      await logRequest(supabase, req, false, keyId, 'Invalid JSON body')
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Invalid request body. Required fields: customer_data.name and transaction_data with valid fields'
+          error: 'Invalid JSON body'
         } as SatelliteApiResponse),
         {
           status: 400,
@@ -205,8 +232,30 @@ Deno.serve(async (req) => {
       )
     }
     
-    console.log('Received satellite API request:', requestData)
+    console.log('Received validated satellite API request:', requestData)
 
+    // Validate parent_id exists if provided
+    if (requestData.customer_data.parent_id) {
+      const { data: parentExists, error: parentError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('id', requestData.customer_data.parent_id)
+        .single()
+      
+      if (parentError || !parentExists) {
+        await logRequest(supabase, req, false, keyId, 'Invalid parent_id')
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Invalid parent_id: parent customer does not exist'
+          } as SatelliteApiResponse),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+    }
 
     // Check if customer exists by name, if not create
     let customerId: string
@@ -235,6 +284,7 @@ Deno.serve(async (req) => {
 
       if (customerError) {
         console.error('Error creating customer:', customerError)
+        await logRequest(supabase, req, false, keyId, 'Failed to create customer')
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to create customer' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -261,6 +311,7 @@ Deno.serve(async (req) => {
 
     if (transactionError) {
       console.error('Error creating transaction:', transactionError)
+      await logRequest(supabase, req, false, keyId, 'Failed to create transaction')
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to create transaction' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
