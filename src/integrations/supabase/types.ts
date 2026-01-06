@@ -129,6 +129,30 @@ export type Database = {
           },
         ]
       }
+      login_attempts: {
+        Row: {
+          attempted_at: string | null
+          email: string
+          id: string
+          ip_address: string | null
+          success: boolean | null
+        }
+        Insert: {
+          attempted_at?: string | null
+          email: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean | null
+        }
+        Update: {
+          attempted_at?: string | null
+          email?: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           admin_notes: string | null
@@ -316,6 +340,39 @@ export type Database = {
         }
         Relationships: []
       }
+      satellite_api_keys: {
+        Row: {
+          client_name: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          key_hash: string
+          last_used_at: string | null
+          request_count: number | null
+        }
+        Insert: {
+          client_name: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash: string
+          last_used_at?: string | null
+          request_count?: number | null
+        }
+        Update: {
+          client_name?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash?: string
+          last_used_at?: string | null
+          request_count?: number | null
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string
@@ -398,7 +455,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_authenticated_admin: { Args: never; Returns: boolean }
+      is_authenticated_customer: { Args: never; Returns: boolean }
     }
     Enums: {
       admin_role: "admin" | "super_admin"
