@@ -5,16 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, RotateCcw } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Shield } from 'lucide-react';
 
 const AdminRegister = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resetConfirmText, setResetConfirmText] = useState('');
-  const { register, resetSystem } = useAuth();
+  const { register } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,28 +46,8 @@ const AdminRegister = () => {
     setLoading(false);
   };
 
-  const handleResetSystem = async () => {
-    if (resetConfirmText !== 'RESET') {
-      toast({
-        title: "Error",
-        description: "Ketik 'RESET' untuk konfirmasi",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const { error } = await resetSystem();
-    
-    if (error) {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
-    } else {
-      setResetConfirmText('');
-    }
-  };
+  // System reset functionality has been removed for security reasons
+  // This was a critical vulnerability that allowed total data loss from client-side
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
@@ -123,37 +101,7 @@ const AdminRegister = () => {
             </Button>
           </form>
           
-          <div className="mt-6 pt-4 border-t">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full">
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset System (Jika Ada Masalah)
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Reset Sistem</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Ini akan menghapus SEMUA data dan admin yang ada. Ketik "RESET" untuk konfirmasi.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <Input
-                  placeholder="Ketik RESET"
-                  value={resetConfirmText}
-                  onChange={(e) => setResetConfirmText(e.target.value)}
-                />
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => setResetConfirmText('')}>
-                    Batal
-                  </AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResetSystem}>
-                    Reset System
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+          {/* System Reset button removed for security - this was a critical vulnerability */}
         </CardContent>
       </Card>
     </div>
