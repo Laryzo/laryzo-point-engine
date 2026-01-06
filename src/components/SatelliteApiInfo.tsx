@@ -1,10 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Code, Globe, Zap } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Code, Globe, Zap, Shield, AlertTriangle } from 'lucide-react';
 
 const SatelliteApiInfo = () => {
-  const apiUrl = "https://dtgfbqxwapmwjqkmseru.supabase.co/functions/v1/satellite-api";
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/satellite-api`;
   
   const exampleRequest = {
     customer_data: {
@@ -62,6 +63,16 @@ const SatelliteApiInfo = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Security Notice */}
+          <Alert>
+            <Shield className="h-4 w-4" />
+            <AlertTitle>Keamanan API Key</AlertTitle>
+            <AlertDescription>
+              API key sekarang dikelola melalui database dan harus diminta kepada administrator. 
+              Hubungi admin untuk mendapatkan API key baru.
+            </AlertDescription>
+          </Alert>
+
           {/* API Overview */}
           <div>
             <h3 className="text-lg font-semibold mb-3 flex items-center">
@@ -82,10 +93,13 @@ const SatelliteApiInfo = () => {
                 <strong>Authorization:</strong> <code>x-api-key header required</code>
               </p>
               <div className="mt-3">
-                <p className="text-sm font-medium mb-1">Demo API Keys:</p>
+                <p className="text-sm font-medium mb-1 flex items-center">
+                  <AlertTriangle className="h-4 w-4 mr-1 text-yellow-500" />
+                  API Key:
+                </p>
                 <div className="bg-background p-2 rounded text-xs font-mono space-y-1">
-                  <div>Development: <code>sat_key_demo_12345</code></div>
-                  <div>Production: <code>sat_key_production_67890</code></div>
+                  <div>Format: <code>sat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></div>
+                  <div className="text-muted-foreground">Hubungi admin untuk mendapatkan API key</div>
                 </div>
               </div>
             </div>
@@ -159,7 +173,7 @@ const SatelliteApiInfo = () => {
               <pre className="text-xs overflow-auto">
 {`curl -X POST ${apiUrl} \\
   -H "Content-Type: application/json" \\
-  -H "x-api-key: sat_key_demo_12345" \\
+  -H "x-api-key: YOUR_API_KEY_HERE" \\
   -d '${JSON.stringify(exampleRequest, null, 2)}'`}
               </pre>
             </div>

@@ -1,19 +1,59 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
+import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
 }
 
-// Predefined API keys for satellite API (in production, store in Supabase secrets)
-const VALID_API_KEYS = [
-  'sat_key_demo_12345',
-  'sat_key_production_67890'
-];
-
-function validateApiKey(request: Request): boolean {
-  const apiKey = request.headers.get('x-api-key');
-  return apiKey !== null && VALID_API_KEYS.includes(apiKey);
+async function validateApiKey(supabase: ReturnType<typeof createClient>, request: Request): Promise<{ valid: boolean; keyId?: string }> {
+  const apiKey = request.headers.get('x-api-key')
+  if (!apiKey) return { valid: false }
+  
+  // Query database for active keys
+  const { data: keys, error } = await supabase
+    .from('satellite_api_keys')
+    .select('id, key_hash, expires_at')
+    .eq('is_active', true)
+  
+  if (error || !keys || keys.length === 0) {
+    console.log('No active API keys found or error:', error)
+    return { valid: false }
+  }
+  
+  // Check each key (hash comparison)
+  for (const keyRecord of keys) {
+    // Check expiration
+    if (keyRecord.expires_at && new Date(keyRecord.expires_at) < new Date()) {
+      continue
+    }
+    
+    try {
+      const isMatch = await bcrypt.compare(apiKey, keyRecord.key_hash)
+      if (isMatch) {
+        // Update usage stats
+        await supabase
+          .from('satellite_api_keys')
+          .update({ 
+            last_used_at: new Date().toISOString(),
+            request_count: supabase.rpc ? undefined : 1 // Will use increment in query
+          })
+          .eq('id', keyRecord.id)
+        
+        // Increment request count
+        await supabase.rpc('increment_satellite_key_count', { key_id: keyRecord.id }).catch(() => {
+          // Fallback if RPC doesn't exist - just log
+          console.log('RPC increment not available, skipping count update')
+        })
+        
+        return { valid: true, keyId: keyRecord.id }
+      }
+    } catch (e) {
+      console.error('Error comparing key:', e)
+    }
+  }
+  
+  return { valid: false }
 }
 
 function validateTransactionRequest(data: any): boolean {
@@ -29,75 +69,78 @@ function validateTransactionRequest(data: any): boolean {
     typeof data.transaction_data.margin === 'number' &&
     data.transaction_data.qty > 0 &&
     data.transaction_data.margin >= 0
-  );
+  )
 }
 
 function sanitizeString(input: string): string {
-  return input.trim().slice(0, 255); // Limit length and trim whitespace
+  return input.trim().slice(0, 255)
 }
 
-async function logRequest(supabase: any, request: Request, success: boolean, error?: string) {
+async function logRequest(supabase: ReturnType<typeof createClient>, request: Request, success: boolean, keyId?: string, error?: string) {
   const logData = {
     timestamp: new Date().toISOString(),
     method: request.method,
     url: request.url,
     success,
     error: error || null,
-    ip: request.headers.get('x-forwarded-for') || 'unknown'
-  };
+    ip: request.headers.get('x-forwarded-for') || 'unknown',
+    key_id: keyId || null
+  }
   
-  console.log('API Request Log:', JSON.stringify(logData, null, 2));
+  console.log('API Request Log:', JSON.stringify(logData, null, 2))
 }
 
 interface TransactionRequest {
   customer_data: {
-    name: string;
-    email?: string;
-    whatsapp?: string;
-    parent_id?: string;
-    position?: string;
-  };
+    name: string
+    email?: string
+    whatsapp?: string
+    parent_id?: string
+    position?: string
+  }
   transaction_data: {
-    product_code: string;
-    product_name: string;
-    product_type: string;
-    qty: number;
-    margin: number;
-  };
+    product_code: string
+    product_name: string
+    product_type: string
+    qty: number
+    margin: number
+  }
 }
 
 interface SatelliteApiResponse {
-  success: boolean;
-  message: string;
+  success: boolean
+  message: string
   data?: {
-    customer_id: string;
-    transaction_id: string;
-    total_customer_points: number;
+    customer_id: string
+    transaction_id: string
+    total_customer_points: number
     distributed_points: Array<{
-      customer_id: string;
-      customer_name: string;
-      level: number;
-      points: number;
-    }>;
-  };
-  error?: string;
+      customer_id: string
+      customer_name: string
+      level: number
+      points: number
+    }>
+  }
+  error?: string
 }
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  )
 
   try {
-    // Validate API key
-    if (!validateApiKey(req)) {
-      await logRequest(supabase, req, false, 'Invalid API key');
+    // Validate API key from database
+    const { valid, keyId } = await validateApiKey(supabase, req)
+    
+    if (!valid) {
+      await logRequest(supabase, req, false, undefined, 'Invalid API key')
       return new Response(
         JSON.stringify({
           success: false,
@@ -107,12 +150,12 @@ Deno.serve(async (req) => {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
 
     // Only allow POST requests
     if (req.method !== 'POST') {
-      await logRequest(supabase, req, false, 'Invalid method');
+      await logRequest(supabase, req, false, keyId, 'Invalid method')
       return new Response(
         JSON.stringify({
           success: false,
@@ -122,15 +165,15 @@ Deno.serve(async (req) => {
           status: 405,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
 
     // Parse and validate request body
-    let requestData: TransactionRequest;
+    let requestData: TransactionRequest
     try {
-      const body = await req.json();
+      const body = await req.json()
       if (!validateTransactionRequest(body)) {
-        throw new Error('Invalid request format');
+        throw new Error('Invalid request format')
       }
       requestData = {
         customer_data: {
@@ -147,9 +190,9 @@ Deno.serve(async (req) => {
           qty: Math.max(1, Math.floor(body.transaction_data.qty)),
           margin: Math.max(0, body.transaction_data.margin)
         }
-      };
+      }
     } catch (error) {
-      await logRequest(supabase, req, false, 'Invalid request body');
+      await logRequest(supabase, req, false, keyId, 'Invalid request body')
       return new Response(
         JSON.stringify({
           success: false,
@@ -159,23 +202,23 @@ Deno.serve(async (req) => {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
     
-    console.log('Received satellite API request:', requestData);
+    console.log('Received satellite API request:', requestData)
 
 
     // Check if customer exists by name, if not create
-    let customerId: string;
+    let customerId: string
     const { data: existingCustomer } = await supabase
       .from('customers')
       .select('id')
       .eq('name', requestData.customer_data.name)
-      .single();
+      .single()
 
     if (existingCustomer) {
-      customerId = existingCustomer.id;
-      console.log('Found existing customer:', customerId);
+      customerId = existingCustomer.id
+      console.log('Found existing customer:', customerId)
     } else {
       // Create new customer
       const { data: newCustomer, error: customerError } = await supabase
@@ -188,18 +231,18 @@ Deno.serve(async (req) => {
           position: requestData.customer_data.position,
         })
         .select('id')
-        .single();
+        .single()
 
       if (customerError) {
-        console.error('Error creating customer:', customerError);
+        console.error('Error creating customer:', customerError)
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to create customer' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        )
       }
 
-      customerId = newCustomer.id;
-      console.log('Created new customer:', customerId);
+      customerId = newCustomer.id
+      console.log('Created new customer:', customerId)
     }
 
     // Create transaction
@@ -214,30 +257,30 @@ Deno.serve(async (req) => {
         margin: requestData.transaction_data.margin,
       })
       .select('id')
-      .single();
+      .single()
 
     if (transactionError) {
-      console.error('Error creating transaction:', transactionError);
+      console.error('Error creating transaction:', transactionError)
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to create transaction' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      )
     }
 
-    console.log('Created transaction:', transaction.id);
+    console.log('Created transaction:', transaction.id)
 
     // Distribute points (1% to customer, 1% to each upline up to 10 levels)
-    const margin = requestData.transaction_data.margin;
-    const pointPercentage = 0.01; // 1%
+    const margin = requestData.transaction_data.margin
+    const pointPercentage = 0.01 // 1%
     const distributedPoints: Array<{
-      customer_id: string;
-      customer_name: string;
-      level: number;
-      points: number;
-    }> = [];
+      customer_id: string
+      customer_name: string
+      level: number
+      points: number
+    }> = []
 
     // Give 1% to the customer who made the transaction
-    const customerPoints = margin * pointPercentage;
+    const customerPoints = margin * pointPercentage
     
     await supabase.from('point_history').insert({
       transaction_id: transaction.id,
@@ -246,27 +289,27 @@ Deno.serve(async (req) => {
       level: 0,
       points: customerPoints,
       product_code: requestData.transaction_data.product_code,
-    });
+    })
 
     distributedPoints.push({
       customer_id: customerId,
       customer_name: requestData.customer_data.name,
       level: 0,
       points: customerPoints,
-    });
+    })
 
-    console.log('Distributed points to customer:', customerPoints);
+    console.log('Distributed points to customer:', customerPoints)
 
     // Get customer for upline distribution
     const { data: customer } = await supabase
       .from('customers')
       .select('parent_id, name')
       .eq('id', customerId)
-      .single();
+      .single()
 
     if (customer?.parent_id) {
-      let currentParentId = customer.parent_id;
-      let level = 1;
+      let currentParentId = customer.parent_id
+      let level = 1
 
       // Distribute 1% to each upline up to 10 levels
       while (currentParentId && level <= 10) {
@@ -274,10 +317,10 @@ Deno.serve(async (req) => {
           .from('customers')
           .select('id, name, parent_id')
           .eq('id', currentParentId)
-          .single();
+          .single()
 
         if (parentCustomer) {
-          const uplinePoints = margin * pointPercentage;
+          const uplinePoints = margin * pointPercentage
           
           await supabase.from('point_history').insert({
             transaction_id: transaction.id,
@@ -286,21 +329,21 @@ Deno.serve(async (req) => {
             level: level,
             points: uplinePoints,
             product_code: requestData.transaction_data.product_code,
-          });
+          })
 
           distributedPoints.push({
             customer_id: parentCustomer.id,
             customer_name: parentCustomer.name,
             level: level,
             points: uplinePoints,
-          });
+          })
 
-          console.log(`Distributed points to level ${level} upline:`, uplinePoints);
+          console.log(`Distributed points to level ${level} upline:`, uplinePoints)
 
-          currentParentId = parentCustomer.parent_id;
-          level++;
+          currentParentId = parentCustomer.parent_id
+          level++
         } else {
-          break;
+          break
         }
       }
     }
@@ -309,9 +352,9 @@ Deno.serve(async (req) => {
     const { data: totalPointsData } = await supabase
       .from('point_history')
       .select('points')
-      .eq('to_customer', customerId);
+      .eq('to_customer', customerId)
 
-    const totalCustomerPoints = totalPointsData?.reduce((sum, p) => sum + (Number(p.points) || 0), 0) || 0;
+    const totalCustomerPoints = totalPointsData?.reduce((sum, p) => sum + (Number(p.points) || 0), 0) || 0
 
     const response: SatelliteApiResponse = {
       success: true,
@@ -322,22 +365,22 @@ Deno.serve(async (req) => {
         total_customer_points: totalCustomerPoints,
         distributed_points: distributedPoints,
       },
-    };
+    }
 
-    console.log('Satellite API response:', response);
-    await logRequest(supabase, req, true);
+    console.log('Satellite API response:', response)
+    await logRequest(supabase, req, true, keyId)
 
     return new Response(
       JSON.stringify(response),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    )
 
   } catch (error) {
-    console.error('Satellite API error:', error);
-    await logRequest(supabase, req, false, 'Unexpected error');
+    console.error('Satellite API error:', error)
+    await logRequest(supabase, req, false, undefined, 'Unexpected error')
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    )
   }
-});
+})

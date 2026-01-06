@@ -20,3 +20,21 @@ verify_jwt = false
 
 [functions.digiflazz-webhook]
 verify_jwt = false
+
+[functions.admin-login]
+verify_jwt = false
+
+[functions.admin-check]
+verify_jwt = false
+
+[functions.customer-login]
+verify_jwt = false
+
+[functions.auth-recover-email]
+verify_jwt = false
+
+[functions.auth-reset-password]
+verify_jwt = false
+
+[functions.auth-reset-request]
+verify_jwt = false

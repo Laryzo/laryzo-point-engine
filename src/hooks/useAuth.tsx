@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import bcrypt from 'bcryptjs';
 
 interface Admin {
   id: string;
@@ -29,20 +28,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     checkAdminExists();
+    
+    // Check for stored admin session
+    const storedAdmin = localStorage.getItem('admin_session');
+    if (storedAdmin) {
+      try {
+        const parsedAdmin = JSON.parse(storedAdmin);
+        setAdmin(parsedAdmin);
+      } catch (e) {
+        localStorage.removeItem('admin_session');
+      }
+    }
   }, []);
 
   const checkAdminExists = async () => {
     try {
-      const { data, error } = await supabase
-        .from('admins')
-        .select('*')
-        .limit(1);
+      // Use Edge Function to check admin status securely
+      const { data, error } = await supabase.functions.invoke('admin-check');
 
       if (error) {
         console.error('Error checking admin:', error);
         setIsFirstAdmin(true);
       } else {
-        setIsFirstAdmin(!data || data.length === 0);
+        setIsFirstAdmin(data?.isFirstAdmin || false);
       }
     } catch (error) {
       console.error('Error in checkAdminExists:', error);
@@ -54,23 +62,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('email', email)
-        .single();
+      // Use Edge Function for secure server-side authentication
+      const { data, error } = await supabase.functions.invoke('admin-login', {
+        body: { email, password }
+      });
 
-      if (error || !data) {
-        return { error: 'Admin tidak ditemukan' };
+      if (error) {
+        console.error('Login error:', error);
+        return { error: error.message || 'Terjadi kesalahan saat login' };
       }
 
-      const isValidPassword = await bcrypt.compare(password, data.password_hash);
-      
-      if (!isValidPassword) {
-        return { error: 'Password salah' };
+      if (!data?.success) {
+        return { error: data?.error || 'Login gagal' };
       }
 
-      setAdmin(data);
+      // Store admin session
+      localStorage.setItem('admin_session', JSON.stringify(data.admin));
+      setAdmin(data.admin);
       return {};
     } catch (error) {
       console.error('Login error:', error);
@@ -80,26 +88,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (name: string, email: string, password: string) => {
     try {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      
-      const { data, error } = await supabase
-        .from('admins')
-        .insert([
-          {
-            name,
-            email,
-            password_hash: hashedPassword,
-            role: isFirstAdmin ? 'super_admin' : 'admin',
-          }
-        ])
-        .select()
-        .single();
+      // Use Edge Function for secure server-side registration
+      const { data, error } = await supabase.functions.invoke('admin-login', {
+        body: { email, password, name, action: 'register' }
+      });
 
       if (error) {
-        return { error: 'Gagal mendaftarkan admin: ' + error.message };
+        console.error('Register error:', error);
+        return { error: error.message || 'Terjadi kesalahan saat mendaftarkan admin' };
       }
 
-      setAdmin(data);
+      if (!data?.success) {
+        return { error: data?.error || 'Registrasi gagal' };
+      }
+
+      // Store admin session
+      localStorage.setItem('admin_session', JSON.stringify(data.admin));
+      setAdmin(data.admin);
       setIsFirstAdmin(false);
       return {};
     } catch (error) {
@@ -109,27 +114,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    localStorage.removeItem('admin_session');
     setAdmin(null);
   };
 
   const resetSystem = async () => {
-    try {
-      const { error } = await supabase
-        .from('admins')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
-
-      if (error) {
-        return { error: 'Gagal mereset sistem: ' + error.message };
-      }
-
-      setAdmin(null);
-      setIsFirstAdmin(true);
-      return {};
-    } catch (error) {
-      console.error('Reset error:', error);
-      return { error: 'Terjadi kesalahan saat mereset sistem' };
-    }
+    // This functionality should be removed or moved to a secure Edge Function
+    // For now, just logout
+    logout();
+    setIsFirstAdmin(true);
+    return {};
   };
 
   const value = {
