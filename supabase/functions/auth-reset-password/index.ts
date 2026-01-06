@@ -12,7 +12,7 @@ const ALLOWED_ORIGINS = [
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const isAllowed = origin && ALLOWED_ORIGINS.some(allowed => 
-    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com')
+    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
   )
   
   return {
@@ -27,7 +27,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 function isOriginAllowed(origin: string | null): boolean {
   if (!origin) return false
   return ALLOWED_ORIGINS.some(allowed => 
-    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com')
+    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
   )
 }
 
