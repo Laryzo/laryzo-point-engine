@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.auth-reset-request]
 verify_jwt = false
+
+[functions.customer-change-password]
+verify_jwt = false
+
+[functions.admin-create]
+verify_jwt = false

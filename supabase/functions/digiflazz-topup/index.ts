@@ -261,17 +261,28 @@ Deno.serve(async (req) => {
     // Generate unique ref_id
     const refId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-    // Deduct points from customer first
-    const { error: deductError } = await supabase
-      .from('customers')
-      .update({ points: customer.points - order.points_used })
-      .eq('id', customer.id)
+    // Deduct points from customer first using atomic RPC to prevent race conditions
+    const { data: deductSuccess, error: deductError } = await supabase.rpc(
+      'increment_customer_points',
+      {
+        customer_uuid: customer.id,
+        points_to_add: -order.points_used
+      }
+    )
 
     if (deductError) {
       console.error('Failed to deduct points:', deductError)
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to deduct points' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!deductSuccess) {
+      console.error('Point deduction failed - customer may be blocked or has insufficient balance')
+      return new Response(
+        JSON.stringify({ success: false, error: 'Insufficient points or account blocked' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -341,13 +352,23 @@ Deno.serve(async (req) => {
     } else if (status === 'pending') {
       updateData.status = 'processing'
     } else {
-      // Failed - refund points
+      // Failed - refund points using atomic RPC
       updateData.status = 'failed'
-      await supabase
-        .from('customers')
-        .update({ points: customer.points })
-        .eq('id', customer.id)
-      console.log('Refunded points due to failed transaction')
+      const { data: refundSuccess, error: refundError } = await supabase.rpc(
+        'increment_customer_points',
+        {
+          customer_uuid: customer.id,
+          points_to_add: order.points_used // Add back the deducted points
+        }
+      )
+      
+      if (refundError) {
+        console.error('Failed to refund points:', refundError)
+      } else if (refundSuccess) {
+        console.log('Refunded points due to failed transaction')
+      } else {
+        console.warn('Refund skipped - customer may be blocked')
+      }
     }
 
     const { error: updateOrderError } = await supabase

@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User, Mail, Phone, Lock, Save, Loader2 } from 'lucide-react';
-import bcrypt from 'bcryptjs';
 
 const CustomerProfile = () => {
   const navigate = useNavigate();
@@ -91,37 +90,21 @@ const CustomerProfile = () => {
     setSavingPassword(true);
 
     try {
-      // Get current auth data
-      const { data: authData, error: fetchError } = await supabase
-        .from('customer_auth')
-        .select('password_hash')
-        .eq('customer_id', customer.id)
-        .single();
+      // Call server-side edge function for secure password change
+      const { data, error } = await supabase.functions.invoke('customer-change-password', {
+        body: {
+          currentPassword,
+          newPassword
+        }
+      });
 
-      if (fetchError || !authData) {
-        throw new Error('Data autentikasi tidak ditemukan');
+      if (error) {
+        throw new Error(error.message || 'Gagal mengubah password');
       }
 
-      // Verify current password
-      const isValidPassword = await bcrypt.compare(currentPassword, authData.password_hash);
-      if (!isValidPassword) {
-        toast({
-          title: 'Error',
-          description: 'Password saat ini salah',
-          variant: 'destructive',
-        });
-        setSavingPassword(false);
-        return;
+      if (!data.success) {
+        throw new Error(data.error || 'Gagal mengubah password');
       }
-
-      // Hash new password and update
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      const { error: updateError } = await supabase
-        .from('customer_auth')
-        .update({ password_hash: hashedPassword })
-        .eq('customer_id', customer.id);
-
-      if (updateError) throw updateError;
 
       setCurrentPassword('');
       setNewPassword('');
