@@ -160,13 +160,22 @@ const CustomerShop = () => {
 
       if (orderError) throw orderError;
 
-      // Deduct points
-      const { error: pointsError } = await supabase
-        .from('customers')
-        .update({ points: customer.points - selectedProduct.point_price })
-        .eq('id', customer.id);
+      // Deduct points atomically using RPC to prevent race conditions
+      const { data: pointsSuccess, error: pointsError } = await supabase.rpc(
+        'increment_customer_points',
+        {
+          customer_uuid: customer.id,
+          points_to_add: -selectedProduct.point_price
+        }
+      );
 
       if (pointsError) throw pointsError;
+      
+      if (!pointsSuccess) {
+        // Rollback the order if points deduction failed
+        await supabase.from('orders').delete().eq('id', order.id);
+        throw new Error('Gagal mengurangi poin - akun mungkin diblokir atau saldo tidak cukup');
+      }
 
       // If PPOB, trigger the topup function
       if (selectedProduct.type === 'ppob') {

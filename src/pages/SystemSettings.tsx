@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Loader2, AlertTriangle } from 'lucide-react';
+import { Save, Loader2, AlertTriangle, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Setting {
@@ -103,6 +103,8 @@ const SystemSettings = () => {
   };
 
   const isDevelopment = formData.digiflazz_mode === 'development';
+  const [showUsername, setShowUsername] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   if (loading) {
     return (
@@ -208,26 +210,63 @@ const SystemSettings = () => {
             <CardDescription>Masukkan kredensial API Digiflazz Anda di bawah ini</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Keamanan Kredensial:</strong>
+                <ul className="list-disc list-inside mt-2 text-sm">
+                  <li>Jangan bagikan kredensial dengan siapapun</li>
+                  <li>Matikan screen sharing saat memasukkan kredensial</li>
+                  <li>Rotasi API Key secara berkala</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
             <div className="space-y-2">
               <Label>Username Digiflazz</Label>
-              <Input 
-                type="text"
-                value={formData.digiflazz_username || ''}
-                onChange={(e) => setFormData({ ...formData, digiflazz_username: e.target.value })}
-                placeholder="Masukkan username Digiflazz"
-              />
+              <div className="relative">
+                <Input 
+                  type={showUsername ? "text" : "password"}
+                  value={formData.digiflazz_username || ''}
+                  onChange={(e) => setFormData({ ...formData, digiflazz_username: e.target.value })}
+                  placeholder="Masukkan username Digiflazz"
+                  autoComplete="off"
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowUsername(!showUsername)}
+                >
+                  {showUsername ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
               <p className="text-sm text-muted-foreground">
                 Username dari akun Digiflazz Anda
               </p>
             </div>
             <div className="space-y-2">
               <Label>API Key Digiflazz</Label>
-              <Input 
-                type="password"
-                value={formData.digiflazz_api_key || ''}
-                onChange={(e) => setFormData({ ...formData, digiflazz_api_key: e.target.value })}
-                placeholder="Masukkan API Key Digiflazz"
-              />
+              <div className="relative">
+                <Input 
+                  type={showApiKey ? "text" : "password"}
+                  value={formData.digiflazz_api_key || ''}
+                  onChange={(e) => setFormData({ ...formData, digiflazz_api_key: e.target.value })}
+                  placeholder="Masukkan API Key Digiflazz"
+                  autoComplete="off"
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                >
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
               <p className="text-sm text-muted-foreground">
                 API Key dari akun Digiflazz Anda (Production/Development sesuai mode)
               </p>

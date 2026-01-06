@@ -334,14 +334,20 @@ export const CustomerListEnhanced = () => {
 
       if (historyError) throw historyError;
 
-      // Update customer total points
-      const newTotalPoints = (adjustingCustomer.totalPoints || 0) + finalAmount;
-      const { error: updateError } = await supabase
-        .from('customers')
-        .update({ points: newTotalPoints })
-        .eq('id', adjustingCustomer.id);
+      // Update customer total points atomically using RPC to prevent race conditions
+      const { data: success, error: updateError } = await supabase.rpc(
+        'increment_customer_points',
+        {
+          customer_uuid: adjustingCustomer.id,
+          points_to_add: finalAmount
+        }
+      );
 
       if (updateError) throw updateError;
+
+      if (!success) {
+        throw new Error('Gagal mengubah poin - customer mungkin diblokir');
+      }
 
       toast({
         title: "Berhasil",
