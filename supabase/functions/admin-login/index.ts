@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
+import { compare, hash, genSalt } from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
+
+// Workaround for bcrypt Worker issue in Deno Deploy
+import { compare as compareSync, hashSync, genSaltSync } from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 
 // CORS configuration - restrict to trusted origins
 const ALLOWED_ORIGINS = [
@@ -28,6 +31,27 @@ function isOriginAllowed(origin: string | null): boolean {
   return ALLOWED_ORIGINS.some(allowed => 
     origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
   )
+}
+
+// Use synchronous bcrypt functions to avoid Worker issues in Deno Deploy
+async function hashPassword(password: string): Promise<string> {
+  try {
+    const salt = genSaltSync(10)
+    return hashSync(password, salt)
+  } catch (error) {
+    console.error('bcrypt sync failed, trying async:', error)
+    const salt = await genSalt(10)
+    return await hash(password, salt)
+  }
+}
+
+async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  try {
+    return compareSync(password, hashedPassword)
+  } catch (error) {
+    console.error('bcrypt sync compare failed, trying async:', error)
+    return await compare(password, hashedPassword)
+  }
 }
 
 const RATE_LIMIT_MAX = 5 // max attempts
@@ -64,7 +88,8 @@ Deno.serve(async (req) => {
   )
 
   try {
-    const { email, password, action } = await req.json()
+    const body = await req.json()
+    const { email, password, action, name } = body
 
     // Input validation
     if (!email || typeof email !== 'string' || !email.includes('@')) {
@@ -115,12 +140,10 @@ Deno.serve(async (req) => {
         )
       }
 
-      const { name } = await req.json().catch(() => ({ name: '' }))
       const adminName = name || sanitizedEmail.split('@')[0]
 
       // Hash password
-      const salt = await bcrypt.genSalt(10)
-      const hashedPassword = await bcrypt.hash(password, salt)
+      const hashedPassword = await hashPassword(password)
 
       // Create first admin as super_admin
       const { data: newAdmin, error: insertError } = await supabase
@@ -195,8 +218,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, admin.password_hash)
+    // Verify password using sync method to avoid Worker issues
+    console.log(`Verifying password for ${sanitizedEmail}...`)
+    const isValidPassword = await verifyPassword(password, admin.password_hash)
 
     if (!isValidPassword) {
       // Log failed attempt
