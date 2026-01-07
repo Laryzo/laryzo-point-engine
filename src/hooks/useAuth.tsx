@@ -48,13 +48,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error checking admin:', error);
-        setIsFirstAdmin(true);
+        // Don't fallback to registration page on error - assume admins exist
+        setIsFirstAdmin(false);
       } else {
         setIsFirstAdmin(data?.isFirstAdmin || false);
       }
     } catch (error) {
       console.error('Error in checkAdminExists:', error);
-      setIsFirstAdmin(true);
+      // Don't fallback to registration page on error - assume admins exist
+      setIsFirstAdmin(false);
     } finally {
       setLoading(false);
     }
