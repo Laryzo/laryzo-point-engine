@@ -28,13 +28,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     checkAdminExists();
-    
+
     // Check for stored admin session
     const storedAdmin = localStorage.getItem('admin_session');
     if (storedAdmin) {
       try {
         const parsedAdmin = JSON.parse(storedAdmin);
         setAdmin(parsedAdmin);
+
+        // Ensure we also have a valid Supabase auth session for RLS-protected queries
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session) {
+            localStorage.removeItem('admin_session');
+            setAdmin(null);
+          }
+        });
       } catch (e) {
         localStorage.removeItem('admin_session');
       }
@@ -78,7 +86,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: data?.error || 'Login gagal' };
       }
 
-      // Store admin session
+      // Ensure Supabase Auth session exists (required for RLS)
+      if (data?.session?.access_token && data?.session?.refresh_token) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      } else {
+        return { error: 'Sesi autentikasi tidak terbentuk. Silakan coba login ulang.' };
+      }
+
+      // Store admin session (UI identity)
       localStorage.setItem('admin_session', JSON.stringify(data.admin));
       setAdmin(data.admin);
       return {};
@@ -104,6 +122,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: data?.error || 'Registrasi gagal' };
       }
 
+      // Ensure Supabase Auth session exists (required for RLS)
+      if (data?.session?.access_token && data?.session?.refresh_token) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      } else {
+        return { error: 'Sesi autentikasi tidak terbentuk. Silakan coba login ulang.' };
+      }
+
       // Store admin session
       localStorage.setItem('admin_session', JSON.stringify(data.admin));
       setAdmin(data.admin);
@@ -117,6 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem('admin_session');
+    supabase.auth.signOut();
     setAdmin(null);
   };
 

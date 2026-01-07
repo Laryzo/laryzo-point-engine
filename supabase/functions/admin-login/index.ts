@@ -142,16 +142,43 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Sign in to Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Ensure auth user exists and can sign in with password
+      const { data: createdUserData, error: createUserError } = await supabase.auth.admin.createUser({
         email: sanitizedEmail,
         password: password,
         email_confirm: true,
-        user_metadata: { admin_id: newAdmin.id, role: newAdmin.role }
+        user_metadata: { admin_id: newAdmin.id, role: newAdmin.role },
       })
 
-      if (authError) {
-        console.error('Failed to create auth user:', authError)
+      if (createUserError && !createUserError.message.includes('already been registered')) {
+        console.error('Failed to create auth user:', createUserError)
+      }
+
+      // Sign in using anon client to obtain session tokens (required for RLS)
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      if (!anonKey) {
+        return new Response(
+          JSON.stringify({ error: 'Konfigurasi autentikasi belum lengkap (ANON key).' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const supabaseAnon = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        anonKey
+      )
+
+      const { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
+        email: sanitizedEmail,
+        password,
+      })
+
+      if (signInError || !signInData.session) {
+        console.error('Failed to sign in after registration:', signInError)
+        return new Response(
+          JSON.stringify({ error: 'Registrasi berhasil, tetapi gagal membuat sesi login.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
 
       // Log successful registration
@@ -167,7 +194,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: true,
           admin: newAdmin,
-          session: authData?.session || null
+          session: signInData.session,
         }),
         { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -214,48 +241,88 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Sign in to Supabase Auth to get a proper JWT
-    const { data: authData } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
-      email: sanitizedEmail,
-      options: {
-        data: { admin_id: admin.id, role: admin.role }
-      }
-    })
+     // Ensure auth user exists and password is synced so we can sign in and get JWT
+     const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers({
+       page: 1,
+       perPage: 1000,
+     })
 
-    // Try to create auth user if not exists
-    if (!authData) {
-      const { error: createError } = await supabase.auth.admin.createUser({
-        email: sanitizedEmail,
-        password: password,
-        email_confirm: true,
-        user_metadata: { admin_id: admin.id, role: admin.role }
-      })
+     if (usersError) {
+       console.error('Failed to list auth users:', usersError)
+     }
 
-      if (createError && !createError.message.includes('already been registered')) {
-        console.error('Failed to create auth user:', createError)
-      }
-    }
+     const existingUser = usersData?.users?.find(u => (u.email || '').toLowerCase() === sanitizedEmail)
 
-    // Log successful login
-    await supabase.from('login_attempts').insert({
-      email: sanitizedEmail,
-      ip_address: clientIp,
-      success: true
-    })
+     if (existingUser?.id) {
+       const { error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
+         password,
+         email_confirm: true,
+         user_metadata: { admin_id: admin.id, role: admin.role },
+       })
 
-    console.log(`Admin logged in: ${sanitizedEmail}`)
+       if (updateUserError) {
+         console.error('Failed to update auth user password:', updateUserError)
+       }
+     } else {
+       const { error: createError } = await supabase.auth.admin.createUser({
+         email: sanitizedEmail,
+         password,
+         email_confirm: true,
+         user_metadata: { admin_id: admin.id, role: admin.role },
+       })
 
-    // Return admin without password hash
-    const { password_hash, ...safeAdmin } = admin
+       if (createError && !createError.message.includes('already been registered')) {
+         console.error('Failed to create auth user:', createError)
+       }
+     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        admin: safeAdmin
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+     // Sign in using anon client to obtain session tokens (required for RLS)
+     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+     if (!anonKey) {
+       return new Response(
+         JSON.stringify({ error: 'Konfigurasi autentikasi belum lengkap (ANON key).' }),
+         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+       )
+     }
+
+     const supabaseAnon = createClient(
+       Deno.env.get('SUPABASE_URL') ?? '',
+       anonKey
+     )
+
+     const { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
+       email: sanitizedEmail,
+       password,
+     })
+
+     if (signInError || !signInData.session) {
+       console.error('Failed to sign in:', signInError)
+       return new Response(
+         JSON.stringify({ error: 'Login berhasil diverifikasi, tetapi gagal membuat sesi.' }),
+         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+       )
+     }
+
+     // Log successful login
+     await supabase.from('login_attempts').insert({
+       email: sanitizedEmail,
+       ip_address: clientIp,
+       success: true
+     })
+
+     console.log(`Admin logged in: ${sanitizedEmail}`)
+
+     // Return admin without password hash
+     const { password_hash, ...safeAdmin } = admin
+
+     return new Response(
+       JSON.stringify({
+         success: true,
+         admin: safeAdmin,
+         session: signInData.session,
+       }),
+       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+     )
 
   } catch (error) {
     console.error('Admin login error:', error)
