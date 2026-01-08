@@ -43,10 +43,19 @@ export const CustomerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const refreshCustomerData = async (customerId: string) => {
     try {
-      // For refreshing, we need to call a secure endpoint
-      // Since RLS is now strict, we'll store the customer data locally
-      // and trust it until logout
-      console.log('Customer session active:', customerId);
+      const { data, error } = await supabase.functions.invoke('customer-refresh', {
+        body: { customer_id: customerId }
+      });
+
+      if (error) {
+        console.error('Error refreshing customer:', error);
+        return;
+      }
+
+      if (data?.success && data?.customer) {
+        setCustomer(data.customer);
+        localStorage.setItem('customer_session', JSON.stringify(data.customer));
+      }
     } catch (error) {
       console.error('Error refreshing customer:', error);
     }
