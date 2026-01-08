@@ -15,13 +15,14 @@ interface PointHistory {
 
 const CustomerPointHistory = () => {
   const navigate = useNavigate();
-  const { customer } = useCustomerAuth();
+  const { customer, refreshCustomer } = useCustomerAuth();
   const [history, setHistory] = useState<PointHistory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (customer) {
       fetchHistory();
+      refreshCustomer(); // Refresh customer data to get latest points
     }
   }, [customer?.id]);
 
