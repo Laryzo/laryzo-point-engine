@@ -224,7 +224,15 @@ Deno.serve(async (req) => {
 
     // Verify password using bcryptjs (synchronous, no Workers needed)
     console.log(`Verifying password for ${sanitizedEmail}...`)
-    const isValidPassword = bcrypt.compareSync(password, admin.password_hash)
+    
+    // Normalize bcrypt hash prefix for compatibility ($2a$ vs $2b$)
+    // bcryptjs uses $2a$ but some implementations use $2b$ - they are functionally equivalent
+    let normalizedHash = admin.password_hash
+    if (normalizedHash.startsWith('$2b$')) {
+      normalizedHash = '$2a$' + normalizedHash.substring(4)
+    }
+    
+    const isValidPassword = bcrypt.compareSync(password, normalizedHash)
 
     if (!isValidPassword) {
       // Log failed attempt
