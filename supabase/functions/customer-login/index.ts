@@ -188,6 +188,33 @@ Deno.serve(async (req) => {
         user_metadata: { customer_id: newCustomer.id }
       })
 
+      // Sign in to obtain session tokens (required for RLS reads in the portal)
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      if (!anonKey) {
+        return new Response(
+          JSON.stringify({ error: 'Konfigurasi autentikasi belum lengkap (ANON key).' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const supabaseAnon = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        anonKey
+      )
+
+      const { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
+        email: sanitizedEmail,
+        password,
+      })
+
+      if (signInError || !signInData.session) {
+        console.error('Failed to sign in after customer registration:', signInError)
+        return new Response(
+          JSON.stringify({ error: 'Registrasi berhasil, tetapi gagal membuat sesi login.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       // Log successful registration
       await supabase.from('login_attempts').insert({
         email: sanitizedEmail,
@@ -200,7 +227,8 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          customer: newCustomer
+          customer: newCustomer,
+          session: signInData.session,
         }),
         { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -273,10 +301,73 @@ Deno.serve(async (req) => {
 
     console.log(`Customer logged in: ${sanitizedEmail}`)
 
+    // Ensure auth user exists and password is synced so we can sign in and get JWT
+    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    })
+
+    if (usersError) {
+      console.error('Failed to list auth users:', usersError)
+    }
+
+    const existingUser = usersData?.users?.find(u => (u.email || '').toLowerCase() === sanitizedEmail)
+
+    if (existingUser?.id) {
+      const { error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
+        password,
+        email_confirm: true,
+        user_metadata: { customer_id: customer.id },
+      })
+
+      if (updateUserError) {
+        console.error('Failed to update auth user password:', updateUserError)
+      }
+    } else {
+      const { error: createError } = await supabase.auth.admin.createUser({
+        email: sanitizedEmail,
+        password,
+        email_confirm: true,
+        user_metadata: { customer_id: customer.id },
+      })
+
+      if (createError && !createError.message.includes('already been registered')) {
+        console.error('Failed to create auth user:', createError)
+      }
+    }
+
+    // Sign in using anon client to obtain session tokens (required for RLS)
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    if (!anonKey) {
+      return new Response(
+        JSON.stringify({ error: 'Konfigurasi autentikasi belum lengkap (ANON key).' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const supabaseAnon = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      anonKey
+    )
+
+    const { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
+      email: sanitizedEmail,
+      password,
+    })
+
+    if (signInError || !signInData.session) {
+      console.error('Failed to sign in:', signInError)
+      return new Response(
+        JSON.stringify({ error: 'Login berhasil diverifikasi, tetapi gagal membuat sesi.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
-        customer: customer
+        customer: customer,
+        session: signInData.session,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

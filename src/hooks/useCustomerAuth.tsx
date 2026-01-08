@@ -83,7 +83,19 @@ export const CustomerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { error: data?.error || 'Login gagal' };
       }
 
-      // Store customer session
+      // Set authenticated session (required for RLS reads like orders/point_history)
+      if (data?.session?.access_token && data?.session?.refresh_token) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+
+        if (sessionError) {
+          console.error('Failed to set customer auth session:', sessionError);
+        }
+      }
+
+      // Store customer session (UI convenience)
       localStorage.setItem('customer_session', JSON.stringify(data.customer));
       localStorage.setItem('customer_id', data.customer.id);
       setCustomer(data.customer);
@@ -110,6 +122,18 @@ export const CustomerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { error: data?.error || 'Registrasi gagal' };
       }
 
+      // Set authenticated session (required for RLS reads)
+      if (data?.session?.access_token && data?.session?.refresh_token) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+
+        if (sessionError) {
+          console.error('Failed to set customer auth session:', sessionError);
+        }
+      }
+
       // Store customer session
       localStorage.setItem('customer_session', JSON.stringify(data.customer));
       localStorage.setItem('customer_id', data.customer.id);
@@ -122,6 +146,9 @@ export const CustomerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const logout = () => {
+    // best-effort sign out so RLS reads stop immediately
+    supabase.auth.signOut().catch(() => {});
+
     localStorage.removeItem('customer_session');
     localStorage.removeItem('customer_id');
     setCustomer(null);
