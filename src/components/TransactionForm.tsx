@@ -63,20 +63,39 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
         product_code: productCode,
       });
 
+      // Update customer's total points using atomic RPC
+      await supabase.rpc('increment_customer_points', {
+        customer_uuid: customerId,
+        points_to_add: customerPoints
+      });
+
       // Distribute 1% to each upline (up to 10 levels)
       let currentCustomer = customerId;
       
       for (let level = 1; level <= 10; level++) {
-        // Get parent of current customer
+        // Get parent of current customer (also check points_blocked status)
         const { data: customer } = await supabase
           .from('customers')
-          .select('parent_id')
+          .select('parent_id, points_blocked')
           .eq('id', currentCustomer)
           .maybeSingle();
 
         // If no parent found, stop distribution
         if (!customer?.parent_id) {
           break;
+        }
+
+        // Check if parent is blocked from receiving points
+        const { data: parentData } = await supabase
+          .from('customers')
+          .select('points_blocked')
+          .eq('id', customer.parent_id)
+          .maybeSingle();
+
+        // Skip if parent has points blocked
+        if (parentData?.points_blocked) {
+          currentCustomer = customer.parent_id;
+          continue;
         }
 
         // Give 1% points to parent
@@ -88,6 +107,12 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
           level: level,
           points: uplinePoints,
           product_code: productCode,
+        });
+
+        // Update parent's total points using atomic RPC
+        await supabase.rpc('increment_customer_points', {
+          customer_uuid: customer.parent_id,
+          points_to_add: uplinePoints
         });
 
         // Move to next level (parent becomes current customer)
