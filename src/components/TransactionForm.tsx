@@ -53,6 +53,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
   const distributePoints = async (transactionId: string, customerId: string, calculatedProfit: number) => {
     try {
       // Give 1% points to the customer who made the transaction
+      // Note: customers.points is automatically updated via database trigger on point_history
       const customerPoints = calculatedProfit * 0.01;
       await supabase.from('point_history').insert({
         transaction_id: transactionId,
@@ -63,20 +64,14 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
         product_code: productCode,
       });
 
-      // Update customer's total points using atomic RPC
-      await supabase.rpc('increment_customer_points', {
-        customer_uuid: customerId,
-        points_to_add: customerPoints
-      });
-
       // Distribute 1% to each upline (up to 10 levels)
       let currentCustomer = customerId;
       
       for (let level = 1; level <= 10; level++) {
-        // Get parent of current customer (also check points_blocked status)
+        // Get parent of current customer
         const { data: customer } = await supabase
           .from('customers')
-          .select('parent_id, points_blocked')
+          .select('parent_id')
           .eq('id', currentCustomer)
           .maybeSingle();
 
@@ -99,6 +94,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
         }
 
         // Give 1% points to parent
+        // Note: customers.points is automatically updated via database trigger on point_history
         const uplinePoints = calculatedProfit * 0.01;
         await supabase.from('point_history').insert({
           transaction_id: transactionId,
@@ -107,12 +103,6 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
           level: level,
           points: uplinePoints,
           product_code: productCode,
-        });
-
-        // Update parent's total points using atomic RPC
-        await supabase.rpc('increment_customer_points', {
-          customer_uuid: customer.parent_id,
-          points_to_add: uplinePoints
         });
 
         // Move to next level (parent becomes current customer)

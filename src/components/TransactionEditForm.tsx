@@ -64,31 +64,15 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
 
   const recalculatePoints = async (transactionId: string, customerId: string, calculatedProfit: number, productCode: string) => {
     try {
-      // First, get existing point history for this transaction to subtract old points
-      const { data: oldPointHistory } = await supabase
-        .from('point_history')
-        .select('to_customer, points')
-        .eq('transaction_id', transactionId);
-
-      // Subtract old points from each customer
-      if (oldPointHistory && oldPointHistory.length > 0) {
-        for (const record of oldPointHistory) {
-          if (record.to_customer && record.points) {
-            await supabase.rpc('increment_customer_points', {
-              customer_uuid: record.to_customer,
-              points_to_add: -record.points // Subtract old points
-            });
-          }
-        }
-      }
-
       // Delete existing point history for this transaction
+      // Note: Database trigger will automatically subtract old points from customers.points
       await supabase
         .from('point_history')
         .delete()
         .eq('transaction_id', transactionId);
 
       // Give 1% points to the customer who made the transaction
+      // Note: customers.points is automatically updated via database trigger on point_history
       const customerPoints = calculatedProfit * 0.01;
       await supabase.from('point_history').insert({
         transaction_id: transactionId,
@@ -97,12 +81,6 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
         level: 0,
         points: customerPoints,
         product_code: productCode,
-      });
-
-      // Update customer's total points using atomic RPC
-      await supabase.rpc('increment_customer_points', {
-        customer_uuid: customerId,
-        points_to_add: customerPoints
       });
 
       // Distribute 1% to each upline (up to 10 levels)
@@ -135,6 +113,7 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
         }
 
         // Give 1% points to parent
+        // Note: customers.points is automatically updated via database trigger on point_history
         const uplinePoints = calculatedProfit * 0.01;
         await supabase.from('point_history').insert({
           transaction_id: transactionId,
@@ -143,12 +122,6 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
           level: level,
           points: uplinePoints,
           product_code: productCode,
-        });
-
-        // Update parent's total points using atomic RPC
-        await supabase.rpc('increment_customer_points', {
-          customer_uuid: customer.parent_id,
-          points_to_add: uplinePoints
         });
 
         // Move to next level (parent becomes current customer)
