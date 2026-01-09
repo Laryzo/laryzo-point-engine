@@ -64,7 +64,25 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
 
   const recalculatePoints = async (transactionId: string, customerId: string, calculatedProfit: number, productCode: string) => {
     try {
-      // First, delete existing point history for this transaction
+      // First, get existing point history for this transaction to subtract old points
+      const { data: oldPointHistory } = await supabase
+        .from('point_history')
+        .select('to_customer, points')
+        .eq('transaction_id', transactionId);
+
+      // Subtract old points from each customer
+      if (oldPointHistory && oldPointHistory.length > 0) {
+        for (const record of oldPointHistory) {
+          if (record.to_customer && record.points) {
+            await supabase.rpc('increment_customer_points', {
+              customer_uuid: record.to_customer,
+              points_to_add: -record.points // Subtract old points
+            });
+          }
+        }
+      }
+
+      // Delete existing point history for this transaction
       await supabase
         .from('point_history')
         .delete()
@@ -79,6 +97,12 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
         level: 0,
         points: customerPoints,
         product_code: productCode,
+      });
+
+      // Update customer's total points using atomic RPC
+      await supabase.rpc('increment_customer_points', {
+        customer_uuid: customerId,
+        points_to_add: customerPoints
       });
 
       // Distribute 1% to each upline (up to 10 levels)
@@ -97,6 +121,19 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
           break;
         }
 
+        // Check if parent is blocked from receiving points
+        const { data: parentData } = await supabase
+          .from('customers')
+          .select('points_blocked')
+          .eq('id', customer.parent_id)
+          .maybeSingle();
+
+        // Skip if parent has points blocked
+        if (parentData?.points_blocked) {
+          currentCustomer = customer.parent_id;
+          continue;
+        }
+
         // Give 1% points to parent
         const uplinePoints = calculatedProfit * 0.01;
         await supabase.from('point_history').insert({
@@ -106,6 +143,12 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
           level: level,
           points: uplinePoints,
           product_code: productCode,
+        });
+
+        // Update parent's total points using atomic RPC
+        await supabase.rpc('increment_customer_points', {
+          customer_uuid: customer.parent_id,
+          points_to_add: uplinePoints
         });
 
         // Move to next level (parent becomes current customer)
