@@ -1,49 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// CORS configuration - restrict to trusted origins
-const ALLOWED_ORIGINS = [
-  'https://lovable.dev',
-  'https://jkqtqxwtyqrlhblnaohz.lovableproject.com',
-  'http://localhost:5173',
-  'http://localhost:3000',
-]
-
-function getCorsHeaders(origin: string | null): Record<string, string> {
-  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed => 
-    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
-  )
-  
-  return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin'
-  }
-}
-
-function isOriginAllowed(origin: string | null): boolean {
-  if (!origin) return false
-  return ALLOWED_ORIGINS.some(allowed => 
-    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
-  )
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 Deno.serve(async (req) => {
-  const origin = req.headers.get('origin')
-  const corsHeaders = getCorsHeaders(origin)
-
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
-  }
-
-  // Validate origin for non-preflight requests
-  if (!isOriginAllowed(origin)) {
-    console.warn('Blocked digiflazz-check-status request from unauthorized origin:', origin)
-    return new Response(
-      JSON.stringify({ error: 'Origin not allowed' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -171,20 +136,19 @@ Deno.serve(async (req) => {
     } else if (status === 'gagal') {
       updateData.status = 'failed'
 
-      // Refund points if order was processing
+      // Refund points if order was processing - use atomic RPC to prevent race conditions
       if (order.status === 'processing') {
-        const { data: customer } = await supabase
-          .from('customers')
-          .select('points')
-          .eq('id', order.customer_id)
-          .single()
-
-        if (customer) {
-          await supabase
-            .from('customers')
-            .update({ points: customer.points + order.points_used })
-            .eq('id', order.customer_id)
+        const { data: refundSuccess, error: refundError } = await supabase.rpc('increment_customer_points', {
+          customer_uuid: order.customer_id,
+          points_to_add: order.points_used
+        })
+        
+        if (refundError) {
+          console.error('Error refunding points:', refundError)
+        } else if (refundSuccess) {
           console.log('Refunded points due to failed transaction')
+        } else {
+          console.log('Points refund skipped (customer blocked or not found)')
         }
       }
     }
