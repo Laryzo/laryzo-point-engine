@@ -69,9 +69,11 @@ Deno.serve(async (req) => {
 
     console.log('Starting point calculation...');
 
-    // 1. Clear existing point_history and reset customer points
+    // 1. Clear existing point_history (trigger will auto-subtract from customers.points)
+    // Then reset customer points to 0 to ensure clean slate
     console.log('Clearing existing point data...');
     await supabase.from('point_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    // Reset to 0 after delete trigger runs (in case of any leftover discrepancies)
     await supabase.from('customers').update({ points: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
 
     // 2. Fetch all customers (including points_blocked status)
@@ -103,8 +105,8 @@ Deno.serve(async (req) => {
     console.log(`Found ${transactions?.length || 0} transactions to process`);
 
     // 4. Calculate points for each transaction
+    // Note: customers.points will be automatically updated via database trigger when inserting to point_history
     const pointHistoryRecords: any[] = [];
-    const customerPointsAccumulator = new Map<string, number>();
 
     const POINT_PERCENTAGE = 0.01; // 1% per level
     const MAX_UPLINE_LEVELS = 10;
@@ -128,10 +130,6 @@ Deno.serve(async (req) => {
           points: selfPoints,
           product_code: transaction.product_code
         });
-
-        // Accumulate points for customer
-        const currentSelfPoints = customerPointsAccumulator.get(transaction.customer_id) || 0;
-        customerPointsAccumulator.set(transaction.customer_id, currentSelfPoints + selfPoints);
       }
 
       // Levels 1-10: Upline points
@@ -160,10 +158,6 @@ Deno.serve(async (req) => {
           product_code: transaction.product_code
         });
 
-        // Accumulate points for upline
-        const currentUplinePoints = customerPointsAccumulator.get(parentId) || 0;
-        customerPointsAccumulator.set(parentId, currentUplinePoints + uplinePoints);
-
         currentCustomerId = parentId;
       }
     }
@@ -182,30 +176,16 @@ Deno.serve(async (req) => {
       console.log(`Inserted batch ${i / BATCH_SIZE + 1} of ${Math.ceil(pointHistoryRecords.length / BATCH_SIZE)}`);
     }
 
-    // 6. Update customer points
-    console.log('Updating customer points...');
-    let updatedCount = 0;
-    for (const [customerId, totalPoints] of customerPointsAccumulator) {
-      const { error: updateError } = await supabase
-        .from('customers')
-        .update({ points: totalPoints })
-        .eq('id', customerId);
-      
-      if (updateError) {
-        console.error(`Error updating customer ${customerId}:`, updateError);
-      } else {
-        updatedCount++;
-      }
-    }
-
-    console.log(`Updated points for ${updatedCount} customers`);
+    // 6. Customer points are now automatically updated via database trigger
+    // No need for manual update - trigger handles it when point_history is inserted
+    console.log('Customer points updated automatically via database trigger');
 
     // 7. Return summary
     const summary = {
       success: true,
       transactions_processed: transactions?.length || 0,
       point_records_created: pointHistoryRecords.length,
-      customers_updated: updatedCount,
+      customers_updated_via_trigger: true,
       formula: '1% profit per level (0-10), max 11% total per transaction'
     };
 
