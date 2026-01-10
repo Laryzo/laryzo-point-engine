@@ -334,10 +334,20 @@ Deno.serve(async (req) => {
       points: number
     }> = []
 
+    // Build list of point history records to insert
+    const pointHistoryRecords: Array<{
+      transaction_id: string
+      from_customer: string | null
+      to_customer: string
+      level: number
+      points: number
+      product_code: string
+    }> = []
+
     // Give 1% to the customer who made the transaction
     const customerPoints = margin * pointPercentage
     
-    await supabase.from('point_history').insert({
+    pointHistoryRecords.push({
       transaction_id: transaction.id,
       from_customer: null,
       to_customer: customerId,
@@ -353,7 +363,7 @@ Deno.serve(async (req) => {
       points: customerPoints,
     })
 
-    console.log('Distributed points to customer:', customerPoints)
+    console.log('Prepared points for customer:', customerPoints)
 
     // Get customer for upline distribution
     const { data: customer } = await supabase
@@ -377,7 +387,7 @@ Deno.serve(async (req) => {
         if (parentCustomer) {
           const uplinePoints = margin * pointPercentage
           
-          await supabase.from('point_history').insert({
+          pointHistoryRecords.push({
             transaction_id: transaction.id,
             from_customer: customerId,
             to_customer: parentCustomer.id,
@@ -393,12 +403,40 @@ Deno.serve(async (req) => {
             points: uplinePoints,
           })
 
-          console.log(`Distributed points to level ${level} upline:`, uplinePoints)
+          console.log(`Prepared points for level ${level} upline:`, uplinePoints)
 
           currentParentId = parentCustomer.parent_id
           level++
         } else {
           break
+        }
+      }
+    }
+
+    // Insert all point history records at once
+    if (pointHistoryRecords.length > 0) {
+      const { error: historyError } = await supabase
+        .from('point_history')
+        .insert(pointHistoryRecords)
+
+      if (historyError) {
+        console.error('Error inserting point history:', historyError)
+        throw historyError
+      }
+
+      // Update customer points using atomic RPC function (same pattern as digiflazz-webhook)
+      for (const record of pointHistoryRecords) {
+        const { data: success, error: rpcError } = await supabase.rpc('increment_customer_points', {
+          customer_uuid: record.to_customer,
+          points_to_add: record.points
+        })
+
+        if (rpcError) {
+          console.error('Error incrementing points via RPC:', rpcError)
+        } else if (!success) {
+          console.log(`Points increment skipped for blocked customer: ${record.to_customer}`)
+        } else {
+          console.log(`Successfully incremented ${record.points} points for customer ${record.to_customer}`)
         }
       }
     }
