@@ -241,6 +241,10 @@ Deno.serve(async (req) => {
       })
 
       if (fallbackSignInError || !fallbackSignIn.session) {
+        console.log(
+          `Auth fallback signIn failed for ${sanitizedEmail}: ${fallbackSignInError?.message ?? 'no_message'}`
+        )
+
         // Log failed attempt
         await supabase.from('login_attempts').insert({
           email: sanitizedEmail,
@@ -334,13 +338,16 @@ Deno.serve(async (req) => {
        password,
      })
 
-     if (signInError || !signInData.session) {
-       console.error('Failed to sign in:', signInError)
-       return new Response(
-         JSON.stringify({ error: 'Login berhasil diverifikasi, tetapi gagal membuat sesi.' }),
-         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-       )
-     }
+      if (signInError || !signInData.session) {
+        console.error('Failed to sign in:', signInError)
+        console.log(
+          `Auth signInWithPassword failed for ${sanitizedEmail}: ${signInError?.message ?? 'no_message'}`
+        )
+        return new Response(
+          JSON.stringify({ error: 'Login berhasil diverifikasi, tetapi gagal membuat sesi.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
 
      // Log successful login
      await supabase.from('login_attempts').insert({
