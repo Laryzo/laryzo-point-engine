@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Trash2, ArrowUp, Plus } from 'lucide-react';
+import { Edit, Trash2, ArrowUp, Plus, KeyRound } from 'lucide-react';
 
 interface Admin {
   id: string;
@@ -27,13 +27,15 @@ const AdminManagement = () => {
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
-  // Removed: resetConfirmText state - system reset removed for security
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newAdminName, setNewAdminName] = useState('');
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [newAdminRole, setNewAdminRole] = useState('admin');
+  const [resetPasswordAdmin, setResetPasswordAdmin] = useState<Admin | null>(null);
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const { admin: currentAdmin } = useAuth();
   const { toast } = useToast();
 
@@ -202,6 +204,52 @@ const AdminManagement = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetPasswordAdmin || !newPasswordValue) return;
+    
+    if (newPasswordValue.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password baru harus minimal 6 karakter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: {
+          admin_id: resetPasswordAdmin.id,
+          new_password: newPasswordValue
+        }
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        throw new Error(data.error || 'Gagal reset password');
+      }
+
+      toast({
+        title: "Berhasil",
+        description: data.message || "Password berhasil direset",
+      });
+
+      setResetPasswordAdmin(null);
+      setNewPasswordValue('');
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Gagal reset password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   // System reset functionality has been removed for security reasons
   // This was a critical vulnerability that allowed total data loss from client-side
 
@@ -363,10 +411,23 @@ const AdminManagement = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handlePromote(admin.id)}
+                            title="Promosikan ke Super Admin"
                           >
                             <ArrowUp className="h-4 w-4" />
                           </Button>
                         )}
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setResetPasswordAdmin(admin);
+                            setNewPasswordValue('');
+                          }}
+                          title="Reset Password"
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
 
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -405,6 +466,38 @@ const AdminManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!resetPasswordAdmin} onOpenChange={(open) => !open && setResetPasswordAdmin(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password Admin</DialogTitle>
+            <DialogDescription>
+              Reset password untuk {resetPasswordAdmin?.name || resetPasswordAdmin?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-password-reset">Password Baru</Label>
+              <Input
+                id="new-password-reset"
+                type="password"
+                value={newPasswordValue}
+                onChange={(e) => setNewPasswordValue(e.target.value)}
+                placeholder="Masukkan password baru (min. 6 karakter)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordAdmin(null)}>
+              Batal
+            </Button>
+            <Button onClick={handleResetPassword} disabled={isResettingPassword}>
+              {isResettingPassword ? "Menyimpan..." : "Reset Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.customer-refresh]
 verify_jwt = false
+
+[functions.admin-reset-password]
+verify_jwt = false
