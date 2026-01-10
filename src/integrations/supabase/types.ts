@@ -457,6 +457,30 @@ export type Database = {
           },
         ]
       }
+      webhook_attempts: {
+        Row: {
+          attempted_at: string
+          id: string
+          ip_address: string | null
+          ref_id: string | null
+          success: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          id?: string
+          ip_address?: string | null
+          ref_id?: string | null
+          success?: boolean
+        }
+        Update: {
+          attempted_at?: string
+          id?: string
+          ip_address?: string | null
+          ref_id?: string | null
+          success?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: {
       products_public: {
