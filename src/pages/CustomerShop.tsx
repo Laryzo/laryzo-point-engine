@@ -48,14 +48,14 @@ const CustomerShop = () => {
   }, [products, search, activeCategory]);
 
   const fetchProducts = async () => {
+    // Use the products_public view which excludes sensitive columns (cost_price, digiflazz_sku)
     const { data, error } = await supabase
-      .from('products')
+      .from('products_public' as any)
       .select('*')
-      .eq('is_active', true)
       .order('name');
 
     if (data) {
-      setProducts(data.map(p => ({
+      setProducts(data.map((p: any) => ({
         ...p,
         point_price: Number(p.point_price),
         stock: Number(p.stock),
