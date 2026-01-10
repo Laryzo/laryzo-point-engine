@@ -197,18 +197,31 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Ensure anon client exists (used for fallback auth + returning session tokens required for RLS)
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    if (!anonKey) {
+      return new Response(
+        JSON.stringify({ error: 'Konfigurasi autentikasi belum lengkap (ANON key).' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const supabaseAnon = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      anonKey
+    )
+
     // Verify password using bcryptjs (synchronous, no Workers needed)
     console.log(`Verifying password for ${sanitizedEmail}...`)
     console.log(`Hash prefix: ${admin.password_hash.substring(0, 7)}`)
-    
+
     // Normalize bcrypt hash prefix for compatibility ($2a$ vs $2b$)
     // bcryptjs uses $2a$ but some implementations use $2b$ - they are functionally equivalent
     let normalizedHash = admin.password_hash
     if (normalizedHash.startsWith('$2b$')) {
       normalizedHash = '$2a$' + normalizedHash.substring(4)
     }
-    
-    // Try password comparison
+
     let isValidPassword = false
     try {
       isValidPassword = bcrypt.compareSync(password, normalizedHash)
@@ -217,18 +230,66 @@ Deno.serve(async (req) => {
       console.error('bcrypt.compareSync error:', compareError)
     }
 
+    // Fallback: if DB hash doesn't match, try verifying against Auth password.
+    // This helps recover from a desync between `admins.password_hash` and the auth user's password.
     if (!isValidPassword) {
-      // Log failed attempt
+      console.log('bcrypt mismatch, attempting auth password verification as fallback...')
+
+      const { data: fallbackSignIn, error: fallbackSignInError } = await supabaseAnon.auth.signInWithPassword({
+        email: sanitizedEmail,
+        password,
+      })
+
+      if (fallbackSignInError || !fallbackSignIn.session) {
+        // Log failed attempt
+        await supabase.from('login_attempts').insert({
+          email: sanitizedEmail,
+          ip_address: clientIp,
+          success: false,
+        })
+
+        console.log(`Login failed - invalid password: ${sanitizedEmail}`)
+        return new Response(
+          JSON.stringify({ error: 'Email atau password salah' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Resync DB hash so next logins work even if auth password stays the source of truth.
+      try {
+        const salt = bcrypt.genSaltSync(10)
+        const hashedPassword = bcrypt.hashSync(password, salt)
+        const { error: syncHashError } = await supabase
+          .from('admins')
+          .update({ password_hash: hashedPassword })
+          .eq('id', admin.id)
+
+        if (syncHashError) {
+          console.error('Failed to resync admins.password_hash from fallback auth login:', syncHashError)
+        }
+      } catch (syncError) {
+        console.error('Hash resync error:', syncError)
+      }
+
+      // Log successful login
       await supabase.from('login_attempts').insert({
         email: sanitizedEmail,
         ip_address: clientIp,
-        success: false
+        success: true,
       })
 
-      console.log(`Login failed - invalid password: ${sanitizedEmail}`)
+      console.log(`Admin logged in via auth fallback: ${sanitizedEmail}`)
+
+      const { password_hash, ...safeAdmin } = admin
+
       return new Response(
-        JSON.stringify({ error: 'Email atau password salah' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          admin: safeAdmin,
+          session: fallbackSignIn.session,
+          recovered_from_auth: true,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -268,19 +329,6 @@ Deno.serve(async (req) => {
      }
 
      // Sign in using anon client to obtain session tokens (required for RLS)
-     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-     if (!anonKey) {
-       return new Response(
-         JSON.stringify({ error: 'Konfigurasi autentikasi belum lengkap (ANON key).' }),
-         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-       )
-     }
-
-     const supabaseAnon = createClient(
-       Deno.env.get('SUPABASE_URL') ?? '',
-       anonKey
-     )
-
      const { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
        email: sanitizedEmail,
        password,
