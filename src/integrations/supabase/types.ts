@@ -229,6 +229,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       point_history: {
@@ -452,7 +459,48 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      products_public: {
+        Row: {
+          description: string | null
+          id: string | null
+          image_url: string | null
+          is_active: boolean | null
+          name: string | null
+          point_price: number | null
+          ppob_type: string | null
+          requires_input: string | null
+          requires_shipping: boolean | null
+          stock: number | null
+          type: string | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          point_price?: number | null
+          ppob_type?: string | null
+          requires_input?: string | null
+          requires_shipping?: boolean | null
+          stock?: number | null
+          type?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          point_price?: number | null
+          ppob_type?: string | null
+          requires_input?: string | null
+          requires_shipping?: boolean | null
+          stock?: number | null
+          type?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_current_customer_id: { Args: never; Returns: string }
