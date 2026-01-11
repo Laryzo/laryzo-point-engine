@@ -334,21 +334,7 @@ export const CustomerListEnhanced = () => {
 
       if (historyError) throw historyError;
 
-      // Update customer total points atomically using RPC to prevent race conditions
-      const { data: success, error: updateError } = await supabase.rpc(
-        'increment_customer_points',
-        {
-          customer_uuid: adjustingCustomer.id,
-          points_to_add: finalAmount
-        }
-      );
-
-      if (updateError) throw updateError;
-
-      if (!success) {
-        throw new Error('Gagal mengubah poin - customer mungkin diblokir');
-      }
-
+      // Database trigger 'sync_points_on_history_change' handles point update automatically
       toast({
         title: "Berhasil",
         description: `Poin berhasil di-${adjustType === 'add' ? 'tambah' : 'kurangi'} sebesar ${amount}`,
@@ -703,7 +689,7 @@ export const CustomerListEnhanced = () => {
 
       {/* Adjust Points Modal */}
       <Dialog open={showAdjustModal} onOpenChange={setShowAdjustModal}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {adjustType === 'add' ? 'Tambah' : 'Kurangi'} Poin Manual
