@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 interface Column {
   key: string;
   label: string;
-  render?: (value: any, row: any) => React.ReactNode;
+  render?: (value: any, row: any, index?: number) => React.ReactNode;
   filterable?: boolean;
   filterOptions?: { value: string; label: string }[];
 }
@@ -491,7 +491,7 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
               </TableCell>
             </TableRow>
           ) : (
-            filteredData.map((item) => (
+            filteredData.map((item, index) => (
               <TableRow key={item.id}>
                 <TableCell>
                   <Checkbox
@@ -502,7 +502,7 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
                 </TableCell>
                 {columns.map((column) => (
                   <TableCell key={column.key}>
-                    {column.render ? column.render(item[column.key], item) : item[column.key]}
+                    {column.render ? column.render(item[column.key], item, index) : item[column.key]}
                   </TableCell>
                 ))}
               </TableRow>
