@@ -12,7 +12,7 @@ import { ShareWhatsAppModal } from '@/components/ShareWhatsAppModal';
 import { ImportExcel } from '@/components/ImportExcel';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Users, Mail, Phone, Award, Download, FileSpreadsheet, Upload, RefreshCw, Plus, Minus, AlertTriangle } from 'lucide-react';
+import { Users, Mail, Phone, Award, Download, FileSpreadsheet, Upload, RefreshCw, Plus, Minus, AlertTriangle, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 
@@ -400,6 +400,47 @@ export const CustomerListEnhanced = () => {
   const availablePositions = getAvailablePositions(editParentId);
 
   const columns = [
+    {
+      key: 'actions',
+      label: 'Aksi',
+      render: (_value: unknown, row: Customer) => (
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(row);
+            }}
+            title="Edit"
+          >
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-primary" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm(`Hapus customer ${row.name}?`)) {
+                handleDelete(row);
+              }
+            }}
+            title="Hapus"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+          </Button>
+        </div>
+      )
+    },
+    {
+      key: 'rowNumber',
+      label: 'No',
+      render: (_value: unknown, _row: Customer, index: number) => (
+        <span className="text-muted-foreground font-medium">{index + 1}</span>
+      )
+    },
     {
       key: 'name',
       label: 'Nama',
