@@ -722,6 +722,13 @@ export const CustomerListEnhanced = () => {
         />
       </CardContent>
 
+      {/* Edit Customer Modal (triggered from action column) */}
+      <Dialog open={!!editingCustomer} onOpenChange={(open) => !open && setEditingCustomer(null)}>
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+          {editingCustomer && renderEditModal(editingCustomer, () => setEditingCustomer(null))}
+        </DialogContent>
+      </Dialog>
+
       <ShareWhatsAppModal
         open={showWhatsAppModal}
         onClose={() => setShowWhatsAppModal(false)}
