@@ -190,6 +190,7 @@ const OrderManagement = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>No</TableHead>
                     <TableHead>Tanggal</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Produk</TableHead>
@@ -204,19 +205,20 @@ const OrderManagement = () => {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
+                      <TableCell colSpan={10} className="text-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
                   ) : ppobOrders.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         Belum ada pesanan PPOB
                       </TableCell>
                     </TableRow>
                   ) : (
-                    ppobOrders.map(order => (
+                    ppobOrders.map((order, index) => (
                       <TableRow key={order.id}>
+                        <TableCell className="text-muted-foreground font-medium">{index + 1}</TableCell>
                         <TableCell>{format(new Date(order.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
                         <TableCell>{order.customers?.name || '-'}</TableCell>
                         <TableCell>{order.products?.name || '-'}</TableCell>
@@ -256,6 +258,7 @@ const OrderManagement = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>No</TableHead>
                     <TableHead>Tanggal</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Produk</TableHead>
@@ -269,19 +272,20 @@ const OrderManagement = () => {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={9} className="text-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
                   ) : physicalOrders.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         Belum ada pesanan produk fisik
                       </TableCell>
                     </TableRow>
                   ) : (
-                    physicalOrders.map(order => (
+                    physicalOrders.map((order, index) => (
                       <TableRow key={order.id}>
+                        <TableCell className="text-muted-foreground font-medium">{index + 1}</TableCell>
                         <TableCell>{format(new Date(order.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
                         <TableCell>{order.customers?.name || '-'}</TableCell>
                         <TableCell>{order.products?.name || '-'}</TableCell>
