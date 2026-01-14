@@ -516,30 +516,32 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
         <div className="flex items-center space-x-2">
           <Award className="w-3 h-3 text-primary" />
           <span className="font-medium">{value?.toFixed(2) || '0.00'}</span>
-          <div className="flex items-center space-x-1 ml-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenAdjustModal(row, 'add');
-              }}
-            >
-              <Plus className="w-3 h-3 text-green-600" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenAdjustModal(row, 'subtract');
-              }}
-            >
-              <Minus className="w-3 h-3 text-red-600" />
-            </Button>
-          </div>
+          {isSuperAdmin && (
+            <div className="flex items-center space-x-1 ml-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenAdjustModal(row, 'add');
+                }}
+              >
+                <Plus className="w-3 h-3 text-green-600" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenAdjustModal(row, 'subtract');
+                }}
+              >
+                <Minus className="w-3 h-3 text-red-600" />
+              </Button>
+            </div>
+          )}
         </div>
       )
     },

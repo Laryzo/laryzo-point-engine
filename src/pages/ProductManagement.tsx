@@ -255,6 +255,7 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>No</TableHead>
                     <TableHead>Nama</TableHead>
                     <TableHead>SKU Digiflazz</TableHead>
                     <TableHead>Tipe</TableHead>
@@ -268,19 +269,20 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={9} className="text-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
                   ) : filteredProducts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         Belum ada produk PPOB
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredProducts.map(product => (
+                    filteredProducts.map((product, index) => (
                       <TableRow key={product.id}>
+                        <TableCell className="text-muted-foreground font-medium">{index + 1}</TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>{product.digiflazz_sku || '-'}</TableCell>
                         <TableCell>{product.ppob_type || '-'}</TableCell>
@@ -321,6 +323,7 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>No</TableHead>
                     <TableHead>Nama</TableHead>
                     <TableHead>Deskripsi</TableHead>
                     <TableHead>Harga Modal</TableHead>
@@ -334,19 +337,20 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={9} className="text-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
                   ) : filteredProducts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         Belum ada produk fisik
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredProducts.map(product => (
+                    filteredProducts.map((product, index) => (
                       <TableRow key={product.id}>
+                        <TableCell className="text-muted-foreground font-medium">{index + 1}</TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell className="max-w-[200px] truncate">{product.description || '-'}</TableCell>
                         <TableCell>{formatCurrency(product.cost_price)}</TableCell>

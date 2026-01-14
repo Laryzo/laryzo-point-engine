@@ -204,6 +204,13 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
 
   const columns = [
     {
+      key: 'rowNumber',
+      label: 'No',
+      render: (_value: unknown, _row: Transaction, index: number) => (
+        <span className="text-muted-foreground font-medium">{index + 1}</span>
+      )
+    },
+    {
       key: 'product_name',
       label: 'Produk',
       render: (value: string) => (
