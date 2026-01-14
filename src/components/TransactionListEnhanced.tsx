@@ -32,7 +32,11 @@ interface Transaction {
   customerLevel?: number;
 }
 
-export const TransactionListEnhanced = () => {
+interface TransactionListEnhancedProps {
+  isSuperAdmin?: boolean;
+}
+
+export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionListEnhancedProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -227,7 +231,8 @@ export const TransactionListEnhanced = () => {
       label: 'Customer',
       render: (value: string, row: Transaction) => getCustomerName(row)
     },
-    {
+    // Level column - only for super_admin
+    ...(isSuperAdmin ? [{
       key: 'customerLevel',
       label: 'Level',
       render: (value: number) => (
@@ -235,7 +240,7 @@ export const TransactionListEnhanced = () => {
           Level {value}
         </span>
       )
-    },
+    }] : []),
     {
       key: 'harga_konsumen',
       label: 'Harga Konsumen',
@@ -333,8 +338,8 @@ export const TransactionListEnhanced = () => {
           <EnhancedTable
             data={transactions}
             columns={columns}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            onEdit={isSuperAdmin ? handleEdit : undefined}
+            onDelete={isSuperAdmin ? handleDelete : undefined}
             onExport={handleExport}
             exportEnabled={true}
             onShareWhatsApp={handleShareWhatsApp}

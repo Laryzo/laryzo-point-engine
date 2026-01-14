@@ -29,7 +29,11 @@ interface Customer {
   points_blocked?: boolean;
 }
 
-export const CustomerListEnhanced = () => {
+interface CustomerListEnhancedProps {
+  isSuperAdmin?: boolean;
+}
+
+export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhancedProps) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -400,7 +404,8 @@ export const CustomerListEnhanced = () => {
   const availablePositions = getAvailablePositions(editParentId);
 
   const columns = [
-    {
+    // Actions column - only for super_admin
+    ...(isSuperAdmin ? [{
       key: 'actions',
       label: 'Aksi',
       render: (_value: unknown, row: Customer) => (
@@ -433,7 +438,7 @@ export const CustomerListEnhanced = () => {
           </Button>
         </div>
       )
-    },
+    }] : []),
     {
       key: 'rowNumber',
       label: 'No',
@@ -451,7 +456,8 @@ export const CustomerListEnhanced = () => {
         </div>
       )
     },
-    {
+    // Level column - only for super_admin
+    ...(isSuperAdmin ? [{
       key: 'level',
       label: 'Level',
       render: (value: number) => (
@@ -459,7 +465,7 @@ export const CustomerListEnhanced = () => {
           Level {value}
         </span>
       )
-    },
+    }] : []),
     {
       key: 'email',
       label: 'Email',
@@ -480,15 +486,17 @@ export const CustomerListEnhanced = () => {
         </div>
       ) : '-'
     },
-    {
+    // Parent column - only for super_admin
+    ...(isSuperAdmin ? [{
       key: 'parent_id',
       label: 'Parent',
       render: (value: string, row: Customer) => {
         const parent = customers.find(c => c.id === value);
         return parent ? parent.name : '-';
       }
-    },
-    {
+    }] : []),
+    // Position column - only for super_admin
+    ...(isSuperAdmin ? [{
       key: 'position',
       label: 'Posisi',
       render: (value: string) => value ? (
@@ -500,7 +508,7 @@ export const CustomerListEnhanced = () => {
           {value.toUpperCase()}
         </span>
       ) : '-'
-    },
+    }] : []),
     {
       key: 'totalPoints',
       label: 'Total Points',
