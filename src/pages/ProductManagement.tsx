@@ -29,7 +29,11 @@ interface Product {
   image_url: string | null;
 }
 
-const ProductManagement = () => {
+interface ProductManagementProps {
+  isSuperAdmin?: boolean;
+}
+
+const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => {
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -286,18 +290,21 @@ const ProductManagement = () => {
                         <TableCell>
                           <Switch 
                             checked={product.is_active} 
-                            onCheckedChange={() => toggleActive(product)} 
+                            onCheckedChange={() => toggleActive(product)}
+                            disabled={!isSuperAdmin}
                           />
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          {isSuperAdmin && (
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
@@ -349,18 +356,21 @@ const ProductManagement = () => {
                         <TableCell>
                           <Switch 
                             checked={product.is_active} 
-                            onCheckedChange={() => toggleActive(product)} 
+                            onCheckedChange={() => toggleActive(product)}
+                            disabled={!isSuperAdmin}
                           />
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          {isSuperAdmin && (
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))

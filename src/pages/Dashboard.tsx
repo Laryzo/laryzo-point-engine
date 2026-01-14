@@ -70,11 +70,11 @@ const Dashboard = () => {
       case 'satellite-api':
         return <SatelliteApiInfo />;
       case 'products':
-        return <ProductManagement />;
+        return <ProductManagement isSuperAdmin={isSuperAdmin} />;
       case 'orders':
         return <OrderManagement />;
       case 'settings':
-        return <SystemSettings />;
+        return isSuperAdmin ? <SystemSettings /> : null;
       case 'tree':
         return (
           <div className="p-6">
@@ -110,7 +110,7 @@ const Dashboard = () => {
                 Add Customer
               </Button>
             </div>
-            <CustomerListEnhanced />
+            <CustomerListEnhanced isSuperAdmin={isSuperAdmin} />
           </div>
         );
       case 'transactions':
@@ -126,7 +126,7 @@ const Dashboard = () => {
                 Add Transaction
               </Button>
             </div>
-            <TransactionListEnhanced />
+            <TransactionListEnhanced isSuperAdmin={isSuperAdmin} />
           </div>
         );
       default:
@@ -231,24 +231,28 @@ const Dashboard = () => {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      onClick={() => setActiveView('satellite-api')}
-                      className={activeView === 'satellite-api' ? 'bg-accent' : ''}
-                    >
-                      <Satellite className="h-4 w-4" />
-                      <span>Satellite API</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      onClick={() => setActiveView('tree')}
-                      className={activeView === 'tree' ? 'bg-accent' : ''}
-                    >
-                      <TreePine className="h-4 w-4" />
-                      <span>Customer Tree</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => setActiveView('satellite-api')}
+                        className={activeView === 'satellite-api' ? 'bg-accent' : ''}
+                      >
+                        <Satellite className="h-4 w-4" />
+                        <span>Satellite API</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => setActiveView('tree')}
+                        className={activeView === 'tree' ? 'bg-accent' : ''}
+                      >
+                        <TreePine className="h-4 w-4" />
+                        <span>Customer Tree</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => setActiveView('customers')}
@@ -285,15 +289,17 @@ const Dashboard = () => {
                       <span>Orders</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      onClick={() => setActiveView('settings')}
-                      className={activeView === 'settings' ? 'bg-accent' : ''}
-                    >
-                      <Cog className="h-4 w-4" />
-                      <span>Settings</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => setActiveView('settings')}
+                        className={activeView === 'settings' ? 'bg-accent' : ''}
+                      >
+                        <Cog className="h-4 w-4" />
+                        <span>Settings</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
