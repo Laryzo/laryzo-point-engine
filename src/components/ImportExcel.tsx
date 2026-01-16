@@ -192,7 +192,7 @@ export const ImportExcel = ({ onSuccess }: ImportExcelProps) => {
             // Find available slot in binary tree
             const { parent_id, position } = await findAvailableSlot();
 
-            const { error: customerError } = await supabase
+            const { data: newCustomer, error: customerError } = await supabase
               .from('customers')
               .insert({
                 name: String(customerName),
@@ -200,12 +200,28 @@ export const ImportExcel = ({ onSuccess }: ImportExcelProps) => {
                 whatsapp: customerWhatsapp ? String(customerWhatsapp) : null,
                 parent_id,
                 position,
-              });
+              })
+              .select('id')
+              .single();
 
             if (customerError) {
               console.error('Error creating customer:', customerError);
               errors++;
             } else {
+              // Auto-generate password for customer if email exists
+              if (customerEmail && newCustomer) {
+                try {
+                  await supabase.functions.invoke('customer-bulk-auth', {
+                    body: {
+                      customer_id: newCustomer.id,
+                      email: String(customerEmail),
+                    }
+                  });
+                } catch (authError) {
+                  console.error('Error creating customer auth:', authError);
+                  // Don't count as error - customer was created successfully
+                }
+              }
               customersCreated++;
             }
           }

@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.admin-reset-password]
 verify_jwt = false
+
+[functions.customer-bulk-auth]
+verify_jwt = false

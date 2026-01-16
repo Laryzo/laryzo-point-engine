@@ -14,6 +14,7 @@ interface Customer {
   email?: string;
   whatsapp?: string;
   totalPoints?: number;
+  plain_password?: string;
 }
 
 interface ShareWhatsAppModalProps {
@@ -24,7 +25,10 @@ interface ShareWhatsAppModalProps {
 
 const DEFAULT_TEMPLATE = `Halo {nama}!
 
-Terima kasih telah menjadi bagian dari Laryzo Point Engine.
+Berikut kredensial login Anda:
+Email: {email}
+Password: {password}
+
 Total poin Anda saat ini: {points} poin.
 
 Info lebih lanjut hubungi admin.`;
@@ -46,7 +50,8 @@ export const ShareWhatsAppModal: React.FC<ShareWhatsAppModalProps> = ({
       .replace(/{nama}/g, customer.name || 'Customer')
       .replace(/{email}/g, customer.email || '-')
       .replace(/{points}/g, customer.totalPoints?.toFixed(2) || '0.00')
-      .replace(/{whatsapp}/g, customer.whatsapp || '-');
+      .replace(/{whatsapp}/g, customer.whatsapp || '-')
+      .replace(/{password}/g, customer.plain_password || '(belum di-generate)');
   };
 
   const generateWhatsAppLink = (phone: string, message: string): string => {
@@ -125,6 +130,7 @@ export const ShareWhatsAppModal: React.FC<ShareWhatsAppModalProps> = ({
             <p className="text-xs text-muted-foreground">
               Placeholder: <code className="bg-muted px-1 rounded">{'{nama}'}</code>{' '}
               <code className="bg-muted px-1 rounded">{'{email}'}</code>{' '}
+              <code className="bg-muted px-1 rounded">{'{password}'}</code>{' '}
               <code className="bg-muted px-1 rounded">{'{points}'}</code>{' '}
               <code className="bg-muted px-1 rounded">{'{whatsapp}'}</code>
             </p>
