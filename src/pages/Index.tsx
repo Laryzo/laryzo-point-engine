@@ -7,12 +7,12 @@ const Index = () => {
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
         <h1 className="text-4xl md:text-6xl font-bold mb-12 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-          Laryzo Point Engine
+          Laryzo
         </h1>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button asChild size="lg">
             <Link to="/portal/login">
-              Customer Portal
+              Customer
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg">
