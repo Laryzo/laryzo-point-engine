@@ -12,7 +12,7 @@ import { ShareWhatsAppModal } from '@/components/ShareWhatsAppModal';
 import { ImportExcel } from '@/components/ImportExcel';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Users, Mail, Phone, Award, Download, FileSpreadsheet, Upload, RefreshCw, Plus, Minus, AlertTriangle, Pencil, Trash2 } from 'lucide-react';
+import { Users, Mail, Phone, Award, Download, FileSpreadsheet, Upload, RefreshCw, Plus, Minus, AlertTriangle, Pencil, Trash2, Key, Copy, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 
@@ -27,6 +27,7 @@ interface Customer {
   totalPoints?: number;
   level?: number;
   points_blocked?: boolean;
+  plain_password?: string;
 }
 
 interface CustomerListEnhancedProps {
@@ -57,6 +58,10 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
   
   // Move warning state
   const [showMoveWarning, setShowMoveWarning] = useState(false);
+  
+  // Generate password states
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [generatingCustomerId, setGeneratingCustomerId] = useState<string | null>(null);
   
   const { toast } = useToast();
 
@@ -364,6 +369,83 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
     setShowWhatsAppModal(true);
   };
 
+  // Generate password for single customer
+  const handleGeneratePassword = async (customer: Customer) => {
+    if (!customer.email) {
+      toast({
+        title: "Error",
+        description: "Customer harus memiliki email untuk generate password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGeneratingCustomerId(customer.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-bulk-auth', {
+        body: {
+          customer_id: customer.id,
+          email: customer.email,
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Berhasil",
+        description: `Password untuk ${customer.name} berhasil di-generate`,
+      });
+      
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error generating password:', error);
+      toast({
+        title: "Error",
+        description: "Gagal generate password",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingCustomerId(null);
+    }
+  };
+
+  // Generate passwords for all customers without auth
+  const handleGenerateAllPasswords = async () => {
+    setIsGeneratingAll(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-bulk-auth', {
+        body: { action: 'generate-all' }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Generate Password Selesai",
+        description: `${data.created} password berhasil di-generate, ${data.errors} error`,
+      });
+      
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error generating all passwords:', error);
+      toast({
+        title: "Error",
+        description: "Gagal generate password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingAll(false);
+    }
+  };
+
+  // Copy to clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Berhasil",
+      description: "Password berhasil disalin",
+    });
+  };
+
   const formatCustomersForExport = (customersToExport: Customer[]) => {
     const sorted = [...customersToExport].sort((a, b) => 
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -508,6 +590,54 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
           {value.toUpperCase()}
         </span>
       ) : '-'
+    }] : []),
+    // Password column - only for super_admin
+    ...(isSuperAdmin ? [{
+      key: 'plain_password',
+      label: 'Password',
+      render: (value: string, row: Customer) => (
+        <div className="flex items-center space-x-1">
+          {value ? (
+            <>
+              <code className="bg-muted px-2 py-1 rounded text-xs font-mono">{value}</code>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  copyToClipboard(value);
+                }}
+                title="Copy password"
+              >
+                <Copy className="w-3 h-3" />
+              </Button>
+            </>
+          ) : row.email ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleGeneratePassword(row);
+              }}
+              disabled={generatingCustomerId === row.id}
+            >
+              {generatingCustomerId === row.id ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <>
+                  <Key className="w-3 h-3 mr-1" />
+                  Generate
+                </>
+              )}
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">No email</span>
+          )}
+        </div>
+      )
     }] : []),
     {
       key: 'totalPoints',
@@ -665,7 +795,18 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Daftar Customer ({customers.length})</CardTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {isSuperAdmin && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleGenerateAllPasswords}
+              disabled={isGeneratingAll}
+            >
+              <Key className={`w-4 h-4 mr-2 ${isGeneratingAll ? 'animate-pulse' : ''}`} />
+              {isGeneratingAll ? 'Generating...' : 'Generate All Passwords'}
+            </Button>
+          )}
           <Button 
             variant="outline" 
             size="sm"
