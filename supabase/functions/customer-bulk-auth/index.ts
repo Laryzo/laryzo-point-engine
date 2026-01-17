@@ -128,10 +128,45 @@ Deno.serve(async (req) => {
       .eq("customer_id", customer_id)
       .single();
 
+    // If customer already has auth, regenerate password
     if (existingAuth) {
+      const generatedPassword = password || generateRandomPassword(8);
+      const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+
+      // Update password in customer_auth
+      const { error: updateAuthError } = await supabase
+        .from("customer_auth")
+        .update({ password_hash: hashedPassword })
+        .eq("customer_id", customer_id);
+
+      if (updateAuthError) throw updateAuthError;
+
+      // Update plain_password in customers table
+      const { error: updateError } = await supabase
+        .from("customers")
+        .update({ plain_password: generatedPassword })
+        .eq("id", customer_id);
+
+      if (updateError) {
+        console.error("Error updating plain_password:", updateError);
+      }
+
+      // Update Supabase Auth user password
+      const { data: users } = await supabase.auth.admin.listUsers();
+      const existingUser = users?.users?.find(u => u.email === email);
+      if (existingUser) {
+        await supabase.auth.admin.updateUserById(existingUser.id, {
+          password: generatedPassword,
+        });
+      }
+
       return new Response(
-        JSON.stringify({ error: "Customer already has authentication credentials" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          success: true, 
+          customer_id,
+          password_regenerated: true 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
