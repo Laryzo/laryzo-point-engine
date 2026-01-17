@@ -421,7 +421,7 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
 
       toast({
         title: "Generate Password Selesai",
-        description: `${data.created} password berhasil di-generate, ${data.errors} error`,
+        description: `${data.created || 0} baru, ${data.regenerated || 0} di-regenerate, ${data.errors || 0} error`,
       });
       
       fetchCustomers();

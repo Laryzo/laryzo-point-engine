@@ -29,12 +29,12 @@ Deno.serve(async (req) => {
 
     const { customer_id, email, password, action } = await req.json();
 
-    // Action: generate-all - Generate passwords for all customers without auth
+    // Action: generate-all - Generate/regenerate passwords for all customers
     if (action === "generate-all") {
-      // Get all customers
+      // Get all customers with email
       const { data: customers, error: customersError } = await supabase
         .from("customers")
-        .select("id, name, email, whatsapp");
+        .select("id, name, email, whatsapp, plain_password");
 
       if (customersError) throw customersError;
 
@@ -47,30 +47,71 @@ Deno.serve(async (req) => {
 
       const existingCustomerIds = new Set(existingAuth?.map(a => a.customer_id) || []);
 
-      // Filter customers without auth and with email
-      const customersWithoutAuth = (customers || []).filter(c => 
-        !existingCustomerIds.has(c.id) && c.email
+      // Filter customers with email that either:
+      // 1. Don't have auth yet, OR
+      // 2. Have auth but plain_password is empty (need to regenerate)
+      const customersToProcess = (customers || []).filter(c => 
+        c.email && (!existingCustomerIds.has(c.id) || !c.plain_password)
       );
 
       let created = 0;
+      let regenerated = 0;
       let errors = 0;
-      const results: Array<{ customer_id: string; success: boolean; error?: string }> = [];
+      const results: Array<{ customer_id: string; success: boolean; action?: string; error?: string }> = [];
 
-      for (const customer of customersWithoutAuth) {
+      for (const customer of customersToProcess) {
         try {
           const generatedPassword = generateRandomPassword(8);
           const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+          const hasAuth = existingCustomerIds.has(customer.id);
 
-          // Insert into customer_auth
-          const { error: insertError } = await supabase
-            .from("customer_auth")
-            .insert({
-              customer_id: customer.id,
+          if (hasAuth) {
+            // Update existing auth
+            const { error: updateAuthError } = await supabase
+              .from("customer_auth")
+              .update({ password_hash: hashedPassword })
+              .eq("customer_id", customer.id);
+
+            if (updateAuthError) throw updateAuthError;
+
+            // Update Supabase Auth user password
+            const { data: users } = await supabase.auth.admin.listUsers();
+            const existingUser = users?.users?.find(u => u.email === customer.email);
+            if (existingUser) {
+              await supabase.auth.admin.updateUserById(existingUser.id, {
+                password: generatedPassword,
+              });
+            }
+
+            regenerated++;
+            results.push({ customer_id: customer.id, success: true, action: 'regenerated' });
+          } else {
+            // Create new auth
+            const { error: insertError } = await supabase
+              .from("customer_auth")
+              .insert({
+                customer_id: customer.id,
+                email: customer.email,
+                password_hash: hashedPassword,
+              });
+
+            if (insertError) throw insertError;
+
+            // Create Supabase Auth user
+            const { error: authUserError } = await supabase.auth.admin.createUser({
               email: customer.email,
-              password_hash: hashedPassword,
+              password: generatedPassword,
+              email_confirm: true,
+              user_metadata: { role: "customer", customer_id: customer.id },
             });
 
-          if (insertError) throw insertError;
+            if (authUserError && !authUserError.message.includes("already been registered")) {
+              console.warn(`Auth user creation warning for ${customer.email}:`, authUserError.message);
+            }
+
+            created++;
+            results.push({ customer_id: customer.id, success: true, action: 'created' });
+          }
 
           // Update plain_password in customers table
           const { error: updateError } = await supabase
@@ -80,21 +121,6 @@ Deno.serve(async (req) => {
 
           if (updateError) throw updateError;
 
-          // Create Supabase Auth user
-          const { error: authUserError } = await supabase.auth.admin.createUser({
-            email: customer.email,
-            password: generatedPassword,
-            email_confirm: true,
-            user_metadata: { role: "customer", customer_id: customer.id },
-          });
-
-          // If user already exists, ignore the error
-          if (authUserError && !authUserError.message.includes("already been registered")) {
-            console.warn(`Auth user creation warning for ${customer.email}:`, authUserError.message);
-          }
-
-          created++;
-          results.push({ customer_id: customer.id, success: true });
         } catch (err) {
           errors++;
           results.push({ customer_id: customer.id, success: false, error: (err as Error).message });
@@ -104,9 +130,10 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          created, 
+          created,
+          regenerated,
           errors,
-          total_without_auth: customersWithoutAuth.length,
+          total_processed: customersToProcess.length,
           results 
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
