@@ -82,7 +82,7 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
     setSyncing(true);
     try {
       const { data, error } = await supabase.functions.invoke('digiflazz-price-list', {
-        body: { cmd: 'prepaid' }
+        body: { cmd: 'prepaid', force: true }
       });
 
       if (error) throw error;
@@ -91,12 +91,41 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
         throw new Error(data.error || 'Failed to sync');
       }
 
+      // Build description message based on sync results
+      let description = `Ditemukan ${data.count} produk dari Digiflazz.`;
+      
+      if (data.products_synced > 0) {
+        description += ` ${data.products_synced} produk PPOB dicek.`;
+        
+        if (data.prices_changed > 0) {
+          description += ` ${data.prices_changed} harga modal terupdate.`;
+        } else {
+          description += ` Semua harga sudah sinkron.`;
+        }
+      }
+
       toast({ 
         title: 'Sync Berhasil', 
-        description: `Ditemukan ${data.count} produk dari Digiflazz. Silakan tambahkan produk yang diinginkan secara manual.` 
+        description
       });
 
-      console.log('Digiflazz products:', data.data);
+      // Show price changes in console for admin reference
+      if (data.changes && data.changes.length > 0) {
+        console.log('Perubahan harga modal:', data.changes);
+        
+        // Show additional toast with price changes if any
+        const changesList = data.changes.slice(0, 3).map((c: { name: string; old_price: number; new_price: number }) => 
+          `${c.name}: Rp${c.old_price.toLocaleString()} → Rp${c.new_price.toLocaleString()}`
+        ).join('\n');
+        
+        toast({
+          title: `${data.prices_changed} Harga Berubah`,
+          description: changesList + (data.changes.length > 3 ? `\n...dan ${data.changes.length - 3} lainnya` : ''),
+        });
+      }
+
+      // Refresh product list to show updated prices
+      fetchProducts();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {

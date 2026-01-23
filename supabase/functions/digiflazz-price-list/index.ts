@@ -233,6 +233,10 @@ Deno.serve(async (req) => {
     console.log(`Retrieved ${products.length} products from Digiflazz API`)
 
     // Update cache - upsert all products
+    let productsSynced = 0
+    let pricesChanged = 0
+    const changes: { sku: string; name: string; old_price: number; new_price: number }[] = []
+
     if (products.length > 0) {
       const cacheData = products.map(p => ({
         buyer_sku_code: p.buyer_sku_code,
@@ -276,6 +280,61 @@ Deno.serve(async (req) => {
         }, { onConflict: 'key' })
 
       console.log(`Cached ${products.length} products successfully`)
+
+      // === AUTO-SYNC PRODUCTS TABLE ===
+      // Get all PPOB products that have a digiflazz_sku configured
+      const { data: existingProducts, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, digiflazz_sku, cost_price')
+        .eq('type', 'ppob')
+        .not('digiflazz_sku', 'is', null)
+
+      if (productsError) {
+        console.error('Error fetching products for sync:', productsError)
+      } else if (existingProducts && existingProducts.length > 0) {
+        console.log(`Found ${existingProducts.length} PPOB products to check for price updates`)
+
+        // Create a map of SKU to Digiflazz price for quick lookup
+        const priceMap = new Map<string, number>()
+        products.forEach(p => {
+          priceMap.set(p.buyer_sku_code, p.price)
+        })
+
+        // Check each product and update if price changed
+        for (const product of existingProducts) {
+          if (!product.digiflazz_sku) continue
+
+          const newPrice = priceMap.get(product.digiflazz_sku)
+          if (newPrice !== undefined) {
+            productsSynced++
+            
+            // Only update if price actually changed
+            if (Number(product.cost_price) !== newPrice) {
+              const { error: updateError } = await supabase
+                .from('products')
+                .update({ cost_price: newPrice })
+                .eq('id', product.id)
+
+              if (updateError) {
+                console.error(`Error updating product ${product.digiflazz_sku}:`, updateError)
+              } else {
+                pricesChanged++
+                changes.push({
+                  sku: product.digiflazz_sku,
+                  name: product.name,
+                  old_price: Number(product.cost_price),
+                  new_price: newPrice
+                })
+                console.log(`Updated ${product.digiflazz_sku}: ${product.cost_price} -> ${newPrice}`)
+              }
+            }
+          } else {
+            console.warn(`SKU ${product.digiflazz_sku} not found in Digiflazz price list`)
+          }
+        }
+
+        console.log(`Product sync complete: ${productsSynced} checked, ${pricesChanged} prices updated`)
+      }
     }
 
     return new Response(
@@ -283,7 +342,10 @@ Deno.serve(async (req) => {
         success: true, 
         data: products,
         count: products.length,
-        cached: false
+        cached: false,
+        products_synced: productsSynced,
+        prices_changed: pricesChanged,
+        changes
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
