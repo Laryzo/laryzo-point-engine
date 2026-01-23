@@ -355,23 +355,22 @@ Deno.serve(async (req) => {
       } else if (status === 'pending') {
         updateData.status = 'processing'
       } else {
-        // Failed - refund points using atomic RPC
+        // Failed - refund points via point_history INSERT (trigger handles customers.points update)
         updateData.status = 'failed'
-        const { data: refundSuccess, error: refundError } = await supabase.rpc(
-          'increment_customer_points',
-          {
-            customer_uuid: customer.id,
-            points_to_add: order.points_used // Add back the deducted points
-          }
-        )
+        const { error: refundError } = await supabase.from('point_history').insert({
+          from_customer: null,
+          to_customer: customer.id,
+          points: order.points_used,
+          level: 0,
+          transaction_id: order_id,
+          product_code: 'REFUND'
+        })
         
         if (refundError) {
-          console.error('Failed to refund points:', refundError)
-        } else if (refundSuccess) {
-          console.log('Refunded points due to failed transaction')
-          pointsDeducted = false
+          console.error('Failed to insert refund to point_history:', refundError)
         } else {
-          console.warn('Refund skipped - customer may be blocked')
+          console.log('Refunded points via point_history due to failed transaction')
+          pointsDeducted = false
         }
       }
 
@@ -396,22 +395,23 @@ Deno.serve(async (req) => {
       )
 
     } catch (innerError) {
-      // Error occurred after points were deducted - refund them
+      // Error occurred after points were deducted - refund them via point_history
       console.error('Error after point deduction, attempting refund:', innerError)
       
       if (pointsDeducted) {
-        const { data: refundSuccess, error: refundError } = await supabase.rpc(
-          'increment_customer_points',
-          {
-            customer_uuid: customer.id,
-            points_to_add: order.points_used
-          }
-        )
+        const { error: refundError } = await supabase.from('point_history').insert({
+          from_customer: null,
+          to_customer: customer.id,
+          points: order.points_used,
+          level: 0,
+          transaction_id: order_id,
+          product_code: 'REFUND'
+        })
         
         if (refundError) {
-          console.error('CRITICAL: Failed to refund points after error:', refundError)
-        } else if (refundSuccess) {
-          console.log('Successfully refunded points after error')
+          console.error('CRITICAL: Failed to insert refund to point_history after error:', refundError)
+        } else {
+          console.log('Successfully refunded points via point_history after error')
         }
       }
 

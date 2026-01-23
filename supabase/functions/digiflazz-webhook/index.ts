@@ -274,16 +274,20 @@ Deno.serve(async (req) => {
     } else if (statusLower === 'gagal') {
       updateData.status = 'failed'
 
-      // Refund points using atomic RPC
-      const { data: refundSuccess, error: refundError } = await supabase.rpc('increment_customer_points', {
-        customer_uuid: order.customer_id,
-        points_to_add: order.points_used
+      // Refund points via point_history INSERT (trigger handles customers.points update)
+      const { error: refundError } = await supabase.from('point_history').insert({
+        from_customer: null,
+        to_customer: order.customer_id,
+        points: order.points_used,
+        level: 0,
+        transaction_id: order.id,
+        product_code: 'REFUND'
       })
       
       if (refundError) {
-        console.error('Error refunding points:', refundError)
+        console.error('Error inserting refund to point_history:', refundError)
       } else {
-        console.log('Refunded points due to failed transaction via webhook')
+        console.log('Refunded points via point_history due to failed transaction (webhook)')
       }
     }
 
