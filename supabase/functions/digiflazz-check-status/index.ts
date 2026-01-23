@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
           to_customer: order.customer_id,
           points: order.points_used,
           level: 0,
-          transaction_id: order_id,
+          transaction_id: null, // Don't set transaction_id - orders are not in transactions table
           product_code: 'REFUND'
         })
         
