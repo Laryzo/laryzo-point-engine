@@ -72,7 +72,7 @@ const Dashboard = () => {
       case 'products':
         return <ProductManagement isSuperAdmin={isSuperAdmin} />;
       case 'orders':
-        return <OrderManagement />;
+        return <OrderManagement isSuperAdmin={isSuperAdmin} />;
       case 'settings':
         return isSuperAdmin ? <SystemSettings /> : null;
       case 'tree':

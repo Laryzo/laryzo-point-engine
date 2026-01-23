@@ -11,9 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Truck, CheckCircle, Loader2, Undo2 } from 'lucide-react';
+import { RefreshCw, Truck, CheckCircle, Loader2, Undo2, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
+
+interface OrderManagementProps {
+  isSuperAdmin?: boolean;
+}
 
 interface Order {
   id: string;
@@ -37,7 +41,7 @@ interface Order {
   products?: { name: string; type: string; digiflazz_sku: string | null };
 }
 
-const OrderManagement = () => {
+const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +56,8 @@ const OrderManagement = () => {
   });
   const [showRefundConfirm, setShowRefundConfirm] = useState(false);
   const [refundingOrder, setRefundingOrder] = useState<Order | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -222,6 +228,42 @@ const OrderManagement = () => {
     return order.admin_notes?.includes('[REFUNDED]') || false;
   };
 
+  const openDeleteConfirm = (order: Order) => {
+    setDeletingOrder(order);
+    setShowDeleteConfirm(true);
+  };
+
+  const deleteOrder = async () => {
+    if (!deletingOrder) return;
+
+    setProcessingOrder(deletingOrder.id);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', deletingOrder.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Berhasil',
+        description: 'Order berhasil dihapus.'
+      });
+
+      fetchOrders();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingOrder(null);
+      setProcessingOrder(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       pending: 'secondary',
@@ -331,7 +373,7 @@ const OrderManagement = () => {
                                 disabled={processingOrder === order.id}
                                 onClick={() => openRefundConfirm(order)}
                                 title="Refund Poin"
-                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-100"
                               >
                                 {processingOrder === order.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -342,6 +384,18 @@ const OrderManagement = () => {
                             )}
                             {order.status === 'failed' && isOrderRefunded(order) && (
                               <Badge variant="outline" className="text-xs text-green-600">Refunded</Badge>
+                            )}
+                            {isSuperAdmin && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                disabled={processingOrder === order.id}
+                                onClick={() => openDeleteConfirm(order)}
+                                title="Hapus Order"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             )}
                           </div>
                         </TableCell>
@@ -415,6 +469,18 @@ const OrderManagement = () => {
                             )}
                             {order.status === 'completed' && (
                               <CheckCircle className="w-4 h-4 text-green-500" />
+                            )}
+                            {isSuperAdmin && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                disabled={processingOrder === order.id}
+                                onClick={() => openDeleteConfirm(order)}
+                                title="Hapus Order"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             )}
                           </div>
                         </TableCell>
@@ -507,6 +573,34 @@ const OrderManagement = () => {
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               ) : null}
               Ya, Refund Poin
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Hapus Order</AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda akan menghapus order <strong>{deletingOrder?.products?.name}</strong> dari 
+              customer <strong>{deletingOrder?.customers?.name}</strong>.
+              <br /><br />
+              Aksi ini tidak dapat dibatalkan. Data order akan hilang secara permanen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={deleteOrder}
+              disabled={processingOrder === deletingOrder?.id}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {processingOrder === deletingOrder?.id ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Ya, Hapus Order
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
