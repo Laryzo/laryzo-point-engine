@@ -20,8 +20,42 @@ import {
   CreditCard, 
   Package,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  Contact
 } from 'lucide-react';
+
+// Declare Contact Picker API types
+declare global {
+  interface ContactInfo {
+    name?: string[];
+    email?: string[];
+    tel?: string[];
+    address?: ContactAddress[];
+    icon?: Blob[];
+  }
+  
+  interface ContactAddress {
+    city?: string;
+    country?: string;
+    dependentLocality?: string;
+    organization?: string;
+    phone?: string;
+    postalCode?: string;
+    recipient?: string;
+    region?: string;
+    sortingCode?: string;
+    addressLine?: string[];
+  }
+
+  interface ContactsManager {
+    select(properties: string[], options?: { multiple?: boolean }): Promise<ContactInfo[]>;
+    getProperties(): Promise<string[]>;
+  }
+
+  interface Navigator {
+    contacts?: ContactsManager;
+  }
+}
 
 interface Product {
   id: string;
@@ -167,6 +201,56 @@ const CustomerShop = () => {
       case 'meter_number': return 'Nomor Meter PLN';
       case 'account_number': return 'Nomor Akun';
       default: return 'Input';
+    }
+  };
+
+  // Check if Contact Picker API is supported
+  const isContactPickerSupported = () => {
+    return 'contacts' in navigator && 'ContactsManager' in window;
+  };
+
+  // Handle picking contact from phonebook
+  const handlePickContact = async () => {
+    if (!isContactPickerSupported()) {
+      toast({
+        title: 'Tidak Didukung',
+        description: 'Browser Anda tidak mendukung akses kontak. Silakan masukkan nomor manual.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const contacts = await navigator.contacts!.select(['tel'], { multiple: false });
+      
+      if (contacts && contacts.length > 0 && contacts[0].tel && contacts[0].tel.length > 0) {
+        // Clean the phone number - remove spaces, dashes, and country code
+        let phoneNumber = contacts[0].tel[0];
+        phoneNumber = phoneNumber.replace(/[\s\-\(\)]/g, ''); // Remove spaces, dashes, parentheses
+        
+        // Convert +62 or 62 to 0
+        if (phoneNumber.startsWith('+62')) {
+          phoneNumber = '0' + phoneNumber.substring(3);
+        } else if (phoneNumber.startsWith('62')) {
+          phoneNumber = '0' + phoneNumber.substring(2);
+        }
+        
+        setInputValue(phoneNumber);
+        toast({
+          title: 'Kontak Dipilih',
+          description: `Nomor ${phoneNumber} berhasil dipilih`,
+        });
+      }
+    } catch (error: any) {
+      // User cancelled or error occurred
+      if (error.name !== 'InvalidStateError' && error.name !== 'NotAllowedError') {
+        console.error('Contact picker error:', error);
+        toast({
+          title: 'Error',
+          description: 'Gagal mengakses kontak',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -520,12 +604,32 @@ const CustomerShop = () => {
             {selectedProduct?.requires_input && (
               <div className="space-y-2">
                 <Label htmlFor="input-value">{getInputLabel(selectedProduct.requires_input)}</Label>
-                <Input
-                  id="input-value"
-                  placeholder={`Masukkan ${getInputLabel(selectedProduct.requires_input).toLowerCase()}`}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="input-value"
+                    placeholder={`Masukkan ${getInputLabel(selectedProduct.requires_input).toLowerCase()}`}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    className="flex-1"
+                  />
+                  {/* Show contact picker button only for phone input (pulsa/emoney) */}
+                  {selectedProduct.requires_input === 'phone' && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="icon"
+                      onClick={handlePickContact}
+                      title="Pilih dari kontak"
+                    >
+                      <Contact className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {selectedProduct.requires_input === 'phone' && (
+                  <p className="text-xs text-muted-foreground">
+                    Klik ikon kontak untuk memilih dari phonebook HP Anda
+                  </p>
+                )}
               </div>
             )}
 
