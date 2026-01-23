@@ -679,6 +679,7 @@ export type Database = {
       }
       is_authenticated_admin: { Args: never; Returns: boolean }
       is_authenticated_customer: { Args: never; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       admin_role: "admin" | "super_admin"
