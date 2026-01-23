@@ -144,7 +144,9 @@ const CustomerShop = () => {
     setOrderLoading(true);
 
     try {
-      // Create order
+      // Create order with pending status
+      // Points will be deducted by digiflazz-topup edge function (for PPOB)
+      // or by admin when processing physical orders
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert([{
@@ -160,38 +162,47 @@ const CustomerShop = () => {
 
       if (orderError) throw orderError;
 
-      // Deduct points atomically using RPC to prevent race conditions
-      const { data: pointsSuccess, error: pointsError } = await supabase.rpc(
-        'increment_customer_points',
-        {
-          customer_uuid: customer.id,
-          points_to_add: -selectedProduct.point_price
-        }
-      );
-
-      if (pointsError) throw pointsError;
-      
-      if (!pointsSuccess) {
-        // Rollback the order if points deduction failed
-        await supabase.from('orders').delete().eq('id', order.id);
-        throw new Error('Gagal mengurangi poin - akun mungkin diblokir atau saldo tidak cukup');
-      }
-
-      // If PPOB, trigger the topup function
+      // If PPOB, trigger the topup function which handles point deduction
       if (selectedProduct.type === 'ppob') {
-        const { error: topupError } = await supabase.functions.invoke('digiflazz-topup', {
-          body: { orderId: order.id },
+        const { data: topupResult, error: topupError } = await supabase.functions.invoke('digiflazz-topup', {
+          body: { order_id: order.id },
         });
 
         if (topupError) {
           console.error('Topup error:', topupError);
-          // Order is still created, admin can process manually
+          // Clean up the pending order since topup failed to start
+          await supabase.from('orders').delete().eq('id', order.id);
+          throw new Error('Gagal memproses pesanan PPOB');
+        }
+
+        // Check if topup was successful
+        if (topupResult && !topupResult.success) {
+          throw new Error(topupResult.error || 'Gagal memproses pesanan PPOB');
+        }
+      } else {
+        // For physical products, deduct points immediately
+        const { data: pointsSuccess, error: pointsError } = await supabase.rpc(
+          'increment_customer_points',
+          {
+            customer_uuid: customer.id,
+            points_to_add: -selectedProduct.point_price
+          }
+        );
+
+        if (pointsError) throw pointsError;
+        
+        if (!pointsSuccess) {
+          // Rollback the order if points deduction failed
+          await supabase.from('orders').delete().eq('id', order.id);
+          throw new Error('Gagal mengurangi poin - akun mungkin diblokir atau saldo tidak cukup');
         }
       }
 
       toast({
         title: 'Pesanan Berhasil',
-        description: 'Pesanan Anda sedang diproses',
+        description: selectedProduct.type === 'ppob' 
+          ? 'Pesanan PPOB Anda sedang diproses'
+          : 'Pesanan Anda sedang diproses oleh admin',
       });
 
       await refreshCustomer();

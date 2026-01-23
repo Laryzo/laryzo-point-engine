@@ -286,110 +286,147 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Create MD5 signature for transaction
-    const encoder = new TextEncoder()
-    const signData = encoder.encode(username + apiKey + refId)
-    const hashBuffer = await crypto.subtle.digest('MD5', signData)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const sign = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    // Points have been deducted - from here, any error should trigger a refund
+    let pointsDeducted = true
 
-    console.log(`Sending topup request to Digiflazz for SKU: ${product.digiflazz_sku}`)
+    try {
+      // Create MD5 signature for transaction
+      const encoder = new TextEncoder()
+      const signData = encoder.encode(username + apiKey + refId)
+      const hashBuffer = await crypto.subtle.digest('MD5', signData)
+      const hashArray = Array.from(new Uint8Array(hashBuffer))
+      const sign = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 
-    // Check development mode from system_settings
-    const { data: settingsData } = await supabase
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'digiflazz_mode')
-      .single()
+      console.log(`Sending topup request to Digiflazz for SKU: ${product.digiflazz_sku}`)
 
-    const isDevelopment = settingsData?.value === 'development' || testing
+      // Check development mode from system_settings
+      const { data: settingsData } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'digiflazz_mode')
+        .single()
 
-    // Send request to Digiflazz
-    const digiflazzResponse = await fetch('https://api.digiflazz.com/v1/transaction', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username,
-        buyer_sku_code: product.digiflazz_sku,
-        customer_no: order.input_value,
-        ref_id: refId,
-        sign,
-        testing: isDevelopment
+      const isDevelopment = settingsData?.value === 'development' || testing
+
+      // Send request to Digiflazz
+      const digiflazzResponse = await fetch('https://api.digiflazz.com/v1/transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          buyer_sku_code: product.digiflazz_sku,
+          customer_no: order.input_value,
+          ref_id: refId,
+          sign,
+          testing: isDevelopment
+        })
       })
-    })
 
-    const digiflazzResult = await digiflazzResponse.json()
-    console.log('Digiflazz response:', JSON.stringify(digiflazzResult))
+      const digiflazzResult = await digiflazzResponse.json()
+      console.log('Digiflazz response:', JSON.stringify(digiflazzResult))
 
-    const txData = digiflazzResult.data || {}
-    const status = txData.status?.toLowerCase() || 'failed'
+      const txData = digiflazzResult.data || {}
+      const status = txData.status?.toLowerCase() || 'failed'
 
-    // Update order with Digiflazz response
-    const updateData: Record<string, any> = {
-      ref_id: refId,
-      digiflazz_status: status,
-      digiflazz_message: txData.message || txData.rc,
-      digiflazz_sn: txData.sn || null
-    }
-
-    if (status === 'sukses') {
-      updateData.status = 'completed'
-      updateData.processed_at = new Date().toISOString()
-
-      // Calculate profit and distribute points
-      const profit = product.point_price - product.cost_price
-      if (profit > 0) {
-        const distributed = await distributePoints(
-          supabase,
-          customer.id,
-          order_id,
-          profit,
-          product.digiflazz_sku || product.name
-        )
-        console.log(`Distributed points to ${distributed.length} recipients`)
+      // Update order with Digiflazz response
+      const updateData: Record<string, any> = {
+        ref_id: refId,
+        digiflazz_status: status,
+        digiflazz_message: txData.message || txData.rc,
+        digiflazz_sn: txData.sn || null
       }
 
-    } else if (status === 'pending') {
-      updateData.status = 'processing'
-    } else {
-      // Failed - refund points using atomic RPC
-      updateData.status = 'failed'
-      const { data: refundSuccess, error: refundError } = await supabase.rpc(
-        'increment_customer_points',
-        {
-          customer_uuid: customer.id,
-          points_to_add: order.points_used // Add back the deducted points
+      if (status === 'sukses') {
+        updateData.status = 'completed'
+        updateData.processed_at = new Date().toISOString()
+
+        // Calculate profit and distribute points
+        const profit = product.point_price - product.cost_price
+        if (profit > 0) {
+          const distributed = await distributePoints(
+            supabase,
+            customer.id,
+            order_id,
+            profit,
+            product.digiflazz_sku || product.name
+          )
+          console.log(`Distributed points to ${distributed.length} recipients`)
         }
-      )
-      
-      if (refundError) {
-        console.error('Failed to refund points:', refundError)
-      } else if (refundSuccess) {
-        console.log('Refunded points due to failed transaction')
+
+      } else if (status === 'pending') {
+        updateData.status = 'processing'
       } else {
-        console.warn('Refund skipped - customer may be blocked')
+        // Failed - refund points using atomic RPC
+        updateData.status = 'failed'
+        const { data: refundSuccess, error: refundError } = await supabase.rpc(
+          'increment_customer_points',
+          {
+            customer_uuid: customer.id,
+            points_to_add: order.points_used // Add back the deducted points
+          }
+        )
+        
+        if (refundError) {
+          console.error('Failed to refund points:', refundError)
+        } else if (refundSuccess) {
+          console.log('Refunded points due to failed transaction')
+          pointsDeducted = false
+        } else {
+          console.warn('Refund skipped - customer may be blocked')
+        }
       }
+
+      const { error: updateOrderError } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', order_id)
+
+      if (updateOrderError) {
+        console.error('Failed to update order:', updateOrderError)
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: status !== 'gagal',
+          status: updateData.status,
+          sn: txData.sn,
+          message: txData.message,
+          ref_id: refId
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+
+    } catch (innerError) {
+      // Error occurred after points were deducted - refund them
+      console.error('Error after point deduction, attempting refund:', innerError)
+      
+      if (pointsDeducted) {
+        const { data: refundSuccess, error: refundError } = await supabase.rpc(
+          'increment_customer_points',
+          {
+            customer_uuid: customer.id,
+            points_to_add: order.points_used
+          }
+        )
+        
+        if (refundError) {
+          console.error('CRITICAL: Failed to refund points after error:', refundError)
+        } else if (refundSuccess) {
+          console.log('Successfully refunded points after error')
+        }
+      }
+
+      // Update order status to failed
+      await supabase
+        .from('orders')
+        .update({ 
+          status: 'failed',
+          digiflazz_message: innerError.message || 'Processing error'
+        })
+        .eq('id', order_id)
+
+      throw innerError
     }
-
-    const { error: updateOrderError } = await supabase
-      .from('orders')
-      .update(updateData)
-      .eq('id', order_id)
-
-    if (updateOrderError) {
-      console.error('Failed to update order:', updateOrderError)
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: status !== 'gagal',
-        status: updateData.status,
-        sn: txData.sn,
-        message: txData.message,
-        ref_id: refId
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
 
   } catch (error) {
     console.error('Error processing topup:', error)
