@@ -98,7 +98,7 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
         description += ` ${data.products_synced} produk PPOB dicek.`;
         
         if (data.prices_changed > 0) {
-          description += ` ${data.prices_changed} harga modal terupdate.`;
+          description += ` ${data.prices_changed} harga terupdate.`;
         } else {
           description += ` Semua harga sudah sinkron.`;
         }
@@ -111,11 +111,17 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
 
       // Show price changes in console for admin reference
       if (data.changes && data.changes.length > 0) {
-        console.log('Perubahan harga modal:', data.changes);
+        console.log('Perubahan harga:', data.changes);
         
-        // Show additional toast with price changes if any
-        const changesList = data.changes.slice(0, 3).map((c: { name: string; old_price: number; new_price: number }) => 
-          `${c.name}: Rp${c.old_price.toLocaleString()} → Rp${c.new_price.toLocaleString()}`
+        // Show additional toast with price changes if any (showing both cost and point price)
+        const changesList = data.changes.slice(0, 3).map((c: { 
+          name: string; 
+          old_cost: number; 
+          new_cost: number; 
+          old_point_price: number; 
+          new_point_price: number 
+        }) => 
+          `${c.name}: Modal Rp${c.new_cost.toLocaleString()}, Poin ${c.new_point_price.toLocaleString()}`
         ).join('\n');
         
         toast({
