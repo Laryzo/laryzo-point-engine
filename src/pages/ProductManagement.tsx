@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Plus, RefreshCw, Edit, Trash2, Loader2, Download, Search, Check } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -29,6 +31,16 @@ interface Product {
   image_url: string | null;
 }
 
+interface DigiflazzCacheProduct {
+  buyer_sku_code: string;
+  product_name: string;
+  category: string;
+  brand: string;
+  price: number;
+  buyer_product_status: boolean;
+  seller_product_status: boolean;
+}
+
 interface ProductManagementProps {
   isSuperAdmin?: boolean;
 }
@@ -41,6 +53,17 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeTab, setActiveTab] = useState('ppob');
+
+  // Import dialog state
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [cacheProducts, setCacheProducts] = useState<DigiflazzCacheProduct[]>([]);
+  const [existingSkus, setExistingSkus] = useState<Set<string>>(new Set());
+  const [selectedSkus, setSelectedSkus] = useState<Set<string>>(new Set());
+  const [importFilter, setImportFilter] = useState({ category: '', brand: '', search: '' });
+  const [categories, setCategories] = useState<string[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -71,6 +94,10 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
 
       if (error) throw error;
       setProducts(data || []);
+      
+      // Update existing SKUs set
+      const skus = new Set((data || []).filter(p => p.digiflazz_sku).map(p => p.digiflazz_sku!));
+      setExistingSkus(skus);
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -91,7 +118,6 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
         throw new Error(data.error || 'Failed to sync');
       }
 
-      // Build description message based on sync results
       let description = `Ditemukan ${data.count} produk dari Digiflazz.`;
       
       if (data.products_synced > 0) {
@@ -109,11 +135,9 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
         description
       });
 
-      // Show price changes in console for admin reference
       if (data.changes && data.changes.length > 0) {
         console.log('Perubahan harga:', data.changes);
         
-        // Show additional toast with price changes if any (showing both cost and point price)
         const changesList = data.changes.slice(0, 3).map((c: { 
           name: string; 
           old_cost: number; 
@@ -130,12 +154,127 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
         });
       }
 
-      // Refresh product list to show updated prices
       fetchProducts();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  // Load cache products for import dialog
+  const loadCacheProducts = async () => {
+    setImportLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('digiflazz_price_cache')
+        .select('buyer_sku_code, product_name, category, brand, price, buyer_product_status, seller_product_status')
+        .eq('buyer_product_status', true)
+        .order('category', { ascending: true })
+        .order('brand', { ascending: true })
+        .order('product_name', { ascending: true });
+
+      if (error) throw error;
+
+      setCacheProducts(data || []);
+
+      // Extract unique categories and brands
+      const uniqueCategories = [...new Set((data || []).map(p => p.category).filter(Boolean))];
+      const uniqueBrands = [...new Set((data || []).map(p => p.brand).filter(Boolean))];
+      setCategories(uniqueCategories.sort());
+      setBrands(uniqueBrands.sort());
+
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const openImportDialog = async () => {
+    setShowImportDialog(true);
+    setSelectedSkus(new Set());
+    setImportFilter({ category: '', brand: '', search: '' });
+    await loadCacheProducts();
+  };
+
+  // Calculate point price with margin formula
+  const calculatePointPrice = (costPrice: number): number => {
+    return Math.ceil((costPrice + 1000) / 500) * 500;
+  };
+
+  // Filter cache products based on filters
+  const filteredCacheProducts = cacheProducts.filter(p => {
+    if (importFilter.category && p.category !== importFilter.category) return false;
+    if (importFilter.brand && p.brand !== importFilter.brand) return false;
+    if (importFilter.search) {
+      const search = importFilter.search.toLowerCase();
+      if (!p.product_name.toLowerCase().includes(search) && 
+          !p.buyer_sku_code.toLowerCase().includes(search)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Get brands for selected category
+  const filteredBrands = importFilter.category
+    ? [...new Set(cacheProducts.filter(p => p.category === importFilter.category).map(p => p.brand).filter(Boolean))].sort()
+    : brands;
+
+  const toggleSelectSku = (sku: string) => {
+    const newSelected = new Set(selectedSkus);
+    if (newSelected.has(sku)) {
+      newSelected.delete(sku);
+    } else {
+      newSelected.add(sku);
+    }
+    setSelectedSkus(newSelected);
+  };
+
+  const selectAllFiltered = () => {
+    const newSelected = new Set(selectedSkus);
+    filteredCacheProducts
+      .filter(p => !existingSkus.has(p.buyer_sku_code))
+      .forEach(p => newSelected.add(p.buyer_sku_code));
+    setSelectedSkus(newSelected);
+  };
+
+  const deselectAllFiltered = () => {
+    const newSelected = new Set(selectedSkus);
+    filteredCacheProducts.forEach(p => newSelected.delete(p.buyer_sku_code));
+    setSelectedSkus(newSelected);
+  };
+
+  const handleImport = async () => {
+    if (selectedSkus.size === 0) {
+      toast({ title: 'Peringatan', description: 'Pilih minimal 1 produk untuk diimport', variant: 'destructive' });
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('digiflazz-import-products', {
+        body: { skus: Array.from(selectedSkus), mode: 'selected' }
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to import');
+      }
+
+      toast({ 
+        title: 'Import Berhasil', 
+        description: data.message 
+      });
+
+      setShowImportDialog(false);
+      fetchProducts();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -266,6 +405,10 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
           <Button variant="outline" onClick={syncFromDigiflazz} disabled={syncing}>
             {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Sync Digiflazz
+          </Button>
+          <Button variant="outline" onClick={openImportDialog}>
+            <Download className="w-4 h-4 mr-2" />
+            Import dari Digiflazz
           </Button>
           <Button onClick={() => { 
             resetForm(); 
@@ -561,6 +704,172 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Import Produk dari Digiflazz</DialogTitle>
+          </DialogHeader>
+
+          {importLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin" />
+              <span className="ml-2">Memuat data produk...</span>
+            </div>
+          ) : (
+            <>
+              {/* Filters */}
+              <div className="grid grid-cols-3 gap-4 py-4">
+                <div className="space-y-2">
+                  <Label>Kategori</Label>
+                  <Select 
+                    value={importFilter.category} 
+                    onValueChange={(v) => setImportFilter({ ...importFilter, category: v, brand: '' })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Semua kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Semua kategori</SelectItem>
+                      {categories.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Brand</Label>
+                  <Select 
+                    value={importFilter.brand} 
+                    onValueChange={(v) => setImportFilter({ ...importFilter, brand: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Semua brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Semua brand</SelectItem>
+                      {filteredBrands.map(brand => (
+                        <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Cari</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input 
+                      value={importFilter.search}
+                      onChange={(e) => setImportFilter({ ...importFilter, search: e.target.value })}
+                      placeholder="Cari nama atau SKU..."
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Selection info and buttons */}
+              <div className="flex items-center justify-between py-2 border-y">
+                <div className="text-sm text-muted-foreground">
+                  Menampilkan {filteredCacheProducts.length} produk, {selectedSkus.size} terpilih
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={selectAllFiltered}>
+                    <Check className="w-4 h-4 mr-1" />
+                    Pilih Semua
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={deselectAllFiltered}>
+                    Batal Pilih Semua
+                  </Button>
+                </div>
+              </div>
+
+              {/* Product list */}
+              <ScrollArea className="flex-1 min-h-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12"></TableHead>
+                      <TableHead>Nama Produk</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Kategori</TableHead>
+                      <TableHead>Brand</TableHead>
+                      <TableHead>Harga Modal</TableHead>
+                      <TableHead>Harga Poin</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCacheProducts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          Tidak ada produk ditemukan. Klik "Sync Digiflazz" terlebih dahulu.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredCacheProducts.map(product => {
+                        const isExisting = existingSkus.has(product.buyer_sku_code);
+                        const isSelected = selectedSkus.has(product.buyer_sku_code);
+                        const pointPrice = calculatePointPrice(product.price);
+                        
+                        return (
+                          <TableRow 
+                            key={product.buyer_sku_code}
+                            className={isExisting ? 'opacity-50' : 'cursor-pointer hover:bg-muted/50'}
+                            onClick={() => !isExisting && toggleSelectSku(product.buyer_sku_code)}
+                          >
+                            <TableCell>
+                              <Checkbox 
+                                checked={isSelected}
+                                disabled={isExisting}
+                                onCheckedChange={() => toggleSelectSku(product.buyer_sku_code)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{product.product_name}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{product.buyer_sku_code}</TableCell>
+                            <TableCell>{product.category}</TableCell>
+                            <TableCell>{product.brand}</TableCell>
+                            <TableCell>{formatCurrency(product.price)}</TableCell>
+                            <TableCell className="text-primary font-medium">{pointPrice.toLocaleString()} poin</TableCell>
+                            <TableCell>
+                              {isExisting ? (
+                                <span className="text-xs bg-muted px-2 py-1 rounded">Sudah ada</span>
+                              ) : (
+                                <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">Baru</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+
+              <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={() => setShowImportDialog(false)}>
+                  Batal
+                </Button>
+                <Button onClick={handleImport} disabled={importing || selectedSkus.size === 0}>
+                  {importing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengimport...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Import {selectedSkus.size} Produk
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
