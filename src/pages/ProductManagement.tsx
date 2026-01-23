@@ -721,19 +721,18 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
             </div>
           ) : (
             <>
-              {/* Filters */}
               <div className="grid grid-cols-3 gap-4 py-4">
                 <div className="space-y-2">
                   <Label>Kategori</Label>
                   <Select 
-                    value={importFilter.category} 
-                    onValueChange={(v) => setImportFilter({ ...importFilter, category: v, brand: '' })}
+                    value={importFilter.category || '__all__'} 
+                    onValueChange={(v) => setImportFilter({ ...importFilter, category: v === '__all__' ? '' : v, brand: '' })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Semua kategori" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Semua kategori</SelectItem>
+                      <SelectItem value="__all__">Semua kategori</SelectItem>
                       {categories.map(cat => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))}
@@ -743,14 +742,14 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                 <div className="space-y-2">
                   <Label>Brand</Label>
                   <Select 
-                    value={importFilter.brand} 
-                    onValueChange={(v) => setImportFilter({ ...importFilter, brand: v })}
+                    value={importFilter.brand || '__all__'} 
+                    onValueChange={(v) => setImportFilter({ ...importFilter, brand: v === '__all__' ? '' : v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Semua brand" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Semua brand</SelectItem>
+                      <SelectItem value="__all__">Semua brand</SelectItem>
                       {filteredBrands.map(brand => (
                         <SelectItem key={brand} value={brand}>{brand}</SelectItem>
                       ))}
