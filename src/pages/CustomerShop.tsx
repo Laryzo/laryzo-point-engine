@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { canonicalizePpobBrand, getPpobBrandFromProductName } from '@/lib/ppob-brand';
 import { 
   ArrowLeft, 
   Coins, 
@@ -102,27 +103,7 @@ const CustomerShop = () => {
     // Extract brand from product name (first word before space)
     const brandSet = new Set<string>();
     categoryProducts.forEach(p => {
-      // Try to extract brand from product name
-      const name = p.name.toUpperCase();
-      if (name.startsWith('TELKOMSEL') || name.includes('TELKOMSEL')) brandSet.add('TELKOMSEL');
-      else if (name.startsWith('INDOSAT') || name.includes('INDOSAT')) brandSet.add('INDOSAT');
-      else if (name.startsWith('XL') || name.includes('XL ')) brandSet.add('XL');
-      else if (name.startsWith('AXIS') || name.includes('AXIS')) brandSet.add('AXIS');
-      else if (name.startsWith('TRI') || name.startsWith('THREE') || name.includes(' TRI ') || name.includes('THREE')) brandSet.add('TRI');
-      else if (name.startsWith('SMARTFREN') || name.includes('SMARTFREN')) brandSet.add('SMARTFREN');
-      else if (name.startsWith('GOPAY') || name.startsWith('GO PAY') || name.includes('GOPAY')) brandSet.add('GOPAY');
-      else if (name.startsWith('OVO') || name.includes('OVO')) brandSet.add('OVO');
-      else if (name.startsWith('DANA') || name.includes('DANA')) brandSet.add('DANA');
-      else if (name.startsWith('SHOPEE') || name.includes('SHOPEE')) brandSet.add('SHOPEEPAY');
-      else if (name.startsWith('LINKAJA') || name.includes('LINKAJA')) brandSet.add('LINKAJA');
-      else if (name.startsWith('GRAB') || name.includes('GRAB')) brandSet.add('GRAB');
-      else if (name.startsWith('MAXIM') || name.includes('MAXIM')) brandSet.add('MAXIM');
-      else if (name.startsWith('PLN') || name.includes('PLN') || name.includes('TOKEN')) brandSet.add('PLN');
-      else {
-        // Fallback: use first word
-        const firstWord = p.name.split(' ')[0].toUpperCase();
-        if (firstWord.length > 1) brandSet.add(firstWord);
-      }
+      brandSet.add(getPpobBrandFromProductName(p.name));
     });
     
     return Array.from(brandSet).sort();
@@ -136,11 +117,10 @@ const CustomerShop = () => {
       if (selectedCategory === 'physical') {
         filtered = filtered.filter(p => p.type === 'physical');
       } else if (selectedCategory && selectedBrand) {
+        const selected = canonicalizePpobBrand(selectedBrand);
         filtered = filtered.filter(p => {
           if (p.type !== 'ppob' || p.ppob_type !== selectedCategory) return false;
-          const name = p.name.toUpperCase();
-          const brand = selectedBrand.toUpperCase();
-          return name.includes(brand) || name.startsWith(brand);
+          return getPpobBrandFromProductName(p.name) === selected;
         });
       }
     }
