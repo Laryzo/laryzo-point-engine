@@ -6,11 +6,71 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Generate random alphanumeric password
-function generateRandomPassword(length: number = 8): string {
+// Check if password has been leaked using HaveIBeenPwned API (k-anonymity)
+async function isPasswordLeaked(password: string): Promise<boolean> {
+  try {
+    // Create SHA-1 hash of password
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    
+    // Split hash: first 5 chars for API, rest for comparison
+    const prefix = hashHex.substring(0, 5);
+    const suffix = hashHex.substring(5);
+    
+    // Query HIBP API with k-anonymity
+    const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      headers: { 'Add-Padding': 'true' }
+    });
+    
+    if (!response.ok) {
+      console.warn('HIBP API error:', response.status);
+      return false; // Fail open - don't block if API is down
+    }
+    
+    const text = await response.text();
+    const lines = text.split('\n');
+    
+    // Check if our hash suffix is in the results
+    for (const line of lines) {
+      const [hashSuffix] = line.split(':');
+      if (hashSuffix.trim() === suffix) {
+        return true; // Password found in leak database
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking HIBP:', error);
+    return false; // Fail open
+  }
+}
+
+// Generate random alphanumeric password that is not leaked
+async function generateSafePassword(length: number = 8, maxAttempts: number = 10): Promise<string> {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    // Check if password is leaked
+    const isLeaked = await isPasswordLeaked(result);
+    if (!isLeaked) {
+      console.log(`Generated safe password on attempt ${attempt + 1}`);
+      return result;
+    }
+    console.warn(`Generated password was leaked, regenerating (attempt ${attempt + 1})`);
+  }
+  
+  // Fallback: generate longer password if all attempts found leaked passwords
+  console.warn('All attempts found leaked passwords, generating longer password');
   let result = '';
-  for (let i = 0; i < length; i++) {
+  for (let i = 0; i < length + 4; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
@@ -61,7 +121,7 @@ Deno.serve(async (req) => {
 
       for (const customer of customersToProcess) {
         try {
-          const generatedPassword = generateRandomPassword(8);
+          const generatedPassword = await generateSafePassword(8);
           const hashedPassword = await bcrypt.hash(generatedPassword, 10);
           const hasAuth = existingCustomerIds.has(customer.id);
 
@@ -157,7 +217,7 @@ Deno.serve(async (req) => {
 
     // If customer already has auth, regenerate password
     if (existingAuth) {
-      const generatedPassword = password || generateRandomPassword(8);
+      const generatedPassword = password || await generateSafePassword(8);
       const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
       // Update password in customer_auth
@@ -198,7 +258,7 @@ Deno.serve(async (req) => {
     }
 
     // Generate or use provided password
-    const generatedPassword = password || generateRandomPassword(8);
+    const generatedPassword = password || await generateSafePassword(8);
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
     // Insert into customer_auth
