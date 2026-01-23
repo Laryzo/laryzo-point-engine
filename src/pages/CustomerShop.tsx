@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { canonicalizePpobBrand, getPpobBrandFromProductName } from '@/lib/ppob-brand';
 import { 
@@ -21,7 +22,8 @@ import {
   Package,
   ChevronRight,
   ChevronLeft,
-  Contact
+  Contact,
+  History
 } from 'lucide-react';
 
 // Declare Contact Picker API types
@@ -80,6 +82,14 @@ interface CategoryConfig {
   icon: React.ReactNode;
 }
 
+interface PhoneHistoryItem {
+  id: string;
+  phone_number: string;
+  label: string | null;
+  last_used_at: string;
+  use_count: number;
+}
+
 const CustomerShop = () => {
   const navigate = useNavigate();
   const { customer, refreshCustomer } = useCustomerAuth();
@@ -88,6 +98,10 @@ const CustomerShop = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // Phone history state
+  const [phoneHistory, setPhoneHistory] = useState<PhoneHistoryItem[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   
   // Hierarchical navigation state
   const [menuLevel, setMenuLevel] = useState<MenuLevel>('main');
@@ -108,7 +122,34 @@ const CustomerShop = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+    fetchPhoneHistory();
+  }, [customer?.id]);
+
+  // Fetch phone history for current customer
+  const fetchPhoneHistory = async () => {
+    if (!customer?.id) return;
+    
+    const { data, error } = await supabase
+      .from('customer_phone_history' as any)
+      .select('*')
+      .eq('customer_id', customer.id)
+      .order('last_used_at', { ascending: false })
+      .limit(10);
+
+    if (data && !error) {
+      setPhoneHistory(data as unknown as PhoneHistoryItem[]);
+    }
+  };
+
+  // Handle selecting a phone from history
+  const handleSelectFromHistory = (phoneNumber: string) => {
+    setInputValue(phoneNumber);
+    setHistoryOpen(false);
+    toast({
+      title: 'Nomor Dipilih',
+      description: `Nomor ${phoneNumber} berhasil dipilih dari riwayat`,
+    });
+  };
 
   const fetchProducts = async () => {
     const { data, error } = await supabase
@@ -612,22 +653,64 @@ const CustomerShop = () => {
                     onChange={(e) => setInputValue(e.target.value)}
                     className="flex-1"
                   />
-                  {/* Show contact picker button only for phone input (pulsa/emoney) */}
+                  {/* Show contact picker and history buttons only for phone input (pulsa/emoney) */}
                   {selectedProduct.requires_input === 'phone' && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="icon"
-                      onClick={handlePickContact}
-                      title="Pilih dari kontak"
-                    >
-                      <Contact className="h-4 w-4" />
-                    </Button>
+                    <>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="icon"
+                        onClick={handlePickContact}
+                        title="Pilih dari kontak"
+                      >
+                        <Contact className="h-4 w-4" />
+                      </Button>
+                      <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+                        <PopoverTrigger asChild>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="icon"
+                            title="Riwayat nomor"
+                            disabled={phoneHistory.length === 0}
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-0" align="end">
+                          <div className="p-2 border-b">
+                            <p className="text-sm font-medium">Nomor Terakhir</p>
+                          </div>
+                          <ScrollArea className="max-h-48">
+                            {phoneHistory.length === 0 ? (
+                              <div className="p-4 text-center text-sm text-muted-foreground">
+                                Belum ada riwayat nomor
+                              </div>
+                            ) : (
+                              <div className="p-1">
+                                {phoneHistory.map((item) => (
+                                  <button
+                                    key={item.id}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center justify-between"
+                                    onClick={() => handleSelectFromHistory(item.phone_number)}
+                                  >
+                                    <span className="font-medium">{item.phone_number}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {item.use_count}x
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </ScrollArea>
+                        </PopoverContent>
+                      </Popover>
+                    </>
                   )}
                 </div>
                 {selectedProduct.requires_input === 'phone' && (
                   <p className="text-xs text-muted-foreground">
-                    Klik ikon kontak untuk memilih dari phonebook HP Anda
+                    Klik 📱 untuk pilih dari kontak, atau 📋 untuk riwayat nomor terakhir
                   </p>
                 )}
               </div>
@@ -646,7 +729,7 @@ const CustomerShop = () => {
             )}
 
             {customer && selectedProduct && customer.points < selectedProduct.point_price && (
-              <p className="text-sm text-red-500">
+              <p className="text-sm text-destructive">
                 Poin Anda tidak cukup. Anda membutuhkan {formatNumber(selectedProduct.point_price - customer.points)} poin lagi.
               </p>
             )}
