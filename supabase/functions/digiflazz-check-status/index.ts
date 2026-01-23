@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createHash } from 'node:crypto'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,12 +79,10 @@ Deno.serve(async (req) => {
 
     console.log(`Checking status for order: ${order_id}, ref_id: ${order.ref_id}`)
 
-    // Create MD5 signature
-    const encoder = new TextEncoder()
-    const signData = encoder.encode(username + apiKey + order.ref_id)
-    const hashBuffer = await crypto.subtle.digest('MD5', signData)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const sign = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    // Create MD5 signature using node:crypto
+    const sign = createHash('md5')
+      .update(username + apiKey + order.ref_id)
+      .digest('hex')
 
     // Check status with Digiflazz
     const response = await fetch('https://api.digiflazz.com/v1/transaction', {
