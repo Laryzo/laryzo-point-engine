@@ -499,50 +499,14 @@ export type Database = {
           points_used: number | null
           processed_at: string | null
           product_id: string | null
+          product_name: string | null
+          product_type: string | null
           ref_id: string | null
           shipping_address: string | null
           shipping_status: string | null
           status: string | null
           tracking_number: string | null
           updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          customer_id?: string | null
-          digiflazz_message?: string | null
-          digiflazz_sn?: string | null
-          digiflazz_status?: string | null
-          id?: string | null
-          input_value?: string | null
-          points_earned?: number | null
-          points_used?: number | null
-          processed_at?: string | null
-          product_id?: string | null
-          ref_id?: string | null
-          shipping_address?: string | null
-          shipping_status?: string | null
-          status?: string | null
-          tracking_number?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          customer_id?: string | null
-          digiflazz_message?: string | null
-          digiflazz_sn?: string | null
-          digiflazz_status?: string | null
-          id?: string | null
-          input_value?: string | null
-          points_earned?: number | null
-          points_used?: number | null
-          processed_at?: string | null
-          product_id?: string | null
-          ref_id?: string | null
-          shipping_address?: string | null
-          shipping_status?: string | null
-          status?: string | null
-          tracking_number?: string | null
-          updated_at?: string | null
         }
         Relationships: [
           {

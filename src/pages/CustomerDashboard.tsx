@@ -16,10 +16,10 @@ const CustomerDashboard = () => {
   const fetchRecentData = async () => {
     if (!customer) return;
 
-    // Fetch recent orders
+    // Fetch recent orders using secure view
     const { data: orders } = await supabase
-      .from('orders')
-      .select('*, products(name)')
+      .from('orders_customer_view')
+      .select('*')
       .eq('customer_id', customer.id)
       .order('created_at', { ascending: false })
       .limit(3);
@@ -220,7 +220,7 @@ const CustomerDashboard = () => {
                       <Clock className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="font-medium text-sm">{order.products?.name || 'Produk'}</p>
+                      <p className="font-medium text-sm">{order.product_name || 'Produk'}</p>
                       <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
                     </div>
                   </div>

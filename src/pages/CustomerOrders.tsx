@@ -15,10 +15,8 @@ interface Order {
   tracking_number: string;
   digiflazz_sn: string;
   created_at: string;
-  products: {
-    name: string;
-    type: string;
-  };
+  product_name: string;
+  product_type: string;
 }
 
 const CustomerOrders = () => {
@@ -34,9 +32,10 @@ const CustomerOrders = () => {
   }, [customer?.id]);
 
   const fetchOrders = async () => {
+    // Use secure view that excludes admin_notes
     const { data, error } = await supabase
-      .from('orders')
-      .select('*, products(name, type)')
+      .from('orders_customer_view')
+      .select('*')
       .eq('customer_id', customer?.id)
       .order('created_at', { ascending: false });
 
@@ -140,7 +139,7 @@ const CustomerOrders = () => {
                     <div className="flex items-center gap-3">
                       {getStatusIcon(order.status)}
                       <div>
-                        <h3 className="font-medium">{order.products?.name}</h3>
+                        <h3 className="font-medium">{order.product_name}</h3>
                         <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
                       </div>
                     </div>
