@@ -1,14 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '@/hooks/useCustomerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Coins, Search, ShoppingCart, Smartphone, Zap, CreditCard, Package } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Coins, 
+  Search, 
+  ShoppingCart, 
+  Smartphone, 
+  Zap, 
+  CreditCard, 
+  Package,
+  ChevronRight,
+  ChevronLeft
+} from 'lucide-react';
 
 interface Product {
   id: string;
@@ -23,36 +35,51 @@ interface Product {
   requires_shipping: boolean;
 }
 
+// Menu structure types
+type MenuLevel = 'main' | 'category' | 'brand' | 'products';
+
+interface CategoryConfig {
+  id: string;
+  label: string;
+  ppob_type: string;
+  icon: React.ReactNode;
+}
+
 const CustomerShop = () => {
   const navigate = useNavigate();
   const { customer, refreshCustomer } = useCustomerAuth();
   const { toast } = useToast();
   
   const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(true);
+  
+  // Hierarchical navigation state
+  const [menuLevel, setMenuLevel] = useState<MenuLevel>('main');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
   const [orderLoading, setOrderLoading] = useState(false);
 
+  // Category configurations
+  const ppobCategories: CategoryConfig[] = [
+    { id: 'pulsa', label: 'Pulsa', ppob_type: 'pulsa', icon: <Smartphone className="h-8 w-8" /> },
+    { id: 'emoney', label: 'E-Money', ppob_type: 'emoney', icon: <CreditCard className="h-8 w-8" /> },
+    { id: 'token_pln', label: 'Token PLN', ppob_type: 'token_pln', icon: <Zap className="h-8 w-8" /> },
+  ];
+
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  useEffect(() => {
-    filterProducts();
-  }, [products, search, activeCategory]);
-
   const fetchProducts = async () => {
-    // Use the products_public view which excludes sensitive columns (cost_price, digiflazz_sku)
     const { data, error } = await supabase
       .from('products_public' as any)
       .select('*')
-      .order('name');
+      .order('point_price', { ascending: true });
 
     if (data) {
       setProducts(data.map((p: any) => ({
@@ -64,17 +91,61 @@ const CustomerShop = () => {
     setLoading(false);
   };
 
-  const filterProducts = () => {
+  // Extract brands from products for current category
+  const brandsForCategory = useMemo(() => {
+    if (!selectedCategory) return [];
+    
+    const categoryProducts = products.filter(p => 
+      p.type === 'ppob' && p.ppob_type === selectedCategory
+    );
+    
+    // Extract brand from product name (first word before space)
+    const brandSet = new Set<string>();
+    categoryProducts.forEach(p => {
+      // Try to extract brand from product name
+      const name = p.name.toUpperCase();
+      if (name.startsWith('TELKOMSEL') || name.includes('TELKOMSEL')) brandSet.add('TELKOMSEL');
+      else if (name.startsWith('INDOSAT') || name.includes('INDOSAT')) brandSet.add('INDOSAT');
+      else if (name.startsWith('XL') || name.includes('XL ')) brandSet.add('XL');
+      else if (name.startsWith('AXIS') || name.includes('AXIS')) brandSet.add('AXIS');
+      else if (name.startsWith('TRI') || name.startsWith('THREE') || name.includes(' TRI ') || name.includes('THREE')) brandSet.add('TRI');
+      else if (name.startsWith('SMARTFREN') || name.includes('SMARTFREN')) brandSet.add('SMARTFREN');
+      else if (name.startsWith('GOPAY') || name.startsWith('GO PAY') || name.includes('GOPAY')) brandSet.add('GOPAY');
+      else if (name.startsWith('OVO') || name.includes('OVO')) brandSet.add('OVO');
+      else if (name.startsWith('DANA') || name.includes('DANA')) brandSet.add('DANA');
+      else if (name.startsWith('SHOPEE') || name.includes('SHOPEE')) brandSet.add('SHOPEEPAY');
+      else if (name.startsWith('LINKAJA') || name.includes('LINKAJA')) brandSet.add('LINKAJA');
+      else if (name.startsWith('GRAB') || name.includes('GRAB')) brandSet.add('GRAB');
+      else if (name.startsWith('MAXIM') || name.includes('MAXIM')) brandSet.add('MAXIM');
+      else if (name.startsWith('PLN') || name.includes('PLN') || name.includes('TOKEN')) brandSet.add('PLN');
+      else {
+        // Fallback: use first word
+        const firstWord = p.name.split(' ')[0].toUpperCase();
+        if (firstWord.length > 1) brandSet.add(firstWord);
+      }
+    });
+    
+    return Array.from(brandSet).sort();
+  }, [products, selectedCategory]);
+
+  // Filter products based on current selection
+  const filteredProducts = useMemo(() => {
     let filtered = [...products];
     
-    if (activeCategory !== 'all') {
-      if (activeCategory === 'physical') {
+    if (menuLevel === 'products') {
+      if (selectedCategory === 'physical') {
         filtered = filtered.filter(p => p.type === 'physical');
-      } else {
-        filtered = filtered.filter(p => p.type === 'ppob' && p.ppob_type === activeCategory);
+      } else if (selectedCategory && selectedBrand) {
+        filtered = filtered.filter(p => {
+          if (p.type !== 'ppob' || p.ppob_type !== selectedCategory) return false;
+          const name = p.name.toUpperCase();
+          const brand = selectedBrand.toUpperCase();
+          return name.includes(brand) || name.startsWith(brand);
+        });
       }
     }
     
+    // Apply search
     if (search) {
       filtered = filtered.filter(p => 
         p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -82,8 +153,11 @@ const CustomerShop = () => {
       );
     }
     
-    setFilteredProducts(filtered);
-  };
+    // Sort by point price ascending
+    filtered.sort((a, b) => a.point_price - b.point_price);
+    
+    return filtered;
+  }, [products, menuLevel, selectedCategory, selectedBrand, search]);
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('id-ID').format(num);
@@ -99,6 +173,13 @@ const CustomerShop = () => {
     }
   };
 
+  const getBrandIcon = (brand: string) => {
+    // Could be extended with actual brand logos
+    return <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+      {brand.charAt(0)}
+    </div>;
+  };
+
   const getInputLabel = (inputType: string | null) => {
     if (!inputType) return '';
     switch (inputType) {
@@ -109,10 +190,61 @@ const CustomerShop = () => {
     }
   };
 
+  // Navigation handlers
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    if (categoryId === 'physical') {
+      // Physical products go directly to product list
+      setMenuLevel('products');
+    } else if (categoryId === 'token_pln') {
+      // PLN only has one "brand", go directly to products
+      setSelectedBrand('PLN');
+      setMenuLevel('products');
+    } else {
+      setMenuLevel('brand');
+    }
+  };
+
+  const handleBrandSelect = (brand: string) => {
+    setSelectedBrand(brand);
+    setMenuLevel('products');
+  };
+
+  const handleBack = () => {
+    if (menuLevel === 'products') {
+      if (selectedCategory === 'physical' || selectedCategory === 'token_pln') {
+        setMenuLevel('main');
+        setSelectedCategory(null);
+        setSelectedBrand(null);
+      } else {
+        setMenuLevel('brand');
+        setSelectedBrand(null);
+      }
+    } else if (menuLevel === 'brand') {
+      setMenuLevel('main');
+      setSelectedCategory(null);
+    } else {
+      navigate('/portal');
+    }
+  };
+
+  const getPageTitle = () => {
+    if (menuLevel === 'main') return 'Belanja Poin';
+    if (menuLevel === 'brand') {
+      const cat = ppobCategories.find(c => c.id === selectedCategory);
+      return cat?.label || 'Pilih Provider';
+    }
+    if (menuLevel === 'products') {
+      if (selectedCategory === 'physical') return 'Produk Fisik';
+      if (selectedBrand) return selectedBrand;
+      return 'Produk';
+    }
+    return 'Belanja Poin';
+  };
+
   const handleOrder = async () => {
     if (!selectedProduct || !customer) return;
 
-    // Validate input
     if (selectedProduct.requires_input && !inputValue) {
       toast({
         title: 'Error',
@@ -131,7 +263,6 @@ const CustomerShop = () => {
       return;
     }
 
-    // Check points
     if (customer.points < selectedProduct.point_price) {
       toast({
         title: 'Poin Tidak Cukup',
@@ -144,9 +275,6 @@ const CustomerShop = () => {
     setOrderLoading(true);
 
     try {
-      // Create order with pending status
-      // Points will be deducted by digiflazz-topup edge function (for PPOB)
-      // or by admin when processing physical orders
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert([{
@@ -162,7 +290,6 @@ const CustomerShop = () => {
 
       if (orderError) throw orderError;
 
-      // If PPOB, trigger the topup function which handles point deduction
       if (selectedProduct.type === 'ppob') {
         const { data: topupResult, error: topupError } = await supabase.functions.invoke('digiflazz-topup', {
           body: { order_id: order.id },
@@ -170,17 +297,14 @@ const CustomerShop = () => {
 
         if (topupError) {
           console.error('Topup error:', topupError);
-          // Clean up the pending order since topup failed to start
           await supabase.from('orders').delete().eq('id', order.id);
           throw new Error('Gagal memproses pesanan PPOB');
         }
 
-        // Check if topup was successful
         if (topupResult && !topupResult.success) {
           throw new Error(topupResult.error || 'Gagal memproses pesanan PPOB');
         }
       } else {
-        // For physical products, deduct points immediately
         const { data: pointsSuccess, error: pointsError } = await supabase.rpc(
           'increment_customer_points',
           {
@@ -192,7 +316,6 @@ const CustomerShop = () => {
         if (pointsError) throw pointsError;
         
         if (!pointsSuccess) {
-          // Rollback the order if points deduction failed
           await supabase.from('orders').delete().eq('id', order.id);
           throw new Error('Gagal mengurangi poin - akun mungkin diblokir atau saldo tidak cukup');
         }
@@ -221,13 +344,144 @@ const CustomerShop = () => {
     }
   };
 
-  const categories = [
-    { id: 'all', label: 'Semua' },
-    { id: 'pulsa', label: 'Pulsa' },
-    { id: 'token_pln', label: 'Token PLN' },
-    { id: 'emoney', label: 'E-Money' },
-    { id: 'physical', label: 'Fisik' },
-  ];
+  // Render main menu
+  const renderMainMenu = () => (
+    <div className="space-y-6">
+      {/* PPOB Section */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Produk PPOB</h2>
+        <div className="grid grid-cols-3 gap-4">
+          {ppobCategories.map((cat) => (
+            <Card 
+              key={cat.id}
+              className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+              onClick={() => handleCategorySelect(cat.id)}
+            >
+              <CardContent className="p-4 flex flex-col items-center text-center">
+                <div className="p-3 bg-primary/10 rounded-xl text-primary mb-3">
+                  {cat.icon}
+                </div>
+                <span className="font-medium text-sm">{cat.label}</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground mt-2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Physical Products Section */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Produk Fisik</h2>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+          onClick={() => handleCategorySelect('physical')}
+        >
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-xl text-primary">
+              <Package className="h-8 w-8" />
+            </div>
+            <div className="flex-1">
+              <span className="font-medium">Lihat Semua Produk Fisik</span>
+              <p className="text-sm text-muted-foreground">Merchandise, voucher, dll</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
+  // Render brand selection
+  const renderBrandMenu = () => (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">Pilih provider:</p>
+      <div className="grid grid-cols-2 gap-3">
+        {brandsForCategory.map((brand) => (
+          <Card 
+            key={brand}
+            className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+            onClick={() => handleBrandSelect(brand)}
+          >
+            <CardContent className="p-4 flex items-center gap-3">
+              {getBrandIcon(brand)}
+              <div className="flex-1">
+                <span className="font-medium">{brand}</span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      {brandsForCategory.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          Belum ada produk di kategori ini
+        </div>
+      )}
+    </div>
+  );
+
+  // Render products list
+  const renderProductsList = () => (
+    <div className="space-y-4">
+      {/* Search in products */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Cari produk..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      <p className="text-sm text-muted-foreground">
+        {filteredProducts.length} produk ditemukan (diurutkan dari harga terendah)
+      </p>
+
+      {filteredProducts.length === 0 ? (
+        <div className="text-center py-12">
+          <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">Tidak ada produk ditemukan</p>
+        </div>
+      ) : (
+        <ScrollArea className="h-[calc(100vh-320px)]">
+          <div className="space-y-2 pr-4">
+            {filteredProducts.map((product) => (
+              <Card 
+                key={product.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow hover:border-primary/50"
+                onClick={() => setSelectedProduct(product)}
+              >
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="flex items-center justify-center p-2 bg-muted rounded-lg">
+                    {getCategoryIcon(product.type, product.ppob_type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-sm truncate">{product.name}</h3>
+                    {product.description && (
+                      <p className="text-xs text-muted-foreground truncate">{product.description}</p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-1 text-primary font-semibold">
+                      <Coins className="h-4 w-4" />
+                      <span>{formatNumber(product.point_price)}</span>
+                    </div>
+                    {product.stock > 0 && product.stock < 10 && (
+                      <p className="text-xs text-orange-500">Stok: {product.stock}</p>
+                    )}
+                    {product.stock === 0 && (
+                      <p className="text-xs text-red-500">Habis</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -235,88 +489,32 @@ const CustomerShop = () => {
       <header className="bg-card border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/portal')}>
-              <ArrowLeft className="h-5 w-5" />
+            <Button variant="ghost" size="icon" onClick={handleBack}>
+              {menuLevel === 'main' ? <ArrowLeft className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
             </Button>
-            <h1 className="text-xl font-semibold">Belanja Poin</h1>
+            <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
           </div>
           
           {/* Points Display */}
-          <div className="flex items-center gap-2 mb-4 p-3 bg-primary/10 rounded-lg">
+          <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
             <Coins className="h-5 w-5 text-primary" />
             <span className="text-sm">Poin Anda:</span>
             <span className="font-bold text-primary">{formatNumber(customer?.points || 0)}</span>
-          </div>
-
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cari produk..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-4">
-        {/* Categories */}
-        <div className="flex gap-2 overflow-x-auto pb-4 mb-4">
-          {categories.map((cat) => (
-            <Button
-              key={cat.id}
-              variant={activeCategory === cat.id ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActiveCategory(cat.id)}
-              className="whitespace-nowrap"
-            >
-              {cat.label}
-            </Button>
-          ))}
-        </div>
-
-        {/* Products Grid */}
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Tidak ada produk ditemukan</p>
-          </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {filteredProducts.map((product) => (
-              <Card 
-                key={product.id} 
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setSelectedProduct(product)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-center p-3 bg-muted rounded-lg mb-3">
-                    {getCategoryIcon(product.type, product.ppob_type)}
-                  </div>
-                  <h3 className="font-medium text-sm mb-1 line-clamp-2">{product.name}</h3>
-                  {product.description && (
-                    <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{product.description}</p>
-                  )}
-                  <div className="flex items-center gap-1 text-primary font-semibold">
-                    <Coins className="h-4 w-4" />
-                    <span>{formatNumber(product.point_price)}</span>
-                  </div>
-                  {product.stock > 0 && product.stock < 10 && (
-                    <p className="text-xs text-orange-500 mt-1">Stok: {product.stock}</p>
-                  )}
-                  {product.stock === 0 && (
-                    <p className="text-xs text-red-500 mt-1">Stok Habis</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <>
+            {menuLevel === 'main' && renderMainMenu()}
+            {menuLevel === 'brand' && renderBrandMenu()}
+            {menuLevel === 'products' && renderProductsList()}
+          </>
         )}
       </main>
 

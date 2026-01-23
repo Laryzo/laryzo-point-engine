@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, Edit, Trash2, Loader2, Download, Search, Check } from 'lucide-react';
+import { Plus, RefreshCw, Edit, Trash2, Loader2, Download, Search, Check, ChevronRight, ChevronLeft, Smartphone, CreditCard, Zap, Package } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -45,6 +45,16 @@ interface ProductManagementProps {
   isSuperAdmin?: boolean;
 }
 
+// Menu navigation types
+type PPOBMenuLevel = 'category' | 'brand' | 'products';
+
+interface CategoryConfig {
+  id: string;
+  label: string;
+  ppob_type: string;
+  icon: React.ReactNode;
+}
+
 const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => {
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
@@ -53,6 +63,18 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeTab, setActiveTab] = useState('ppob');
+
+  // Hierarchical PPOB navigation
+  const [ppobMenuLevel, setPpobMenuLevel] = useState<PPOBMenuLevel>('category');
+  const [selectedPpobCategory, setSelectedPpobCategory] = useState<string | null>(null);
+  const [selectedPpobBrand, setSelectedPpobBrand] = useState<string | null>(null);
+
+  // PPOB Categories config
+  const ppobCategories: CategoryConfig[] = [
+    { id: 'pulsa', label: 'Pulsa', ppob_type: 'pulsa', icon: <Smartphone className="h-8 w-8" /> },
+    { id: 'emoney', label: 'E-Money', ppob_type: 'emoney', icon: <CreditCard className="h-8 w-8" /> },
+    { id: 'token_pln', label: 'Token PLN', ppob_type: 'token_pln', icon: <Zap className="h-8 w-8" /> },
+  ];
 
   // Import dialog state
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -90,7 +112,7 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('point_price', { ascending: true });
 
       if (error) throw error;
       setProducts(data || []);
@@ -400,9 +422,115 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
     });
   };
 
-  const filteredProducts = products.filter(p => 
-    activeTab === 'ppob' ? p.type === 'ppob' : p.type === 'physical'
-  );
+  // Extract brands for selected PPOB category
+  const brandsForPpobCategory = useMemo(() => {
+    if (!selectedPpobCategory) return [];
+    
+    const categoryProducts = products.filter(p => 
+      p.type === 'ppob' && p.ppob_type === selectedPpobCategory
+    );
+    
+    const brandSet = new Set<string>();
+    categoryProducts.forEach(p => {
+      const name = p.name.toUpperCase();
+      if (name.startsWith('TELKOMSEL') || name.includes('TELKOMSEL')) brandSet.add('TELKOMSEL');
+      else if (name.startsWith('INDOSAT') || name.includes('INDOSAT')) brandSet.add('INDOSAT');
+      else if (name.startsWith('XL') || name.includes('XL ')) brandSet.add('XL');
+      else if (name.startsWith('AXIS') || name.includes('AXIS')) brandSet.add('AXIS');
+      else if (name.startsWith('TRI') || name.startsWith('THREE') || name.includes(' TRI ') || name.includes('THREE')) brandSet.add('TRI');
+      else if (name.startsWith('SMARTFREN') || name.includes('SMARTFREN')) brandSet.add('SMARTFREN');
+      else if (name.startsWith('GOPAY') || name.startsWith('GO PAY') || name.includes('GOPAY')) brandSet.add('GOPAY');
+      else if (name.startsWith('OVO') || name.includes('OVO')) brandSet.add('OVO');
+      else if (name.startsWith('DANA') || name.includes('DANA')) brandSet.add('DANA');
+      else if (name.startsWith('SHOPEE') || name.includes('SHOPEE')) brandSet.add('SHOPEEPAY');
+      else if (name.startsWith('LINKAJA') || name.includes('LINKAJA')) brandSet.add('LINKAJA');
+      else if (name.startsWith('GRAB') || name.includes('GRAB')) brandSet.add('GRAB');
+      else if (name.startsWith('MAXIM') || name.includes('MAXIM')) brandSet.add('MAXIM');
+      else if (name.startsWith('PLN') || name.includes('PLN') || name.includes('TOKEN')) brandSet.add('PLN');
+      else {
+        const firstWord = p.name.split(' ')[0].toUpperCase();
+        if (firstWord.length > 1) brandSet.add(firstWord);
+      }
+    });
+    
+    return Array.from(brandSet).sort();
+  }, [products, selectedPpobCategory]);
+
+  // Filtered products for PPOB based on hierarchy
+  const filteredPpobProducts = useMemo(() => {
+    if (ppobMenuLevel !== 'products') return [];
+    
+    let filtered = products.filter(p => p.type === 'ppob');
+    
+    if (selectedPpobCategory) {
+      filtered = filtered.filter(p => p.ppob_type === selectedPpobCategory);
+    }
+    
+    if (selectedPpobBrand) {
+      filtered = filtered.filter(p => {
+        const name = p.name.toUpperCase();
+        const brand = selectedPpobBrand.toUpperCase();
+        return name.includes(brand) || name.startsWith(brand);
+      });
+    }
+    
+    // Sort by point price ascending
+    return filtered.sort((a, b) => a.point_price - b.point_price);
+  }, [products, ppobMenuLevel, selectedPpobCategory, selectedPpobBrand]);
+
+  const filteredPhysicalProducts = products.filter(p => p.type === 'physical')
+    .sort((a, b) => a.point_price - b.point_price);
+
+  // PPOB navigation handlers
+  const handlePpobCategorySelect = (categoryId: string) => {
+    setSelectedPpobCategory(categoryId);
+    if (categoryId === 'token_pln') {
+      // PLN only has one "brand", go directly to products
+      setSelectedPpobBrand('PLN');
+      setPpobMenuLevel('products');
+    } else {
+      setPpobMenuLevel('brand');
+    }
+  };
+
+  const handlePpobBrandSelect = (brand: string) => {
+    setSelectedPpobBrand(brand);
+    setPpobMenuLevel('products');
+  };
+
+  const handlePpobBack = () => {
+    if (ppobMenuLevel === 'products') {
+      if (selectedPpobCategory === 'token_pln') {
+        setPpobMenuLevel('category');
+        setSelectedPpobCategory(null);
+        setSelectedPpobBrand(null);
+      } else {
+        setPpobMenuLevel('brand');
+        setSelectedPpobBrand(null);
+      }
+    } else if (ppobMenuLevel === 'brand') {
+      setPpobMenuLevel('category');
+      setSelectedPpobCategory(null);
+    }
+  };
+
+  const getPpobPageTitle = () => {
+    if (ppobMenuLevel === 'category') return 'Pilih Kategori PPOB';
+    if (ppobMenuLevel === 'brand') {
+      const cat = ppobCategories.find(c => c.id === selectedPpobCategory);
+      return `Pilih Provider ${cat?.label || ''}`;
+    }
+    if (ppobMenuLevel === 'products') {
+      return selectedPpobBrand || 'Produk';
+    }
+    return 'PPOB';
+  };
+
+  const getBrandIcon = (brand: string) => {
+    return <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+      {brand.charAt(0)}
+    </div>;
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -443,68 +571,129 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
 
         <TabsContent value="ppob" className="mt-4">
           <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>No</TableHead>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>SKU Digiflazz</TableHead>
-                    <TableHead>Tipe</TableHead>
-                    <TableHead>Harga Modal</TableHead>
-                    <TableHead>Harga Poin</TableHead>
-                    <TableHead>Margin</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                {ppobMenuLevel !== 'category' && (
+                  <Button variant="ghost" size="icon" onClick={handlePpobBack}>
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                )}
+                <CardTitle className="text-lg">{getPpobPageTitle()}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Category Selection */}
+              {ppobMenuLevel === 'category' && (
+                <div className="grid grid-cols-3 gap-4">
+                  {ppobCategories.map((cat) => (
+                    <Card 
+                      key={cat.id}
+                      className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+                      onClick={() => handlePpobCategorySelect(cat.id)}
+                    >
+                      <CardContent className="p-6 flex flex-col items-center text-center">
+                        <div className="p-4 bg-primary/10 rounded-xl text-primary mb-3">
+                          {cat.icon}
+                        </div>
+                        <span className="font-medium">{cat.label}</span>
+                        <span className="text-sm text-muted-foreground mt-1">
+                          {products.filter(p => p.type === 'ppob' && p.ppob_type === cat.ppob_type).length} produk
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground mt-2" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Brand Selection */}
+              {ppobMenuLevel === 'brand' && (
+                <div className="grid grid-cols-4 gap-3">
+                  {brandsForPpobCategory.map((brand) => (
+                    <Card 
+                      key={brand}
+                      className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+                      onClick={() => handlePpobBrandSelect(brand)}
+                    >
+                      <CardContent className="p-4 flex items-center gap-3">
+                        {getBrandIcon(brand)}
+                        <div className="flex-1">
+                          <span className="font-medium">{brand}</span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {brandsForPpobCategory.length === 0 && (
+                    <div className="col-span-4 text-center py-8 text-muted-foreground">
+                      Belum ada produk di kategori ini
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Products Table */}
+              {ppobMenuLevel === 'products' && (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-                      </TableCell>
+                      <TableHead>No</TableHead>
+                      <TableHead>Nama</TableHead>
+                      <TableHead>SKU Digiflazz</TableHead>
+                      <TableHead>Harga Modal</TableHead>
+                      <TableHead>Harga Poin</TableHead>
+                      <TableHead>Margin</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Aksi</TableHead>
                     </TableRow>
-                  ) : filteredProducts.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                        Belum ada produk PPOB
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredProducts.map((product, index) => (
-                      <TableRow key={product.id}>
-                        <TableCell className="text-muted-foreground font-medium">{index + 1}</TableCell>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>{product.digiflazz_sku || '-'}</TableCell>
-                        <TableCell>{product.ppob_type || '-'}</TableCell>
-                        <TableCell>{formatCurrency(product.cost_price)}</TableCell>
-                        <TableCell>{product.point_price.toLocaleString()} poin</TableCell>
-                        <TableCell>{formatCurrency(product.point_price - product.cost_price)}</TableCell>
-                        <TableCell>
-                          <Switch 
-                            checked={product.is_active} 
-                            onCheckedChange={() => toggleActive(product)}
-                            disabled={!isSuperAdmin}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {isSuperAdmin && (
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          )}
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : filteredPpobProducts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          Belum ada produk di brand ini
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredPpobProducts.map((product, index) => (
+                        <TableRow key={product.id}>
+                          <TableCell className="text-muted-foreground font-medium">{index + 1}</TableCell>
+                          <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{product.digiflazz_sku || '-'}</TableCell>
+                          <TableCell>{formatCurrency(product.cost_price)}</TableCell>
+                          <TableCell>{product.point_price.toLocaleString()} poin</TableCell>
+                          <TableCell>{formatCurrency(product.point_price - product.cost_price)}</TableCell>
+                          <TableCell>
+                            <Switch 
+                              checked={product.is_active} 
+                              onCheckedChange={() => toggleActive(product)}
+                              disabled={!isSuperAdmin}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {isSuperAdmin && (
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -533,14 +722,14 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                         <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
-                  ) : filteredProducts.length === 0 ? (
+                  ) : filteredPhysicalProducts.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         Belum ada produk fisik
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredProducts.map((product, index) => (
+                    filteredPhysicalProducts.map((product, index) => (
                       <TableRow key={product.id}>
                         <TableCell className="text-muted-foreground font-medium">{index + 1}</TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
