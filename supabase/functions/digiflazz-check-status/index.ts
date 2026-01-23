@@ -135,20 +135,22 @@ Deno.serve(async (req) => {
     } else if (status === 'gagal') {
       updateData.status = 'failed'
 
-      // Refund points if order was not yet completed or failed
-      // This covers both 'processing' and 'pending' statuses
+      // Refund points via point_history INSERT if order was not yet completed or failed
+      // Database trigger handles customers.points update automatically
       if (order.status !== 'completed' && order.status !== 'failed') {
-        const { data: refundSuccess, error: refundError } = await supabase.rpc('increment_customer_points', {
-          customer_uuid: order.customer_id,
-          points_to_add: order.points_used
+        const { error: refundError } = await supabase.from('point_history').insert({
+          from_customer: null,
+          to_customer: order.customer_id,
+          points: order.points_used,
+          level: 0,
+          transaction_id: order_id,
+          product_code: 'REFUND'
         })
         
         if (refundError) {
-          console.error('Error refunding points:', refundError)
-        } else if (refundSuccess) {
-          console.log(`Refunded ${order.points_used} points due to failed transaction (previous status: ${order.status})`)
+          console.error('Error inserting refund to point_history:', refundError)
         } else {
-          console.log('Points refund skipped (customer blocked or not found)')
+          console.log(`Refunded ${order.points_used} points via point_history (previous status: ${order.status})`)
         }
       }
     }

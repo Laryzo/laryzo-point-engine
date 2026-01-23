@@ -96,23 +96,16 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
         return level;
       };
 
-      const customersWithPoints = await Promise.all(
-        (customersData || []).map(async (customer) => {
-          const { data: pointsData } = await supabase
-            .from('point_history')
-            .select('points')
-            .eq('to_customer', customer.id);
-
-          const totalPoints = pointsData?.reduce((sum, p) => sum + (Number(p.points) || 0), 0) || 0;
-          const level = calculateLevel(customer.id);
-          
-          return {
-            ...customer,
-            totalPoints,
-            level
-          };
-        })
-      );
+      // Use customer.points directly (synced by database trigger from point_history)
+      // This is faster and ensures consistency with customer portal
+      const customersWithPoints = (customersData || []).map((customer) => {
+        const level = calculateLevel(customer.id);
+        return {
+          ...customer,
+          totalPoints: Number(customer.points) || 0,
+          level
+        };
+      });
 
       // Sort by created_at descending, then by name descending for consistent order
       customersWithPoints.sort((a, b) => {
