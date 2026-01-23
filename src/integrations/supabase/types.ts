@@ -132,6 +132,72 @@ export type Database = {
           },
         ]
       }
+      digiflazz_price_cache: {
+        Row: {
+          brand: string | null
+          buyer_product_status: boolean | null
+          buyer_sku_code: string
+          category: string | null
+          cmd: string | null
+          created_at: string
+          description: string | null
+          end_cut_off: string | null
+          id: string
+          multi: boolean | null
+          price: number
+          product_name: string
+          seller_name: string | null
+          seller_product_status: boolean | null
+          start_cut_off: string | null
+          stock: number | null
+          type: string | null
+          unlimited_stock: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          buyer_product_status?: boolean | null
+          buyer_sku_code: string
+          category?: string | null
+          cmd?: string | null
+          created_at?: string
+          description?: string | null
+          end_cut_off?: string | null
+          id?: string
+          multi?: boolean | null
+          price?: number
+          product_name: string
+          seller_name?: string | null
+          seller_product_status?: boolean | null
+          start_cut_off?: string | null
+          stock?: number | null
+          type?: string | null
+          unlimited_stock?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          buyer_product_status?: boolean | null
+          buyer_sku_code?: string
+          category?: string | null
+          cmd?: string | null
+          created_at?: string
+          description?: string | null
+          end_cut_off?: string | null
+          id?: string
+          multi?: boolean | null
+          price?: number
+          product_name?: string
+          seller_name?: string | null
+          seller_product_status?: boolean | null
+          start_cut_off?: string | null
+          stock?: number | null
+          type?: string | null
+          unlimited_stock?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       login_attempts: {
         Row: {
           attempted_at: string | null
