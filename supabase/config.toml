@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.customer-bulk-auth]
 verify_jwt = false
+
+[functions.digiflazz-import-products]
+verify_jwt = false
