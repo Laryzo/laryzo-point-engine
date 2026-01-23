@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createHash } from 'node:crypto'
 
 // CORS configuration - restrict to trusted origins
 const ALLOWED_ORIGINS = [
@@ -290,12 +291,10 @@ Deno.serve(async (req) => {
     let pointsDeducted = true
 
     try {
-      // Create MD5 signature for transaction
-      const encoder = new TextEncoder()
-      const signData = encoder.encode(username + apiKey + refId)
-      const hashBuffer = await crypto.subtle.digest('MD5', signData)
-      const hashArray = Array.from(new Uint8Array(hashBuffer))
-      const sign = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+      // Create MD5 signature for transaction using node:crypto
+      const sign = createHash('md5')
+        .update(username + apiKey + refId)
+        .digest('hex')
 
       console.log(`Sending topup request to Digiflazz for SKU: ${product.digiflazz_sku}`)
 
