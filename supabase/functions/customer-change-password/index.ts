@@ -9,6 +9,48 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
 ]
 
+// Check if password has been leaked using HaveIBeenPwned API (k-anonymity)
+async function isPasswordLeaked(password: string): Promise<boolean> {
+  try {
+    // Create SHA-1 hash of password
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    
+    // Split hash: first 5 chars for API, rest for comparison
+    const prefix = hashHex.substring(0, 5);
+    const suffix = hashHex.substring(5);
+    
+    // Query HIBP API with k-anonymity
+    const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      headers: { 'Add-Padding': 'true' }
+    });
+    
+    if (!response.ok) {
+      console.warn('HIBP API error:', response.status);
+      return false; // Fail open - don't block if API is down
+    }
+    
+    const text = await response.text();
+    const lines = text.split('\n');
+    
+    // Check if our hash suffix is in the results
+    for (const line of lines) {
+      const [hashSuffix] = line.split(':');
+      if (hashSuffix.trim() === suffix) {
+        return true; // Password found in leak database
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking HIBP:', error);
+    return false; // Fail open
+  }
+}
+
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const isAllowed = origin && ALLOWED_ORIGINS.some(allowed => 
     origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
@@ -126,6 +168,16 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Password saat ini salah' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check if new password has been leaked
+    const isLeaked = await isPasswordLeaked(newPassword)
+    if (isLeaked) {
+      console.warn('Attempted to use leaked password for customer:', authData.customer_id)
+      return new Response(
+        JSON.stringify({ error: 'Password ini terdeteksi pernah bocor di database leak. Silakan gunakan password lain yang lebih aman.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
