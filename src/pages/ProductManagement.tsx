@@ -347,7 +347,21 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
         .from('products')
         .delete()
         .eq('id', id);
-      if (error) throw error;
+      
+      if (error) {
+        // Check for foreign key constraint error
+        if (error.message.includes('violates foreign key constraint') || 
+            error.code === '23503') {
+          toast({ 
+            title: 'Tidak dapat menghapus', 
+            description: 'Produk ini memiliki order yang terkait. Nonaktifkan produk saja jika tidak ingin dijual lagi.', 
+            variant: 'destructive' 
+          });
+          return;
+        }
+        throw error;
+      }
+      
       toast({ title: 'Berhasil', description: 'Produk berhasil dihapus' });
       fetchProducts();
     } catch (error: any) {
