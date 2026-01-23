@@ -1,4 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { crypto } from "https://deno.land/std@0.224.0/crypto/mod.ts"
+import { encodeHex } from "https://deno.land/std@0.224.0/encoding/hex.ts"
 
 // CORS configuration - restrict to trusted origins
 const ALLOWED_ORIGINS = [
@@ -102,12 +104,11 @@ Deno.serve(async (req) => {
 
     const { cmd = 'prepaid' } = await req.json().catch(() => ({}))
 
-    // Create MD5 signature
+    // Create MD5 signature using Deno std library
     const encoder = new TextEncoder()
     const data = encoder.encode(username + apiKey + 'pricelist')
     const hashBuffer = await crypto.subtle.digest('MD5', data)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const sign = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    const sign = encodeHex(new Uint8Array(hashBuffer))
 
     console.log(`Fetching ${cmd} price list from Digiflazz...`)
 
