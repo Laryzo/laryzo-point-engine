@@ -136,8 +136,9 @@ Deno.serve(async (req) => {
     } else if (status === 'gagal') {
       updateData.status = 'failed'
 
-      // Refund points if order was processing - use atomic RPC to prevent race conditions
-      if (order.status === 'processing') {
+      // Refund points if order was not yet completed or failed
+      // This covers both 'processing' and 'pending' statuses
+      if (order.status !== 'completed' && order.status !== 'failed') {
         const { data: refundSuccess, error: refundError } = await supabase.rpc('increment_customer_points', {
           customer_uuid: order.customer_id,
           points_to_add: order.points_used
@@ -146,7 +147,7 @@ Deno.serve(async (req) => {
         if (refundError) {
           console.error('Error refunding points:', refundError)
         } else if (refundSuccess) {
-          console.log('Refunded points due to failed transaction')
+          console.log(`Refunded ${order.points_used} points due to failed transaction (previous status: ${order.status})`)
         } else {
           console.log('Points refund skipped (customer blocked or not found)')
         }
