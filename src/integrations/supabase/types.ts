@@ -486,6 +486,88 @@ export type Database = {
       }
     }
     Views: {
+      orders_customer_view: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          digiflazz_message: string | null
+          digiflazz_sn: string | null
+          digiflazz_status: string | null
+          id: string | null
+          input_value: string | null
+          points_earned: number | null
+          points_used: number | null
+          processed_at: string | null
+          product_id: string | null
+          ref_id: string | null
+          shipping_address: string | null
+          shipping_status: string | null
+          status: string | null
+          tracking_number: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          digiflazz_message?: string | null
+          digiflazz_sn?: string | null
+          digiflazz_status?: string | null
+          id?: string | null
+          input_value?: string | null
+          points_earned?: number | null
+          points_used?: number | null
+          processed_at?: string | null
+          product_id?: string | null
+          ref_id?: string | null
+          shipping_address?: string | null
+          shipping_status?: string | null
+          status?: string | null
+          tracking_number?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          digiflazz_message?: string | null
+          digiflazz_sn?: string | null
+          digiflazz_status?: string | null
+          id?: string | null
+          input_value?: string | null
+          points_earned?: number | null
+          points_used?: number | null
+          processed_at?: string | null
+          product_id?: string | null
+          ref_id?: string | null
+          shipping_address?: string | null
+          shipping_status?: string | null
+          status?: string | null
+          tracking_number?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products_public: {
         Row: {
           description: string | null
