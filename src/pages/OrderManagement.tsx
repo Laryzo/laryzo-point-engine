@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Truck, CheckCircle, Loader2 } from 'lucide-react';
+import { RefreshCw, Truck, CheckCircle, Loader2, Undo2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
 interface Order {
@@ -49,6 +50,8 @@ const OrderManagement = () => {
     shipping_status: 'shipped',
     admin_notes: ''
   });
+  const [showRefundConfirm, setShowRefundConfirm] = useState(false);
+  const [refundingOrder, setRefundingOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -142,6 +145,83 @@ const OrderManagement = () => {
     setShowShippingDialog(true);
   };
 
+  const openRefundConfirm = (order: Order) => {
+    setRefundingOrder(order);
+    setShowRefundConfirm(true);
+  };
+
+  const refundPoints = async () => {
+    if (!refundingOrder) return;
+
+    setProcessingOrder(refundingOrder.id);
+    try {
+      // Check if already refunded
+      const { data: existingRefund } = await supabase
+        .from('point_history')
+        .select('id')
+        .eq('to_customer', refundingOrder.customer_id)
+        .eq('product_code', 'REFUND')
+        .eq('points', refundingOrder.points_used)
+        .gte('created_at', refundingOrder.created_at)
+        .maybeSingle();
+
+      if (existingRefund) {
+        toast({
+          title: 'Info',
+          description: 'Poin untuk order ini sudah pernah di-refund.',
+          variant: 'default'
+        });
+        setShowRefundConfirm(false);
+        setRefundingOrder(null);
+        setProcessingOrder(null);
+        return;
+      }
+
+      // Insert refund to point_history (trigger will update customers.points)
+      const { error: refundError } = await supabase
+        .from('point_history')
+        .insert({
+          from_customer: null,
+          to_customer: refundingOrder.customer_id,
+          points: refundingOrder.points_used,
+          level: 0,
+          transaction_id: null,
+          product_code: 'REFUND'
+        });
+
+      if (refundError) throw refundError;
+
+      // Update order status to mark it as refunded
+      await supabase
+        .from('orders')
+        .update({ 
+          admin_notes: (refundingOrder.admin_notes || '') + '\n[REFUNDED] ' + new Date().toISOString()
+        })
+        .eq('id', refundingOrder.id);
+
+      toast({
+        title: 'Berhasil',
+        description: `${refundingOrder.points_used.toLocaleString()} poin berhasil dikembalikan.`
+      });
+
+      fetchOrders();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setShowRefundConfirm(false);
+      setRefundingOrder(null);
+      setProcessingOrder(null);
+    }
+  };
+
+  const isOrderRefunded = (order: Order) => {
+    return order.admin_notes?.includes('[REFUNDED]') || false;
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       pending: 'secondary',
@@ -228,20 +308,42 @@ const OrderManagement = () => {
                         <TableCell>{getDigiflazzStatusBadge(order.digiflazz_status)}</TableCell>
                         <TableCell className="font-mono text-xs">{order.digiflazz_sn || '-'}</TableCell>
                         <TableCell>
-                          {(order.status === 'processing' || order.digiflazz_status === 'pending') && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              disabled={processingOrder === order.id}
-                              onClick={() => checkStatus(order.id)}
-                            >
-                              {processingOrder === order.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <RefreshCw className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
+                          <div className="flex gap-1">
+                            {(order.status === 'processing' || order.digiflazz_status === 'pending') && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                disabled={processingOrder === order.id}
+                                onClick={() => checkStatus(order.id)}
+                                title="Cek Status"
+                              >
+                                {processingOrder === order.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                            {order.status === 'failed' && !isOrderRefunded(order) && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                disabled={processingOrder === order.id}
+                                onClick={() => openRefundConfirm(order)}
+                                title="Refund Poin"
+                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                              >
+                                {processingOrder === order.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Undo2 className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                            {order.status === 'failed' && isOrderRefunded(order) && (
+                              <Badge variant="outline" className="text-xs text-green-600">Refunded</Badge>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -381,6 +483,34 @@ const OrderManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Refund Confirmation Dialog */}
+      <AlertDialog open={showRefundConfirm} onOpenChange={setShowRefundConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Refund Poin</AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda akan mengembalikan <strong>{refundingOrder?.points_used.toLocaleString()}</strong> poin 
+              ke customer <strong>{refundingOrder?.customers?.name}</strong>.
+              <br /><br />
+              Aksi ini tidak dapat dibatalkan. Pastikan order ini memang gagal dan layak di-refund.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={refundPoints}
+              disabled={processingOrder === refundingOrder?.id}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {processingOrder === refundingOrder?.id ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Ya, Refund Poin
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
