@@ -10,6 +10,9 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
 ]
 
+// Cache settings - refresh every 6 hours
+const CACHE_DURATION_MS = 6 * 60 * 60 * 1000
+
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const isAllowed = origin && ALLOWED_ORIGINS.some(allowed => 
     origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
@@ -71,6 +74,61 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
+    const { cmd = 'prepaid', force = false } = await req.json().catch(() => ({}))
+    const cmdType = cmd === 'pasca' ? 'pasca' : 'prepaid'
+
+    // Check cache freshness
+    const { data: lastSyncSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'digiflazz_last_sync')
+      .single()
+
+    const lastSyncTime = lastSyncSetting?.value ? new Date(lastSyncSetting.value).getTime() : 0
+    const now = Date.now()
+    const cacheExpired = (now - lastSyncTime) > CACHE_DURATION_MS
+
+    // If cache is fresh and not forcing refresh, return cached data
+    if (!cacheExpired && !force) {
+      console.log('Returning cached price list...')
+      const { data: cachedProducts, error: cacheError } = await supabase
+        .from('digiflazz_price_cache')
+        .select('*')
+        .eq('cmd', cmdType)
+
+      if (!cacheError && cachedProducts && cachedProducts.length > 0) {
+        // Transform to Digiflazz format
+        const products = cachedProducts.map((p: any) => ({
+          product_name: p.product_name,
+          category: p.category,
+          brand: p.brand,
+          type: p.type,
+          seller_name: p.seller_name,
+          price: Number(p.price),
+          buyer_sku_code: p.buyer_sku_code,
+          buyer_product_status: p.buyer_product_status,
+          seller_product_status: p.seller_product_status,
+          unlimited_stock: p.unlimited_stock,
+          stock: p.stock,
+          multi: p.multi,
+          start_cut_off: p.start_cut_off,
+          end_cut_off: p.end_cut_off,
+          desc: p.description,
+        }))
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            data: products,
+            count: products.length,
+            cached: true,
+            last_sync: lastSyncSetting?.value
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     // Get credentials from environment or system_settings
     let username = Deno.env.get('DIGIFLAZZ_USERNAME')
     let apiKey = Deno.env.get('DIGIFLAZZ_API_KEY')
@@ -102,21 +160,19 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { cmd = 'prepaid' } = await req.json().catch(() => ({}))
-
     // Create MD5 signature using Deno std library
     const encoder = new TextEncoder()
     const data = encoder.encode(username + apiKey + 'pricelist')
     const hashBuffer = await crypto.subtle.digest('MD5', data)
     const sign = encodeHex(new Uint8Array(hashBuffer))
 
-    console.log(`Fetching ${cmd} price list from Digiflazz...`)
+    console.log(`Fetching ${cmdType} price list from Digiflazz API...`)
 
     const response = await fetch('https://api.digiflazz.com/v1/price-list', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        cmd: cmd === 'pasca' ? 'pasca' : 'prepaid',
+        cmd: cmdType,
         username,
         sign
       })
@@ -126,6 +182,47 @@ Deno.serve(async (req) => {
 
     if (result.data?.rc && result.data.rc !== '00') {
       console.error('Digiflazz API error:', result.data.message)
+      
+      // If rate limited, try to return cached data
+      if (result.data.message?.includes('limitasi')) {
+        console.log('Rate limited, attempting to return cached data...')
+        const { data: cachedProducts } = await supabase
+          .from('digiflazz_price_cache')
+          .select('*')
+          .eq('cmd', cmdType)
+
+        if (cachedProducts && cachedProducts.length > 0) {
+          const products = cachedProducts.map((p: any) => ({
+            product_name: p.product_name,
+            category: p.category,
+            brand: p.brand,
+            type: p.type,
+            seller_name: p.seller_name,
+            price: Number(p.price),
+            buyer_sku_code: p.buyer_sku_code,
+            buyer_product_status: p.buyer_product_status,
+            seller_product_status: p.seller_product_status,
+            unlimited_stock: p.unlimited_stock,
+            stock: p.stock,
+            multi: p.multi,
+            start_cut_off: p.start_cut_off,
+            end_cut_off: p.end_cut_off,
+            desc: p.description,
+          }))
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              data: products,
+              count: products.length,
+              cached: true,
+              warning: 'Menggunakan data cache karena limit API tercapai'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      }
+
       return new Response(
         JSON.stringify({ success: false, error: result.data.message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -133,13 +230,60 @@ Deno.serve(async (req) => {
     }
 
     const products: DigiflazzPriceItem[] = result.data || []
-    console.log(`Retrieved ${products.length} products from Digiflazz`)
+    console.log(`Retrieved ${products.length} products from Digiflazz API`)
+
+    // Update cache - upsert all products
+    if (products.length > 0) {
+      const cacheData = products.map(p => ({
+        buyer_sku_code: p.buyer_sku_code,
+        product_name: p.product_name,
+        category: p.category,
+        brand: p.brand,
+        type: p.type,
+        seller_name: p.seller_name,
+        price: p.price,
+        buyer_product_status: p.buyer_product_status,
+        seller_product_status: p.seller_product_status,
+        unlimited_stock: p.unlimited_stock,
+        stock: p.stock,
+        multi: p.multi,
+        start_cut_off: p.start_cut_off,
+        end_cut_off: p.end_cut_off,
+        description: p.desc,
+        cmd: cmdType,
+        updated_at: new Date().toISOString()
+      }))
+
+      // Upsert in batches of 100 to avoid timeout
+      const batchSize = 100
+      for (let i = 0; i < cacheData.length; i += batchSize) {
+        const batch = cacheData.slice(i, i + batchSize)
+        const { error: upsertError } = await supabase
+          .from('digiflazz_price_cache')
+          .upsert(batch, { onConflict: 'buyer_sku_code' })
+
+        if (upsertError) {
+          console.error(`Cache upsert batch ${i / batchSize + 1} error:`, upsertError)
+        }
+      }
+
+      // Update last sync time
+      await supabase
+        .from('system_settings')
+        .upsert({ 
+          key: 'digiflazz_last_sync', 
+          value: new Date().toISOString() 
+        }, { onConflict: 'key' })
+
+      console.log(`Cached ${products.length} products successfully`)
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         data: products,
-        count: products.length 
+        count: products.length,
+        cached: false
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
