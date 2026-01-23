@@ -341,6 +341,45 @@ Deno.serve(async (req) => {
           console.log(`Distributed points to ${distributed.length} recipients`)
         }
 
+        // Save phone number to history for pulsa/emoney (requires_input = 'phone')
+        if (order.input_value && product.requires_input === 'phone') {
+          try {
+            // Upsert: insert or update if exists
+            const { error: historyError } = await supabase
+              .from('customer_phone_history')
+              .upsert(
+                {
+                  customer_id: customer.id,
+                  phone_number: order.input_value,
+                  last_used_at: new Date().toISOString(),
+                  use_count: 1
+                },
+                {
+                  onConflict: 'customer_id,phone_number',
+                  ignoreDuplicates: false
+                }
+              )
+            
+            if (historyError) {
+              console.error('Failed to save phone history:', historyError)
+            } else {
+              // If upsert succeeded, increment use_count for existing records
+              await supabase
+                .from('customer_phone_history')
+                .update({ 
+                  use_count: supabase.rpc ? undefined : 1, // Will be handled by SQL below
+                  last_used_at: new Date().toISOString()
+                })
+                .eq('customer_id', customer.id)
+                .eq('phone_number', order.input_value)
+              
+              console.log('Saved phone number to history:', order.input_value)
+            }
+          } catch (histErr) {
+            console.error('Phone history save error:', histErr)
+          }
+        }
+
       } else if (status === 'pending') {
         updateData.status = 'processing'
       } else {

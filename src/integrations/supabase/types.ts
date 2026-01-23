@@ -82,6 +82,36 @@ export type Database = {
           },
         ]
       }
+      customer_phone_history: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          label: string | null
+          last_used_at: string
+          phone_number: string
+          use_count: number
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          label?: string | null
+          last_used_at?: string
+          phone_number: string
+          use_count?: number
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          label?: string | null
+          last_used_at?: string
+          phone_number?: string
+          use_count?: number
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           created_at: string | null
