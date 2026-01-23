@@ -107,6 +107,7 @@ async function distributePoints(
   }
 
   // Insert all point history records
+  // Note: customers.points is automatically updated via database trigger (sync_points_on_history_change)
   if (pointsToDistribute.length > 0) {
     const { error: historyError } = await supabase
       .from('point_history')
@@ -117,19 +118,7 @@ async function distributePoints(
       throw historyError
     }
 
-    // Update customer points using atomic RPC function
-    for (const record of pointsToDistribute) {
-      const { data: success, error: rpcError } = await supabase.rpc('increment_customer_points', {
-        customer_uuid: record.to_customer,
-        points_to_add: record.points
-      })
-
-      if (rpcError) {
-        console.error('Error incrementing points via RPC:', rpcError)
-      } else if (!success) {
-        console.log(`Points increment skipped for customer ${record.to_customer} (blocked or not found)`)
-      }
-    }
+    console.log(`Inserted ${pointsToDistribute.length} point history records (trigger updates customers.points automatically)`)
   }
 
   return pointsToDistribute
