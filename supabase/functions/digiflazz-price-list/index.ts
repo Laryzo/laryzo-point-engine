@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
     // Update cache - upsert all products
     let productsSynced = 0
     let pricesChanged = 0
-    const changes: { sku: string; name: string; old_price: number; new_price: number }[] = []
+    const changes: { sku: string; name: string; old_cost: number; new_cost: number; old_point_price: number; new_point_price: number }[] = []
 
     if (products.length > 0) {
       const cacheData = products.map(p => ({
@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
       // Get all PPOB products that have a digiflazz_sku configured
       const { data: existingProducts, error: productsError } = await supabase
         .from('products')
-        .select('id, name, digiflazz_sku, cost_price')
+        .select('id, name, digiflazz_sku, cost_price, point_price')
         .eq('type', 'ppob')
         .not('digiflazz_sku', 'is', null)
 
@@ -300,19 +300,34 @@ Deno.serve(async (req) => {
           priceMap.set(p.buyer_sku_code, p.price)
         })
 
+        // Function to calculate point price: cost + 1000 margin, then round up to nearest 500
+        // Example: 10200 + 1000 = 11200, round up to 11500
+        const calculatePointPrice = (costPrice: number): number => {
+          const withMargin = costPrice + 1000
+          return Math.ceil(withMargin / 500) * 500
+        }
+
         // Check each product and update if price changed
         for (const product of existingProducts) {
           if (!product.digiflazz_sku) continue
 
-          const newPrice = priceMap.get(product.digiflazz_sku)
-          if (newPrice !== undefined) {
+          const newCostPrice = priceMap.get(product.digiflazz_sku)
+          if (newCostPrice !== undefined) {
             productsSynced++
             
-            // Only update if price actually changed
-            if (Number(product.cost_price) !== newPrice) {
+            const newPointPrice = calculatePointPrice(newCostPrice)
+            const costChanged = Number(product.cost_price) !== newCostPrice
+            const pointPriceChanged = Number(product.point_price) !== newPointPrice
+            
+            // Update if either cost_price or point_price changed
+            if (costChanged || pointPriceChanged) {
               const { error: updateError } = await supabase
                 .from('products')
-                .update({ cost_price: newPrice })
+                .update({ 
+                  cost_price: newCostPrice,
+                  point_price: newPointPrice,
+                  updated_at: new Date().toISOString()
+                })
                 .eq('id', product.id)
 
               if (updateError) {
@@ -322,10 +337,12 @@ Deno.serve(async (req) => {
                 changes.push({
                   sku: product.digiflazz_sku,
                   name: product.name,
-                  old_price: Number(product.cost_price),
-                  new_price: newPrice
+                  old_cost: Number(product.cost_price),
+                  new_cost: newCostPrice,
+                  old_point_price: Number(product.point_price),
+                  new_point_price: newPointPrice
                 })
-                console.log(`Updated ${product.digiflazz_sku}: ${product.cost_price} -> ${newPrice}`)
+                console.log(`Updated ${product.digiflazz_sku}: cost ${product.cost_price} -> ${newCostPrice}, point_price ${product.point_price} -> ${newPointPrice}`)
               }
             }
           } else {
