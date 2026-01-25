@@ -449,6 +449,24 @@ const CustomerShop = () => {
     }
   };
 
+  // Count products per category
+  const getProductCountForCategory = (ppobType: string) => {
+    return products.filter(p => p.type === 'ppob' && p.ppob_type === ppobType).length;
+  };
+
+  const getPhysicalProductCount = () => {
+    return products.filter(p => p.type === 'physical').length;
+  };
+
+  // Count products per brand
+  const getProductCountForBrand = (brand: string) => {
+    if (!selectedCategory) return 0;
+    return products.filter(p => {
+      if (p.type !== 'ppob' || p.ppob_type !== selectedCategory) return false;
+      return getPpobBrandFromProductName(p.name) === canonicalizePpobBrand(brand);
+    }).length;
+  };
+
   // Render main menu
   const renderMainMenu = () => (
     <div className="space-y-6">
@@ -456,21 +474,27 @@ const CustomerShop = () => {
       <div>
         <h2 className="text-lg font-semibold mb-3">Produk PPOB</h2>
         <div className="grid grid-cols-3 gap-4">
-          {ppobCategories.map((cat) => (
-            <Card 
-              key={cat.id}
-              className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
-              onClick={() => handleCategorySelect(cat.id)}
-            >
-              <CardContent className="p-4 flex flex-col items-center text-center">
-                <div className="p-3 bg-primary/10 rounded-xl text-primary mb-3">
-                  {cat.icon}
-                </div>
-                <span className="font-medium text-sm">{cat.label}</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground mt-2" />
-              </CardContent>
-            </Card>
-          ))}
+          {ppobCategories.map((cat) => {
+            const productCount = getProductCountForCategory(cat.ppob_type);
+            return (
+              <Card 
+                key={cat.id}
+                className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+                onClick={() => handleCategorySelect(cat.id)}
+              >
+                <CardContent className="p-4 flex flex-col items-center text-center">
+                  <div className="p-3 bg-primary/10 rounded-xl text-primary mb-3">
+                    {cat.icon}
+                  </div>
+                  <span className="font-medium text-sm">{cat.label}</span>
+                  <span className="text-xs text-muted-foreground mt-1">
+                    {productCount} produk
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground mt-2" />
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
@@ -487,7 +511,9 @@ const CustomerShop = () => {
             </div>
             <div className="flex-1">
               <span className="font-medium">Lihat Semua Produk Fisik</span>
-              <p className="text-sm text-muted-foreground">Merchandise, voucher, dll</p>
+              <p className="text-sm text-muted-foreground">
+                {getPhysicalProductCount()} produk tersedia
+              </p>
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </CardContent>
@@ -500,22 +526,26 @@ const CustomerShop = () => {
   const renderBrandMenu = () => (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">Pilih provider:</p>
-      <div className="grid grid-cols-2 gap-3">
-        {brandsForCategory.map((brand) => (
-          <Card 
-            key={brand}
-            className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
-            onClick={() => handleBrandSelect(brand)}
-          >
-            <CardContent className="p-4 flex items-center gap-3">
-              {getBrandIcon(brand)}
-              <div className="flex-1">
-                <span className="font-medium">{brand}</span>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-3 gap-3">
+        {brandsForCategory.map((brand) => {
+          const productCount = getProductCountForBrand(brand);
+          return (
+            <Card 
+              key={brand}
+              className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+              onClick={() => handleBrandSelect(brand)}
+            >
+              <CardContent className="p-4 flex flex-col items-center text-center">
+                {getBrandIcon(brand)}
+                <span className="font-medium mt-2">{brand}</span>
+                <span className="text-xs text-muted-foreground mt-1">
+                  {productCount} produk
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground mt-2" />
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
       {brandsForCategory.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
