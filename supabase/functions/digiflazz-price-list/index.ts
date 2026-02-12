@@ -166,9 +166,24 @@ Deno.serve(async (req) => {
 
     console.log(`Fetching ${cmdType} price list from Digiflazz API...`)
 
-    const response = await fetch('https://api.digiflazz.com/v1/price-list', {
+    // Use proxy if configured
+    const proxyUrl = Deno.env.get('DIGIFLAZZ_PROXY_URL')
+    const proxySecret = Deno.env.get('DIGIFLAZZ_PROXY_SECRET')
+    
+    const digiflazzEndpoint = proxyUrl 
+      ? `${proxyUrl}/digiflazz/v1/price-list`
+      : 'https://api.digiflazz.com/v1/price-list'
+    
+    const fetchHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (proxyUrl && proxySecret) {
+      fetchHeaders['X-Proxy-Secret'] = proxySecret
+    }
+
+    console.log(`Fetching price list from: ${digiflazzEndpoint} (proxy: ${!!proxyUrl})`)
+
+    const response = await fetch(digiflazzEndpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: fetchHeaders,
       body: JSON.stringify({
         cmd: cmdType,
         username,

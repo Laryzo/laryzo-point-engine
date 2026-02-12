@@ -296,10 +296,24 @@ Deno.serve(async (req) => {
 
       const isDevelopment = settingsData?.value === 'development' || testing
 
-      // Send request to Digiflazz
-      const digiflazzResponse = await fetch('https://api.digiflazz.com/v1/transaction', {
+      // Send request to Digiflazz (via proxy if configured)
+      const proxyUrl = Deno.env.get('DIGIFLAZZ_PROXY_URL')
+      const proxySecret = Deno.env.get('DIGIFLAZZ_PROXY_SECRET')
+      
+      const digiflazzEndpoint = proxyUrl 
+        ? `${proxyUrl}/digiflazz/v1/transaction`
+        : 'https://api.digiflazz.com/v1/transaction'
+      
+      const fetchHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (proxyUrl && proxySecret) {
+        fetchHeaders['X-Proxy-Secret'] = proxySecret
+      }
+
+      console.log(`Sending request to: ${digiflazzEndpoint} (proxy: ${!!proxyUrl})`)
+
+      const digiflazzResponse = await fetch(digiflazzEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: fetchHeaders,
         body: JSON.stringify({
           username,
           buyer_sku_code: product.digiflazz_sku,
