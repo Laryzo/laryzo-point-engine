@@ -84,10 +84,24 @@ Deno.serve(async (req) => {
       .update(username + apiKey + order.ref_id)
       .digest('hex')
 
-    // Check status with Digiflazz
-    const response = await fetch('https://api.digiflazz.com/v1/transaction', {
+    // Check status with Digiflazz (via proxy if configured)
+    const proxyUrl = Deno.env.get('DIGIFLAZZ_PROXY_URL')
+    const proxySecret = Deno.env.get('DIGIFLAZZ_PROXY_SECRET')
+    
+    const digiflazzEndpoint = proxyUrl 
+      ? `${proxyUrl}/digiflazz/v1/transaction`
+      : 'https://api.digiflazz.com/v1/transaction'
+    
+    const fetchHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (proxyUrl && proxySecret) {
+      fetchHeaders['X-Proxy-Secret'] = proxySecret
+    }
+
+    console.log(`Checking status via: ${digiflazzEndpoint} (proxy: ${!!proxyUrl})`)
+
+    const response = await fetch(digiflazzEndpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: fetchHeaders,
       body: JSON.stringify({
         cmd: 'status',
         username,
