@@ -96,6 +96,24 @@ const MerchantManagement = () => {
     }
   };
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Yakin ingin menghapus mitra "${name}"? Data transaksi mitra ini juga akan terhapus.`)) return;
+
+    try {
+      // Delete merchant_auth first, then merchant (cascade will handle products & transactions)
+      const { error: authErr } = await supabase.from('merchant_auth').delete().eq('merchant_id', id);
+      if (authErr) throw authErr;
+
+      const { error } = await supabase.from('merchants').delete().eq('id', id);
+      if (error) throw error;
+
+      toast({ title: 'Mitra berhasil dihapus' });
+      fetchMerchants();
+    } catch (error: any) {
+      toast({ title: 'Gagal menghapus', description: error.message, variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-center">
@@ -168,13 +186,23 @@ const MerchantManagement = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleActive(m.id, m.is_active)}
-                    >
-                      {m.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleActive(m.id, m.is_active)}
+                      >
+                        {m.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleDelete(m.id, m.name)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
