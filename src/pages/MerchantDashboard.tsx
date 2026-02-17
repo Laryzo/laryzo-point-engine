@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2, Users, Shield, User } from 'lucide-react';
+import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2, Users, Shield, User, Settings, ImagePlus } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import MerchantProductForm from '@/components/MerchantProductForm';
@@ -40,6 +40,15 @@ const MerchantDashboard = () => {
   const [newEmployeePassword, setNewEmployeePassword] = useState('');
   const [addingEmployee, setAddingEmployee] = useState(false);
 
+  // Settings state
+  const [settingsBusinessName, setSettingsBusinessName] = useState('');
+  const [settingsBusinessAddress, setSettingsBusinessAddress] = useState('');
+  const [settingsLogoUrl, setSettingsLogoUrl] = useState('');
+  const [settingsLogoFile, setSettingsLogoFile] = useState<File | null>(null);
+  const [settingsLogoPreview, setSettingsLogoPreview] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [merchantData, setMerchantData] = useState<any>(null);
+
   const isSuperAdmin = merchant?.merchant_role === 'super_admin';
 
   useEffect(() => {
@@ -47,6 +56,7 @@ const MerchantDashboard = () => {
     fetchTransactions();
     if (isSuperAdmin) {
       fetchEmployees();
+      fetchMerchantData();
     }
   }, [isSuperAdmin]);
 
@@ -114,6 +124,70 @@ const MerchantDashboard = () => {
     }
   };
 
+  const fetchMerchantData = async () => {
+    if (!merchant?.id) return;
+    const { data } = await supabase
+      .from('merchants')
+      .select('*')
+      .eq('id', merchant.id)
+      .single();
+    if (data) {
+      setMerchantData(data);
+      setSettingsBusinessName(data.business_name || '');
+      setSettingsBusinessAddress(data.business_address || '');
+      setSettingsLogoUrl(data.logo_url || '');
+      setSettingsLogoPreview(data.logo_url || '');
+    }
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSettingsLogoFile(file);
+      setSettingsLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!merchant?.id) return;
+    setSavingSettings(true);
+    try {
+      let logoUrl = settingsLogoUrl;
+
+      if (settingsLogoFile) {
+        const ext = settingsLogoFile.name.split('.').pop();
+        const filePath = `${merchant.id}/logo.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('merchant-logos')
+          .upload(filePath, settingsLogoFile, { upsert: true });
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('merchant-logos')
+          .getPublicUrl(filePath);
+        logoUrl = urlData.publicUrl;
+      }
+
+      const { error } = await supabase
+        .from('merchants')
+        .update({
+          business_name: settingsBusinessName,
+          business_address: settingsBusinessAddress,
+          logo_url: logoUrl,
+        })
+        .eq('id', merchant.id);
+
+      if (error) throw error;
+
+      setSettingsLogoUrl(logoUrl);
+      setSettingsLogoFile(null);
+      toast({ title: 'Pengaturan toko berhasil disimpan' });
+      fetchMerchantData();
+    } catch (error: any) {
+      toast({ title: 'Gagal menyimpan', description: error.message, variant: 'destructive' });
+    }
+    setSavingSettings(false);
+  };
   const searchCustomer = async () => {
     if (!customerSearch.trim()) return;
     setSearchLoading(true);
@@ -577,11 +651,77 @@ const MerchantDashboard = () => {
     </div>
   );
 
+  const renderSettings = () => (
+    <div className="p-4 md:p-6 space-y-6 max-w-2xl">
+      <h2 className="text-xl font-bold">Pengaturan Toko</h2>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Logo Toko</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <label className="relative w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer group overflow-hidden bg-muted">
+              {settingsLogoPreview ? (
+                <>
+                  <img src={settingsLogoPreview} alt="Logo" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ImagePlus className="h-6 w-6 text-white" />
+                  </div>
+                </>
+              ) : (
+                <div className="text-center">
+                  <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Upload</span>
+                </div>
+              )}
+              <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+            </label>
+            <div className="text-sm text-muted-foreground">
+              <p>Klik untuk upload logo toko.</p>
+              <p>Format: JPG, PNG. Maks 2MB.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Informasi Bisnis</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Nama Bisnis</Label>
+            <Input
+              value={settingsBusinessName}
+              onChange={e => setSettingsBusinessName(e.target.value)}
+              placeholder="Nama toko / bisnis Anda"
+            />
+          </div>
+          <div>
+            <Label>Alamat Bisnis</Label>
+            <Textarea
+              value={settingsBusinessAddress}
+              onChange={e => setSettingsBusinessAddress(e.target.value)}
+              placeholder="Alamat lengkap toko / bisnis"
+              rows={3}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button onClick={handleSaveSettings} disabled={savingSettings} className="w-full sm:w-auto">
+        {savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan'}
+      </Button>
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeView) {
       case 'products': return renderProducts();
       case 'history': return renderHistory();
       case 'employees': return isSuperAdmin ? renderEmployees() : renderPOS();
+      case 'settings': return isSuperAdmin ? renderSettings() : renderPOS();
       default: return renderPOS();
     }
   };
@@ -633,6 +773,14 @@ const MerchantDashboard = () => {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton onClick={() => setActiveView('settings')} className={activeView === 'settings' ? 'bg-accent' : ''}>
+                        <Settings className="h-4 w-4" />
+                        <span>Pengaturan Toko</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -650,7 +798,7 @@ const MerchantDashboard = () => {
           <div className="border-b bg-card p-4 flex items-center gap-4">
             <SidebarTrigger />
             <h1 className="text-xl font-semibold">
-              {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : activeView === 'employees' ? 'Kelola Karyawan' : 'POS / Kasir'}
+              {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : activeView === 'employees' ? 'Kelola Karyawan' : activeView === 'settings' ? 'Pengaturan Toko' : 'POS / Kasir'}
             </h1>
           </div>
           <div className="flex-1 overflow-auto">
