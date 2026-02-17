@@ -252,6 +252,197 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_auth: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          last_login: string | null
+          merchant_id: string
+          password_hash: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          last_login?: string | null
+          merchant_id: string
+          password_hash: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          last_login?: string | null
+          merchant_id?: string
+          password_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_auth_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      merchant_products: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          merchant_id: string
+          name: string
+          price: number
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          merchant_id: string
+          name: string
+          price?: number
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          merchant_id?: string
+          name?: string
+          price?: number
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_products_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      merchant_transactions: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          customer_points_earned: number
+          id: string
+          laryzo_fee: number
+          merchant_id: string
+          notes: string | null
+          price: number
+          product_id: string | null
+          product_name: string
+          qty: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          customer_points_earned?: number
+          id?: string
+          laryzo_fee?: number
+          merchant_id: string
+          notes?: string | null
+          price?: number
+          product_id?: string | null
+          product_name: string
+          qty?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          customer_points_earned?: number
+          id?: string
+          laryzo_fee?: number
+          merchant_id?: string
+          notes?: string | null
+          price?: number
+          product_id?: string | null
+          product_name?: string
+          qty?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_transactions_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_transactions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "merchant_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      merchants: {
+        Row: {
+          business_address: string | null
+          business_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          business_address?: string | null
+          business_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          business_address?: string | null
+          business_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           admin_notes: string | null
@@ -673,12 +864,14 @@ export type Database = {
     }
     Functions: {
       get_current_customer_id: { Args: never; Returns: string }
+      get_current_merchant_id: { Args: never; Returns: string }
       increment_customer_points: {
         Args: { customer_uuid: string; points_to_add: number }
         Returns: boolean
       }
       is_authenticated_admin: { Args: never; Returns: boolean }
       is_authenticated_customer: { Args: never; Returns: boolean }
+      is_authenticated_merchant: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
