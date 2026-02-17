@@ -295,6 +295,7 @@ export type Database = {
       }
       merchant_products: {
         Row: {
+          cost_price: number | null
           created_at: string
           description: string | null
           id: string
@@ -307,6 +308,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -319,6 +321,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string

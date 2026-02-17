@@ -1,0 +1,1 @@
+ALTER TABLE public.merchant_products ADD COLUMN cost_price numeric DEFAULT 0;
