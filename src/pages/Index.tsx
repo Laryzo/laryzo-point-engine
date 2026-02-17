@@ -1,5 +1,6 @@
 
 import { Button } from "@/components/ui/button";
+import { Store } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -13,6 +14,12 @@ const Index = () => {
           <Button asChild size="lg">
             <Link to="/portal/login">
               Customer
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="border-orange-500 text-orange-600 hover:bg-orange-50">
+            <Link to="/mitra/login">
+              <Store className="w-4 h-4 mr-2" />
+              Mitra
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg">

@@ -1,0 +1,476 @@
+import { useState, useEffect } from 'react';
+import { useMerchantAuth } from '@/hooks/useMerchantAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+
+const MerchantDashboard = () => {
+  const { merchant, logout } = useMerchantAuth();
+  const { toast } = useToast();
+  const [activeView, setActiveView] = useState('pos');
+  const [products, setProducts] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [cart, setCart] = useState<{ product: any; qty: number }[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [customerResults, setCustomerResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // Product form state
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [productForm, setProductForm] = useState({ name: '', description: '', price: '', stock: '-1' });
+  const [productFormLoading, setProductFormLoading] = useState(false);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchTransactions();
+  }, []);
+
+  const fetchProducts = async () => {
+    const { data } = await supabase
+      .from('merchant_products')
+      .select('*')
+      .order('created_at', { ascending: false });
+    setProducts(data || []);
+  };
+
+  const fetchTransactions = async () => {
+    const { data } = await supabase
+      .from('merchant_transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    setTransactions(data || []);
+  };
+
+  const searchCustomer = async () => {
+    if (!customerSearch.trim()) return;
+    setSearchLoading(true);
+    const { data } = await supabase
+      .from('customers')
+      .select('id, name, email, whatsapp, points')
+      .or(`name.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%,whatsapp.ilike.%${customerSearch}%`)
+      .limit(5);
+    setCustomerResults(data || []);
+    setSearchLoading(false);
+  };
+
+  const addToCart = (product: any) => {
+    const existing = cart.find(c => c.product.id === product.id);
+    if (existing) {
+      setCart(cart.map(c => c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c));
+    } else {
+      setCart([...cart, { product, qty: 1 }]);
+    }
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCart(cart.filter(c => c.product.id !== productId));
+  };
+
+  const updateCartQty = (productId: string, qty: number) => {
+    if (qty <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    setCart(cart.map(c => c.product.id === productId ? { ...c, qty } : c));
+  };
+
+  const cartTotal = cart.reduce((sum, c) => sum + c.product.price * c.qty, 0);
+  const laryzoFee = Math.round(cartTotal * 0.1);
+  const customerPointsEarned = Math.round(laryzoFee * 0.01); // 1% of laryzo fee as points
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) {
+      toast({ title: 'Keranjang kosong', variant: 'destructive' });
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
+      const merchantId = merchant?.id;
+      
+      for (const item of cart) {
+        const total = item.product.price * item.qty;
+        const fee = Math.round(total * 0.1);
+        const points = selectedCustomer ? Math.round(fee * 0.01) : 0;
+
+        const { error } = await supabase.from('merchant_transactions').insert({
+          merchant_id: merchantId,
+          product_id: item.product.id,
+          customer_id: selectedCustomer?.id || null,
+          product_name: item.product.name,
+          price: item.product.price,
+          qty: item.qty,
+          total,
+          laryzo_fee: fee,
+          customer_points_earned: points,
+          notes,
+        });
+
+        if (error) throw error;
+
+        // Award points to customer if selected
+        if (selectedCustomer && points > 0) {
+          await supabase.from('point_history').insert({
+            from_customer: null,
+            to_customer: selectedCustomer.id,
+            points,
+            level: 0,
+            product_code: `MITRA-${item.product.name.substring(0, 20)}`,
+          });
+        }
+
+        // Update stock if not unlimited
+        if (item.product.stock >= 0) {
+          await supabase.from('merchant_products')
+            .update({ stock: item.product.stock - item.qty })
+            .eq('id', item.product.id);
+        }
+      }
+
+      toast({ title: 'Transaksi berhasil!', description: `Total: Rp ${cartTotal.toLocaleString()}` });
+      setCart([]);
+      setSelectedCustomer(null);
+      setCustomerSearch('');
+      setNotes('');
+      fetchProducts();
+      fetchTransactions();
+    } catch (error: any) {
+      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+    }
+    setCheckoutLoading(false);
+  };
+
+  const handleAddProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProductFormLoading(true);
+    try {
+      const { error } = await supabase.from('merchant_products').insert({
+        merchant_id: merchant?.id,
+        name: productForm.name,
+        description: productForm.description || null,
+        price: Number(productForm.price),
+        stock: Number(productForm.stock),
+      });
+      if (error) throw error;
+      toast({ title: 'Produk ditambahkan!' });
+      setShowProductForm(false);
+      setProductForm({ name: '', description: '', price: '', stock: '-1' });
+      fetchProducts();
+    } catch (error: any) {
+      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+    }
+    setProductFormLoading(false);
+  };
+
+  const renderPOS = () => (
+    <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Product Grid */}
+      <div className="lg:col-span-2 space-y-4">
+        <h2 className="text-xl font-bold">Pilih Produk</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {products.filter(p => p.is_active).map(product => (
+            <Card
+              key={product.id}
+              className="cursor-pointer hover:border-primary transition-colors"
+              onClick={() => addToCart(product)}
+            >
+              <CardContent className="p-3 text-center">
+                <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="font-medium text-sm truncate">{product.name}</p>
+                <p className="text-sm text-primary font-bold">Rp {Number(product.price).toLocaleString()}</p>
+                {product.stock >= 0 && (
+                  <Badge variant="outline" className="text-xs mt-1">Stok: {product.stock}</Badge>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+          {products.filter(p => p.is_active).length === 0 && (
+            <p className="col-span-full text-muted-foreground text-center py-8">
+              Belum ada produk. Tambahkan produk terlebih dahulu.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Cart */}
+      <div className="space-y-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5" />
+              Keranjang
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {cart.length === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-4">Keranjang kosong</p>
+            ) : (
+              <>
+                {cart.map(item => (
+                  <div key={item.product.id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="truncate flex-1">{item.product.name}</span>
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(item.product.id, item.qty - 1)}>
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-6 text-center">{item.qty}</span>
+                      <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(item.product.id, item.qty + 1)}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <span className="font-medium w-24 text-right">Rp {(item.product.price * item.qty).toLocaleString()}</span>
+                  </div>
+                ))}
+                <div className="border-t pt-3 space-y-1 text-sm">
+                  <div className="flex justify-between"><span>Subtotal</span><span className="font-bold">Rp {cartTotal.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Potongan Laryzo (10%)</span><span>Rp {laryzoFee.toLocaleString()}</span></div>
+                  {selectedCustomer && customerPointsEarned > 0 && (
+                    <div className="flex justify-between text-green-600"><span>Poin Customer</span><span>+{customerPointsEarned} poin</span></div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Customer search */}
+            <div className="border-t pt-3 space-y-2">
+              <Label className="text-sm">Customer (opsional)</Label>
+              {selectedCustomer ? (
+                <div className="flex items-center justify-between bg-muted p-2 rounded text-sm">
+                  <span>{selectedCustomer.name}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedCustomer(null)}>×</Button>
+                </div>
+              ) : (
+                <div className="flex gap-1">
+                  <Input
+                    placeholder="Cari nama/email..."
+                    value={customerSearch}
+                    onChange={e => setCustomerSearch(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && searchCustomer()}
+                    className="text-sm"
+                  />
+                  <Button variant="outline" size="icon" onClick={searchCustomer} disabled={searchLoading}>
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              {customerResults.length > 0 && !selectedCustomer && (
+                <div className="border rounded space-y-1 max-h-32 overflow-auto">
+                  {customerResults.map(c => (
+                    <div
+                      key={c.id}
+                      className="p-2 text-sm hover:bg-muted cursor-pointer"
+                      onClick={() => { setSelectedCustomer(c); setCustomerResults([]); }}
+                    >
+                      {c.name} - {c.email || c.whatsapp}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Textarea
+              placeholder="Catatan transaksi..."
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              className="text-sm"
+              rows={2}
+            />
+
+            <Button
+              className="w-full bg-orange-600 hover:bg-orange-700"
+              disabled={cart.length === 0 || checkoutLoading}
+              onClick={handleCheckout}
+            >
+              {checkoutLoading ? 'Memproses...' : `Bayar Rp ${cartTotal.toLocaleString()}`}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
+  const renderProducts = () => (
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Produk Saya</h2>
+        <Dialog open={showProductForm} onOpenChange={setShowProductForm}>
+          <DialogTrigger asChild>
+            <Button><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tambah Produk</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleAddProduct} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nama Produk</Label>
+                <Input value={productForm.name} onChange={e => setProductForm({ ...productForm, name: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Deskripsi</Label>
+                <Textarea value={productForm.description} onChange={e => setProductForm({ ...productForm, description: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Harga (Rp)</Label>
+                <Input type="number" value={productForm.price} onChange={e => setProductForm({ ...productForm, price: e.target.value })} required min="0" />
+              </div>
+              <div className="space-y-2">
+                <Label>Stok (-1 = unlimited)</Label>
+                <Input type="number" value={productForm.stock} onChange={e => setProductForm({ ...productForm, stock: e.target.value })} required />
+              </div>
+              <Button type="submit" className="w-full" disabled={productFormLoading}>
+                {productFormLoading ? 'Menyimpan...' : 'Simpan'}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nama</TableHead>
+            <TableHead>Harga</TableHead>
+            <TableHead>Stok</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {products.map(p => (
+            <TableRow key={p.id}>
+              <TableCell className="font-medium">{p.name}</TableCell>
+              <TableCell>Rp {Number(p.price).toLocaleString()}</TableCell>
+              <TableCell>{p.stock < 0 ? '∞' : p.stock}</TableCell>
+              <TableCell>
+                <Badge variant={p.is_active ? 'default' : 'secondary'}>
+                  {p.is_active ? 'Aktif' : 'Nonaktif'}
+                </Badge>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
+  const renderHistory = () => (
+    <div className="p-4 md:p-6 space-y-4">
+      <h2 className="text-xl font-bold">Riwayat Transaksi</h2>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Tanggal</TableHead>
+            <TableHead>Produk</TableHead>
+            <TableHead>Qty</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead>Fee Laryzo</TableHead>
+            <TableHead>Poin Customer</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {transactions.map(t => (
+            <TableRow key={t.id}>
+              <TableCell className="text-sm">{new Date(t.created_at).toLocaleDateString('id-ID')}</TableCell>
+              <TableCell className="font-medium">{t.product_name}</TableCell>
+              <TableCell>{t.qty}</TableCell>
+              <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
+              <TableCell className="text-muted-foreground">Rp {Number(t.laryzo_fee).toLocaleString()}</TableCell>
+              <TableCell className="text-green-600">{Number(t.customer_points_earned) > 0 ? `+${t.customer_points_earned}` : '-'}</TableCell>
+            </TableRow>
+          ))}
+          {transactions.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Belum ada transaksi</TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
+  const renderContent = () => {
+    switch (activeView) {
+      case 'products': return renderProducts();
+      case 'history': return renderHistory();
+      default: return renderPOS();
+    }
+  };
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <Sidebar className="w-64">
+          <SidebarContent>
+            <div className="p-4 border-b">
+              <div className="flex items-center gap-2">
+                <Store className="h-5 w-5 text-orange-600" />
+                <h2 className="text-lg font-semibold">Laryzo Mitra</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">{merchant?.business_name || merchant?.name}</p>
+            </div>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Menu</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => setActiveView('pos')} className={activeView === 'pos' ? 'bg-accent' : ''}>
+                      <ShoppingCart className="h-4 w-4" />
+                      <span>POS / Kasir</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => setActiveView('products')} className={activeView === 'products' ? 'bg-accent' : ''}>
+                      <Package className="h-4 w-4" />
+                      <span>Produk Saya</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => setActiveView('history')} className={activeView === 'history' ? 'bg-accent' : ''}>
+                      <History className="h-4 w-4" />
+                      <span>Riwayat</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <div className="mt-auto p-4 border-t">
+              <Button variant="outline" onClick={logout} className="w-full">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
+          </SidebarContent>
+        </Sidebar>
+
+        <div className="flex-1 flex flex-col">
+          <div className="border-b bg-card p-4 flex items-center gap-4">
+            <SidebarTrigger />
+            <h1 className="text-xl font-semibold">
+              {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : 'POS / Kasir'}
+            </h1>
+          </div>
+          <div className="flex-1 overflow-auto">
+            {renderContent()}
+          </div>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+};
+
+export default MerchantDashboard;

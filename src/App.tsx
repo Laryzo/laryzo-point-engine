@@ -6,8 +6,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CustomerAuthProvider, useCustomerAuth } from "@/hooks/useCustomerAuth";
+import { MerchantAuthProvider, useMerchantAuth } from "@/hooks/useMerchantAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CustomerProtectedRoute } from "@/components/CustomerProtectedRoute";
+import { MerchantProtectedRoute } from "@/components/MerchantProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -17,6 +19,8 @@ import CustomerShop from "./pages/CustomerShop";
 import CustomerOrders from "./pages/CustomerOrders";
 import CustomerPointHistory from "./pages/CustomerPointHistory";
 import CustomerProfile from "./pages/CustomerProfile";
+import MerchantLogin from "./pages/MerchantLogin";
+import MerchantDashboard from "./pages/MerchantDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +76,21 @@ const CustomerPortalRoutes = () => {
   );
 };
 
+const MerchantRoutes = () => {
+  const { merchant } = useMerchantAuth();
+
+  return (
+    <Routes>
+      <Route path="login" element={merchant ? <Navigate to="/mitra" replace /> : <MerchantLogin />} />
+      <Route path="/" element={
+        <MerchantProtectedRoute>
+          <MerchantDashboard />
+        </MerchantProtectedRoute>
+      } />
+    </Routes>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -90,6 +109,12 @@ const App = () => (
             <CustomerAuthProvider>
               <CustomerPortalRoutes />
             </CustomerAuthProvider>
+          } />
+          {/* Merchant/Mitra Routes */}
+          <Route path="/mitra/*" element={
+            <MerchantAuthProvider>
+              <MerchantRoutes />
+            </MerchantAuthProvider>
           } />
           <Route path="*" element={<NotFound />} />
         </Routes>

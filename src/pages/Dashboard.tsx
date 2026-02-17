@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store } from 'lucide-react';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
@@ -17,6 +17,7 @@ import SatelliteApiInfo from '@/components/SatelliteApiInfo';
 import ProductManagement from '@/pages/ProductManagement';
 import OrderManagement from '@/pages/OrderManagement';
 import SystemSettings from '@/pages/SystemSettings';
+import MerchantManagement from '@/components/MerchantManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -65,6 +66,8 @@ const Dashboard = () => {
 
   const renderContent = () => {
     switch (activeView) {
+      case 'merchants':
+        return <MerchantManagement />;
       case 'admin':
         return <AdminManagement />;
       case 'satellite-api':
@@ -280,6 +283,17 @@ const Dashboard = () => {
                       <span>Products</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => setActiveView('merchants')}
+                        className={activeView === 'merchants' ? 'bg-accent' : ''}
+                      >
+                        <Store className="h-4 w-4" />
+                        <span>Mitra</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => setActiveView('orders')}
@@ -327,6 +341,7 @@ const Dashboard = () => {
                  activeView === 'transactions' ? 'Transactions' :
                  activeView === 'products' ? 'Products' :
                  activeView === 'orders' ? 'Orders' :
+                 activeView === 'merchants' ? 'Mitra' :
                  activeView === 'settings' ? 'Settings' :
                  'Dashboard'}
               </h1>
