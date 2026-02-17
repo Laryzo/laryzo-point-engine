@@ -25,9 +25,9 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
 
   const isEdit = !!product;
 
-  // Calculate selling price = cost + 10% fee, rounded up
+  // Calculate selling price = cost + 10% fee, rounded up to nearest 500
   const costNum = Number(form.costPrice) || 0;
-  const sellingPrice = Math.ceil(costNum * 1.1);
+  const sellingPrice = Math.ceil((costNum * 1.1) / 500) * 500;
 
   useEffect(() => {
     if (open && product) {
