@@ -54,9 +54,9 @@ Deno.serve(async (req) => {
     for (const item of items) {
       const { product_id, product_name, price, qty, stock, cost_price } = item
       const total = price * qty
-      const fee = Math.round(total * 0.1)
-      const profit = total - (cost_price || 0) * qty
-      const customerPoints = customer_id ? Math.round(fee * POINT_PERCENTAGE) : 0
+      const fee = total * 0.1 // 10% fee for Laryzo (margin)
+      const pointsPerCustomer = fee * POINT_PERCENTAGE // 1% of fee per eligible customer
+      const customerPoints = customer_id ? pointsPerCustomer : 0
 
       // 1. Insert merchant_transactions
       const { error: mtError } = await supabase.from('merchant_transactions').insert({
@@ -74,25 +74,24 @@ Deno.serve(async (req) => {
       if (mtError) throw mtError
 
       // 2. Insert into main transactions table (so it shows in admin panel)
-      const hargaKonsumen = price * qty
-      const hargaPokok = (cost_price || 0) * qty
-      const margin = hargaKonsumen - hargaPokok
+      // margin stored per-unit so dashboard calculation (margin * qty) works correctly
+      const marginPerUnit = fee / qty
 
       const { data: txData, error: txError } = await supabase.from('transactions').insert({
         product_code: `MITRA-${product_name.substring(0, 20)}`,
         product_name: product_name,
         product_type: 'Mitra',
         qty,
-        margin,
+        margin: marginPerUnit,
         customer_id: customer_id || null,
-        harga_konsumen: hargaKonsumen,
-        harga_pokok: hargaPokok,
+        harga_konsumen: price,
+        harga_pokok: price - marginPerUnit,
       }).select('id').single()
       if (txError) throw txError
 
       // 3. Distribute points if customer is selected
-      if (customer_id && profit > 0) {
-        const pointsPerLevel = profit * POINT_PERCENTAGE
+      if (customer_id && fee > 0) {
+        const pointsPerLevel = fee * POINT_PERCENTAGE // 1% of fee for each level
         const pointRecords: any[] = []
 
         // Level 0: self points
