@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2 } from 'lucide-react';
+import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2, Users, Shield, User } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import MerchantProductForm from '@/components/MerchantProductForm';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -32,10 +33,22 @@ const MerchantDashboard = () => {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
 
+  // Employee management state
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [showAddEmployee, setShowAddEmployee] = useState(false);
+  const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
+  const [newEmployeePassword, setNewEmployeePassword] = useState('');
+  const [addingEmployee, setAddingEmployee] = useState(false);
+
+  const isSuperAdmin = merchant?.merchant_role === 'super_admin';
+
   useEffect(() => {
     fetchProducts();
     fetchTransactions();
-  }, []);
+    if (isSuperAdmin) {
+      fetchEmployees();
+    }
+  }, [isSuperAdmin]);
 
   const fetchProducts = async () => {
     const { data } = await supabase
@@ -52,6 +65,53 @@ const MerchantDashboard = () => {
       .order('created_at', { ascending: false })
       .limit(100);
     setTransactions(data || []);
+  };
+
+  const fetchEmployees = async () => {
+    const { data, error } = await supabase.functions.invoke('merchant-employee', {
+      body: { action: 'list' }
+    });
+    if (data?.employees) {
+      setEmployees(data.employees);
+    }
+  };
+
+  const handleAddEmployee = async () => {
+    if (!newEmployeeEmail || !newEmployeePassword) return;
+    setAddingEmployee(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('merchant-employee', {
+        body: { action: 'create', email: newEmployeeEmail, password: newEmployeePassword }
+      });
+      if (error || !data?.success) {
+        toast({ title: 'Gagal', description: data?.error || error?.message || 'Gagal menambah karyawan', variant: 'destructive' });
+      } else {
+        toast({ title: 'Karyawan berhasil ditambahkan' });
+        setShowAddEmployee(false);
+        setNewEmployeeEmail('');
+        setNewEmployeePassword('');
+        fetchEmployees();
+      }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+    setAddingEmployee(false);
+  };
+
+  const handleDeleteEmployee = async (employeeId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('merchant-employee', {
+        body: { action: 'delete', employee_id: employeeId }
+      });
+      if (error || !data?.success) {
+        toast({ title: 'Gagal', description: data?.error || 'Gagal menghapus karyawan', variant: 'destructive' });
+      } else {
+        toast({ title: 'Karyawan berhasil dihapus' });
+        fetchEmployees();
+      }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
   };
 
   const searchCustomer = async () => {
@@ -89,7 +149,7 @@ const MerchantDashboard = () => {
 
   const cartTotal = cart.reduce((sum, c) => sum + c.product.price * c.qty, 0);
   const laryzoFee = Math.round(cartTotal * 0.1);
-  const customerPointsEarned = Math.round(laryzoFee * 0.01); // 1% of laryzo fee as points
+  const customerPointsEarned = Math.round(laryzoFee * 0.01);
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -121,7 +181,6 @@ const MerchantDashboard = () => {
 
         if (error) throw error;
 
-        // Award points to customer if selected
         if (selectedCustomer && points > 0) {
           await supabase.from('point_history').insert({
             from_customer: null,
@@ -132,7 +191,6 @@ const MerchantDashboard = () => {
           });
         }
 
-        // Update stock if not unlimited
         if (item.product.stock >= 0) {
           await supabase.from('merchant_products')
             .update({ stock: item.product.stock - item.qty })
@@ -152,6 +210,7 @@ const MerchantDashboard = () => {
     }
     setCheckoutLoading(false);
   };
+
   const handleDeleteProduct = async (productId: string) => {
     try {
       const { error } = await supabase.from('merchant_products').delete().eq('id', productId);
@@ -162,7 +221,6 @@ const MerchantDashboard = () => {
       toast({ title: 'Gagal menghapus', description: error.message, variant: 'destructive' });
     }
   };
-
 
   const renderPOS = () => (
     <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -299,16 +357,20 @@ const MerchantDashboard = () => {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">Produk Saya</h2>
-        <Button onClick={() => { setEditingProduct(null); setShowProductForm(true); }}><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
+        {isSuperAdmin && (
+          <Button onClick={() => { setEditingProduct(null); setShowProductForm(true); }}><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
+        )}
       </div>
 
-      <MerchantProductForm
-        open={showProductForm}
-        onOpenChange={setShowProductForm}
-        merchantId={merchant?.id || ''}
-        product={editingProduct}
-        onSuccess={fetchProducts}
-      />
+      {isSuperAdmin && (
+        <MerchantProductForm
+          open={showProductForm}
+          onOpenChange={setShowProductForm}
+          merchantId={merchant?.id || ''}
+          product={editingProduct}
+          onSuccess={fetchProducts}
+        />
+      )}
 
       <Table>
         <TableHeader>
@@ -318,7 +380,7 @@ const MerchantDashboard = () => {
             <TableHead>Harga</TableHead>
             <TableHead>Stok</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Aksi</TableHead>
+            {isSuperAdmin && <TableHead>Aksi</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -339,34 +401,36 @@ const MerchantDashboard = () => {
                   {p.is_active ? 'Aktif' : 'Nonaktif'}
                 </Badge>
               </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => { setEditingProduct(p); setShowProductForm(true); }}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Hapus Produk</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Yakin ingin menghapus produk "{p.name}"? Tindakan ini tidak dapat dibatalkan.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteProduct(p.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Hapus
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
+              {isSuperAdmin && (
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => { setEditingProduct(p); setShowProductForm(true); }}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Hapus Produk</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Yakin ingin menghapus produk "{p.name}"? Tindakan ini tidak dapat dibatalkan.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteProduct(p.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Hapus
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -409,10 +473,115 @@ const MerchantDashboard = () => {
     </div>
   );
 
+  const renderEmployees = () => (
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Kelola Karyawan</h2>
+        <Button onClick={() => setShowAddEmployee(true)}><Plus className="h-4 w-4 mr-2" />Tambah Karyawan</Button>
+      </div>
+
+      <Dialog open={showAddEmployee} onOpenChange={setShowAddEmployee}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah Karyawan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                placeholder="email@karyawan.com"
+                value={newEmployeeEmail}
+                onChange={e => setNewEmployeeEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Password</Label>
+              <Input
+                type="password"
+                placeholder="Minimal 6 karakter"
+                value={newEmployeePassword}
+                onChange={e => setNewEmployeePassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddEmployee(false)}>Batal</Button>
+            <Button onClick={handleAddEmployee} disabled={addingEmployee || !newEmployeeEmail || !newEmployeePassword}>
+              {addingEmployee ? 'Menambahkan...' : 'Tambah'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Email</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Login Terakhir</TableHead>
+            <TableHead>Terdaftar</TableHead>
+            <TableHead>Aksi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {employees.map(emp => (
+            <TableRow key={emp.id}>
+              <TableCell className="font-medium">{emp.email}</TableCell>
+              <TableCell>
+                <Badge variant={emp.role === 'super_admin' ? 'default' : 'secondary'} className="gap-1">
+                  {emp.role === 'super_admin' ? <Shield className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                  {emp.role === 'super_admin' ? 'Pemilik' : 'Karyawan'}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {emp.last_login ? new Date(emp.last_login).toLocaleDateString('id-ID') : '-'}
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {new Date(emp.created_at).toLocaleDateString('id-ID')}
+              </TableCell>
+              <TableCell>
+                {emp.role !== 'super_admin' && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus Karyawan</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Yakin ingin menghapus akses karyawan "{emp.email}"? Mereka tidak bisa login lagi setelah dihapus.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteEmployee(emp.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Hapus
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+          {employees.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">Belum ada karyawan</TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeView) {
       case 'products': return renderProducts();
       case 'history': return renderHistory();
+      case 'employees': return isSuperAdmin ? renderEmployees() : renderPOS();
       default: return renderPOS();
     }
   };
@@ -428,6 +597,10 @@ const MerchantDashboard = () => {
                 <h2 className="text-lg font-semibold">Laryzo Mitra</h2>
               </div>
               <p className="text-sm text-muted-foreground">{merchant?.business_name || merchant?.name}</p>
+              <Badge variant="outline" className="mt-1 text-xs gap-1">
+                {isSuperAdmin ? <Shield className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                {isSuperAdmin ? 'Pemilik' : 'Karyawan'}
+              </Badge>
             </div>
 
             <SidebarGroup>
@@ -452,6 +625,14 @@ const MerchantDashboard = () => {
                       <span>Riwayat</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton onClick={() => setActiveView('employees')} className={activeView === 'employees' ? 'bg-accent' : ''}>
+                        <Users className="h-4 w-4" />
+                        <span>Karyawan</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -469,7 +650,7 @@ const MerchantDashboard = () => {
           <div className="border-b bg-card p-4 flex items-center gap-4">
             <SidebarTrigger />
             <h1 className="text-xl font-semibold">
-              {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : 'POS / Kasir'}
+              {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : activeView === 'employees' ? 'Kelola Karyawan' : 'POS / Kasir'}
             </h1>
           </div>
           <div className="flex-1 overflow-auto">

@@ -10,6 +10,7 @@ interface Merchant {
   business_address: string;
   is_active: boolean;
   created_at: string;
+  merchant_role?: 'super_admin' | 'admin';
 }
 
 interface MerchantAuthContextType {
