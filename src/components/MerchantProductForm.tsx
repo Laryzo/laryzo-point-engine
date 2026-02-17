@@ -119,16 +119,13 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
             <Label>Foto Produk</Label>
             <div className="flex items-center gap-4">
               {imagePreview ? (
-                <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                <label className="relative w-20 h-20 rounded-lg overflow-hidden border cursor-pointer group">
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl text-xs px-1"
-                    onClick={() => { setImageFile(null); setImagePreview(null); }}
-                  >
-                    ×
-                  </button>
-                </div>
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ImagePlus className="h-5 w-5 text-white" />
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                </label>
               ) : (
                 <label className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors">
                   <ImagePlus className="h-6 w-6 text-muted-foreground" />
