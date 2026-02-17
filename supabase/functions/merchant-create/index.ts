@@ -81,13 +81,14 @@ Deno.serve(async (req) => {
     const salt = await bcrypt.genSalt(10)
     const hashedPassword = await bcrypt.hash(password, salt)
 
-    // Create merchant auth record
+    // Create merchant auth record (first auth for this merchant = super_admin)
     const { error: authError } = await supabase
       .from('merchant_auth')
       .insert({
         merchant_id,
         email: sanitizedEmail,
         password_hash: hashedPassword,
+        role: 'super_admin',
       })
 
     if (authError) {

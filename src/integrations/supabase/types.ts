@@ -260,6 +260,7 @@ export type Database = {
           last_login: string | null
           merchant_id: string
           password_hash: string
+          role: Database["public"]["Enums"]["merchant_role"]
           updated_at: string
         }
         Insert: {
@@ -269,6 +270,7 @@ export type Database = {
           last_login?: string | null
           merchant_id: string
           password_hash: string
+          role?: Database["public"]["Enums"]["merchant_role"]
           updated_at?: string
         }
         Update: {
@@ -278,6 +280,7 @@ export type Database = {
           last_login?: string | null
           merchant_id?: string
           password_hash?: string
+          role?: Database["public"]["Enums"]["merchant_role"]
           updated_at?: string
         }
         Relationships: [
@@ -872,11 +875,13 @@ export type Database = {
       is_authenticated_admin: { Args: never; Returns: boolean }
       is_authenticated_customer: { Args: never; Returns: boolean }
       is_authenticated_merchant: { Args: never; Returns: boolean }
+      is_merchant_super_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       admin_role: "admin" | "super_admin"
       customer_position: "left" | "right"
+      merchant_role: "super_admin" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1006,6 +1011,7 @@ export const Constants = {
     Enums: {
       admin_role: ["admin", "super_admin"],
       customer_position: ["left", "right"],
+      merchant_role: ["super_admin", "admin"],
     },
   },
 } as const

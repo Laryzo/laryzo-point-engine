@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     // Login flow
     const { data: authData, error: authError } = await supabase
       .from('merchant_auth')
-      .select('id, merchant_id, password_hash')
+      .select('id, merchant_id, password_hash, role')
       .eq('email', sanitizedEmail)
       .single()
 
@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        merchant,
+        merchant: { ...merchant, merchant_role: authData.role },
         session: signInData.session,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
