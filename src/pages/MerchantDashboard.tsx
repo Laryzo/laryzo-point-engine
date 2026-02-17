@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil } from 'lucide-react';
+import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import MerchantProductForm from '@/components/MerchantProductForm';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -151,7 +152,16 @@ const MerchantDashboard = () => {
     }
     setCheckoutLoading(false);
   };
-
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      const { error } = await supabase.from('merchant_products').delete().eq('id', productId);
+      if (error) throw error;
+      toast({ title: 'Produk berhasil dihapus' });
+      fetchProducts();
+    } catch (error: any) {
+      toast({ title: 'Gagal menghapus', description: error.message, variant: 'destructive' });
+    }
+  };
 
 
   const renderPOS = () => (
@@ -329,10 +339,31 @@ const MerchantDashboard = () => {
                   {p.is_active ? 'Aktif' : 'Nonaktif'}
                 </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={() => { setEditingProduct(p); setShowProductForm(true); }}>
                   <Pencil className="h-4 w-4" />
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Hapus Produk</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Yakin ingin menghapus produk "{p.name}"? Tindakan ini tidak dapat dibatalkan.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDeleteProduct(p.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Hapus
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </TableCell>
             </TableRow>
           ))}
