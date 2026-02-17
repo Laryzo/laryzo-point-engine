@@ -55,15 +55,23 @@ Deno.serve(async (req) => {
     const clientIp = req.headers.get('x-forwarded-for') || 'unknown'
     const sanitizedEmail = email.toLowerCase().trim()
 
-    // Check rate limit
+    // Run rate limit check and merchant_auth lookup in parallel
     const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW).toISOString()
-    const { count: attemptCount } = await supabase
-      .from('login_attempts')
-      .select('*', { count: 'exact', head: true })
-      .eq('email', sanitizedEmail)
-      .eq('success', false)
-      .gte('attempted_at', windowStart)
+    const [rateLimitResult, authResult] = await Promise.all([
+      supabase
+        .from('login_attempts')
+        .select('*', { count: 'exact', head: true })
+        .eq('email', sanitizedEmail)
+        .eq('success', false)
+        .gte('attempted_at', windowStart),
+      supabase
+        .from('merchant_auth')
+        .select('id, merchant_id, password_hash, role')
+        .eq('email', sanitizedEmail)
+        .single()
+    ])
 
+    const attemptCount = rateLimitResult.count
     if (attemptCount !== null && attemptCount >= RATE_LIMIT_MAX) {
       return new Response(
         JSON.stringify({ error: 'Terlalu banyak percobaan. Coba lagi dalam 15 menit.' }),
@@ -71,19 +79,11 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Login flow
-    const { data: authData, error: authError } = await supabase
-      .from('merchant_auth')
-      .select('id, merchant_id, password_hash, role')
-      .eq('email', sanitizedEmail)
-      .single()
-
-    if (authError || !authData) {
-      await supabase.from('login_attempts').insert({
-        email: sanitizedEmail,
-        ip_address: clientIp,
-        success: false
-      })
+    const authData = authResult.data
+    if (authResult.error || !authData) {
+      supabase.from('login_attempts').insert({
+        email: sanitizedEmail, ip_address: clientIp, success: false
+      }).then(() => {})
       return new Response(
         JSON.stringify({ error: 'Email atau password salah' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -93,11 +93,9 @@ Deno.serve(async (req) => {
     const isValidPassword = await bcrypt.compare(password, authData.password_hash)
 
     if (!isValidPassword) {
-      await supabase.from('login_attempts').insert({
-        email: sanitizedEmail,
-        ip_address: clientIp,
-        success: false
-      })
+      supabase.from('login_attempts').insert({
+        email: sanitizedEmail, ip_address: clientIp, success: false
+      }).then(() => {})
       return new Response(
         JSON.stringify({ error: 'Email atau password salah' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -105,20 +103,20 @@ Deno.serve(async (req) => {
     }
 
     // Update last login (non-blocking)
-    supabase
-      .from('merchant_auth')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', authData.id)
-      .then(() => {})
+    supabase.from('merchant_auth').update({ last_login: new Date().toISOString() }).eq('id', authData.id).then(() => {})
 
-    // Fetch merchant data
-    const { data: merchant, error: merchantError } = await supabase
-      .from('merchants')
-      .select('id, name, email, whatsapp, business_name, business_address, is_active, created_at')
-      .eq('id', authData.merchant_id)
-      .single()
+    // Run merchant data fetch and auth user sync in parallel
+    const [merchantResult, existingUsersResult] = await Promise.all([
+      supabase
+        .from('merchants')
+        .select('id, name, email, whatsapp, business_name, business_address, is_active, created_at')
+        .eq('id', authData.merchant_id)
+        .single(),
+      supabase.auth.admin.listUsers({ page: 1, perPage: 1, filter: sanitizedEmail })
+    ])
 
-    if (merchantError || !merchant) {
+    const merchant = merchantResult.data
+    if (merchantResult.error || !merchant) {
       return new Response(
         JSON.stringify({ error: 'Data mitra tidak ditemukan' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -134,33 +132,18 @@ Deno.serve(async (req) => {
 
     // Log successful login (non-blocking)
     supabase.from('login_attempts').insert({
-      email: sanitizedEmail,
-      ip_address: clientIp,
-      success: true
+      email: sanitizedEmail, ip_address: clientIp, success: true
     }).then(() => {})
 
-    // Ensure auth user exists and password is synced
-    // Try to find user by email directly instead of listing all users
-    const { data: existingUsers } = await supabase.auth.admin.listUsers({
-      page: 1,
-      perPage: 1,
-      filter: sanitizedEmail,
-    })
-
-    const existingUser = existingUsers?.users?.[0]
-
+    // Sync auth user
+    const existingUser = existingUsersResult.data?.users?.[0]
     if (existingUser?.id) {
       await supabase.auth.admin.updateUserById(existingUser.id, {
-        password,
-        email_confirm: true,
-        user_metadata: { merchant_id: merchant.id },
+        password, email_confirm: true, user_metadata: { merchant_id: merchant.id },
       })
     } else {
       await supabase.auth.admin.createUser({
-        email: sanitizedEmail,
-        password,
-        email_confirm: true,
-        user_metadata: { merchant_id: merchant.id },
+        email: sanitizedEmail, password, email_confirm: true, user_metadata: { merchant_id: merchant.id },
       })
     }
 
