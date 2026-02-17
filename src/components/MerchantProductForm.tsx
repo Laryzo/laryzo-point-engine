@@ -19,24 +19,31 @@ interface MerchantProductFormProps {
 const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSuccess }: MerchantProductFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '-1' });
+  const [form, setForm] = useState({ name: '', description: '', costPrice: '', stock: '-1' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const isEdit = !!product;
 
+  // Calculate selling price = cost + 10% fee, rounded up
+  const costNum = Number(form.costPrice) || 0;
+  const sellingPrice = Math.ceil(costNum * 1.1);
+
   useEffect(() => {
     if (open && product) {
+      // Reverse-calculate cost from stored price (price = cost * 1.1)
+      const storedPrice = Number(product.price ?? 0);
+      const estimatedCost = Math.round(storedPrice / 1.1);
       setForm({
         name: product.name || '',
         description: product.description || '',
-        price: String(product.price ?? ''),
+        costPrice: String(estimatedCost),
         stock: String(product.stock ?? '-1'),
       });
       setImagePreview(product.image_url || null);
       setImageFile(null);
     } else if (open && !product) {
-      setForm({ name: '', description: '', price: '', stock: '-1' });
+      setForm({ name: '', description: '', costPrice: '', stock: '-1' });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -76,7 +83,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         const updateData: any = {
           name: form.name,
           description: form.description || null,
-          price: Number(form.price),
+          price: sellingPrice,
           stock: Number(form.stock),
         };
         if (imageUrl !== undefined) {
@@ -92,7 +99,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
           merchant_id: merchantId,
           name: form.name,
           description: form.description || null,
-          price: Number(form.price),
+          price: sellingPrice,
           stock: Number(form.stock),
           image_url: imageUrl ?? null,
         });
@@ -145,8 +152,13 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
             <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
           </div>
           <div className="space-y-2">
-            <Label>Harga (Rp)</Label>
-            <Input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required min="0" />
+            <Label>Harga Asli (Rp)</Label>
+            <Input type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} required min="0" />
+          </div>
+          <div className="space-y-2">
+            <Label>Harga Jual (Rp) — termasuk 10% fee</Label>
+            <Input type="number" value={sellingPrice || ''} readOnly className="bg-muted" />
+            <p className="text-xs text-muted-foreground">Otomatis dihitung: Harga Asli + 10%</p>
           </div>
           <div className="space-y-2">
             <Label>Stok (-1 = unlimited)</Label>
