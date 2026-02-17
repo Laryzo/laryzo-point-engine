@@ -104,11 +104,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Update last login
-    await supabase
+    // Update last login (non-blocking)
+    supabase
       .from('merchant_auth')
       .update({ last_login: new Date().toISOString() })
       .eq('id', authData.id)
+      .then(() => {})
 
     // Fetch merchant data
     const { data: merchant, error: merchantError } = await supabase
@@ -131,20 +132,22 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Log successful login
-    await supabase.from('login_attempts').insert({
+    // Log successful login (non-blocking)
+    supabase.from('login_attempts').insert({
       email: sanitizedEmail,
       ip_address: clientIp,
       success: true
-    })
+    }).then(() => {})
 
     // Ensure auth user exists and password is synced
-    const { data: usersData } = await supabase.auth.admin.listUsers({
+    // Try to find user by email directly instead of listing all users
+    const { data: existingUsers } = await supabase.auth.admin.listUsers({
       page: 1,
-      perPage: 1000,
+      perPage: 1,
+      filter: sanitizedEmail,
     })
 
-    const existingUser = usersData?.users?.find(u => (u.email || '').toLowerCase() === sanitizedEmail)
+    const existingUser = existingUsers?.users?.[0]
 
     if (existingUser?.id) {
       await supabase.auth.admin.updateUserById(existingUser.id, {
