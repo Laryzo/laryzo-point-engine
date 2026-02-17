@@ -1,0 +1,167 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { ImagePlus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+interface MerchantProductFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  merchantId: string;
+  product?: any; // null = create mode, object = edit mode
+  onSuccess: () => void;
+}
+
+const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSuccess }: MerchantProductFormProps) => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '-1' });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const isEdit = !!product;
+
+  useEffect(() => {
+    if (open && product) {
+      setForm({
+        name: product.name || '',
+        description: product.description || '',
+        price: String(product.price ?? ''),
+        stock: String(product.stock ?? '-1'),
+      });
+      setImagePreview(product.image_url || null);
+      setImageFile(null);
+    } else if (open && !product) {
+      setForm({ name: '', description: '', price: '', stock: '-1' });
+      setImagePreview(null);
+      setImageFile(null);
+    }
+  }, [open, product]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'File terlalu besar', description: 'Maksimal 2MB', variant: 'destructive' });
+      return;
+    }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      let imageUrl: string | null | undefined = undefined; // undefined = no change
+
+      if (imageFile) {
+        const ext = imageFile.name.split('.').pop();
+        const filePath = `${merchantId}/${Date.now()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('merchant-products')
+          .upload(filePath, imageFile);
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage
+          .from('merchant-products')
+          .getPublicUrl(filePath);
+        imageUrl = urlData.publicUrl;
+      }
+
+      if (isEdit) {
+        const updateData: any = {
+          name: form.name,
+          description: form.description || null,
+          price: Number(form.price),
+          stock: Number(form.stock),
+        };
+        if (imageUrl !== undefined) {
+          updateData.image_url = imageUrl;
+        }
+        const { error } = await supabase.from('merchant_products')
+          .update(updateData)
+          .eq('id', product.id);
+        if (error) throw error;
+        toast({ title: 'Produk diperbarui!' });
+      } else {
+        const { error } = await supabase.from('merchant_products').insert({
+          merchant_id: merchantId,
+          name: form.name,
+          description: form.description || null,
+          price: Number(form.price),
+          stock: Number(form.stock),
+          image_url: imageUrl ?? null,
+        });
+        if (error) throw error;
+        toast({ title: 'Produk ditambahkan!' });
+      }
+
+      onOpenChange(false);
+      onSuccess();
+    } catch (error: any) {
+      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+    }
+    setLoading(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit Produk' : 'Tambah Produk'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Foto Produk</Label>
+            <div className="flex items-center gap-4">
+              {imagePreview ? (
+                <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl text-xs px-1"
+                    onClick={() => { setImageFile(null); setImagePreview(null); }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <label className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors">
+                  <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                </label>
+              )}
+              <p className="text-xs text-muted-foreground">Maks 2MB (JPG, PNG)</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Nama Produk</Label>
+            <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+          </div>
+          <div className="space-y-2">
+            <Label>Deskripsi</Label>
+            <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <Label>Harga (Rp)</Label>
+            <Input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required min="0" />
+          </div>
+          <div className="space-y-2">
+            <Label>Stok (-1 = unlimited)</Label>
+            <Input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} required />
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan'}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default MerchantProductForm;
