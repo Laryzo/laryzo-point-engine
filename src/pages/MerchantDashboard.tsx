@@ -263,6 +263,14 @@ const MerchantDashboard = () => {
   const laryzoFee = Math.round(cartTotal * 0.1);
   const customerPointsEarned = Math.round(laryzoFee * 0.01);
 
+  // Transaction edit state
+  const [editingTx, setEditingTx] = useState<any>(null);
+  const [editTxProductName, setEditTxProductName] = useState('');
+  const [editTxQty, setEditTxQty] = useState(1);
+  const [editTxPrice, setEditTxPrice] = useState(0);
+  const [editTxNotes, setEditTxNotes] = useState('');
+  const [savingTxEdit, setSavingTxEdit] = useState(false);
+
   const handleCheckout = async () => {
     if (cart.length === 0) {
       toast({ title: 'Keranjang kosong', variant: 'destructive' });
@@ -271,44 +279,21 @@ const MerchantDashboard = () => {
 
     setCheckoutLoading(true);
     try {
-      const merchantId = merchant?.id;
-      
-      for (const item of cart) {
-        const total = item.product.price * item.qty;
-        const fee = Math.round(total * 0.1);
-        const points = selectedCustomer ? Math.round(fee * 0.01) : 0;
+      const items = cart.map(item => ({
+        product_id: item.product.id,
+        product_name: item.product.name,
+        price: item.product.price,
+        qty: item.qty,
+        stock: item.product.stock,
+        cost_price: item.product.cost_price || 0,
+      }));
 
-        const { error } = await supabase.from('merchant_transactions').insert({
-          merchant_id: merchantId,
-          product_id: item.product.id,
-          customer_id: selectedCustomer?.id || null,
-          product_name: item.product.name,
-          price: item.product.price,
-          qty: item.qty,
-          total,
-          laryzo_fee: fee,
-          customer_points_earned: points,
-          notes,
-        });
+      const { data, error } = await supabase.functions.invoke('merchant-checkout', {
+        body: { items, customer_id: selectedCustomer?.id || null, notes }
+      });
 
-        if (error) throw error;
-
-        if (selectedCustomer && points > 0) {
-          await supabase.from('point_history').insert({
-            from_customer: null,
-            to_customer: selectedCustomer.id,
-            points,
-            level: 0,
-            product_code: `MITRA-${item.product.name.substring(0, 20)}`,
-          });
-        }
-
-        if (item.product.stock >= 0) {
-          await supabase.from('merchant_products')
-            .update({ stock: item.product.stock - item.qty })
-            .eq('id', item.product.id);
-        }
-      }
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Checkout gagal');
 
       toast({ title: 'Transaksi berhasil!', description: `Total: Rp ${cartTotal.toLocaleString()}` });
       setCart([]);
@@ -321,6 +306,49 @@ const MerchantDashboard = () => {
       toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
     }
     setCheckoutLoading(false);
+  };
+
+  const handleEditTx = (tx: any) => {
+    setEditingTx(tx);
+    setEditTxProductName(tx.product_name);
+    setEditTxQty(tx.qty);
+    setEditTxPrice(tx.price);
+    setEditTxNotes(tx.notes || '');
+  };
+
+  const handleSaveTxEdit = async () => {
+    if (!editingTx) return;
+    setSavingTxEdit(true);
+    try {
+      const newTotal = editTxPrice * editTxQty;
+      const newFee = Math.round(newTotal * 0.1);
+      const { error } = await supabase.from('merchant_transactions').update({
+        product_name: editTxProductName,
+        qty: editTxQty,
+        price: editTxPrice,
+        total: newTotal,
+        laryzo_fee: newFee,
+        notes: editTxNotes,
+      }).eq('id', editingTx.id);
+      if (error) throw error;
+      toast({ title: 'Transaksi berhasil diperbarui' });
+      setEditingTx(null);
+      fetchTransactions();
+    } catch (error: any) {
+      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+    }
+    setSavingTxEdit(false);
+  };
+
+  const handleDeleteTx = async (txId: string, productName: string) => {
+    try {
+      const { error } = await supabase.from('merchant_transactions').delete().eq('id', txId);
+      if (error) throw error;
+      toast({ title: 'Transaksi berhasil dihapus', description: productName });
+      fetchTransactions();
+    } catch (error: any) {
+      toast({ title: 'Gagal menghapus', description: error.message, variant: 'destructive' });
+    }
   };
 
   const handleDeleteProduct = async (productId: string) => {
@@ -614,6 +642,7 @@ const MerchantDashboard = () => {
             <TableHead>Total</TableHead>
             <TableHead>Fee Laryzo</TableHead>
             <TableHead>Poin Customer</TableHead>
+            {isSuperAdmin && <TableHead>Aksi</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -625,15 +654,78 @@ const MerchantDashboard = () => {
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
               <TableCell className="text-muted-foreground">Rp {Number(t.laryzo_fee).toLocaleString()}</TableCell>
               <TableCell className="text-green-600">{Number(t.customer_points_earned) > 0 ? `+${t.customer_points_earned}` : '-'}</TableCell>
+              {isSuperAdmin && (
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditTx(t)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Hapus Transaksi</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Yakin ingin menghapus transaksi "{t.product_name}"? Tindakan ini tidak dapat dibatalkan.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteTx(t.id, t.product_name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Hapus
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              )}
             </TableRow>
           ))}
           {transactions.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Belum ada transaksi</TableCell>
+              <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">Belum ada transaksi</TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
+
+      {/* Edit Transaction Dialog */}
+      <Dialog open={!!editingTx} onOpenChange={(open) => !open && setEditingTx(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Transaksi</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nama Produk</Label>
+              <Input value={editTxProductName} onChange={e => setEditTxProductName(e.target.value)} />
+            </div>
+            <div>
+              <Label>Harga</Label>
+              <Input type="number" value={editTxPrice} onChange={e => setEditTxPrice(Number(e.target.value))} />
+            </div>
+            <div>
+              <Label>Qty</Label>
+              <Input type="number" value={editTxQty} onChange={e => setEditTxQty(Number(e.target.value))} />
+            </div>
+            <div>
+              <Label>Catatan</Label>
+              <Textarea value={editTxNotes} onChange={e => setEditTxNotes(e.target.value)} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTx(null)}>Batal</Button>
+            <Button onClick={handleSaveTxEdit} disabled={savingTxEdit}>
+              {savingTxEdit ? 'Menyimpan...' : 'Simpan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 

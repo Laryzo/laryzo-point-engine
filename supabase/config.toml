@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.merchant-register-customer]
 verify_jwt = false
+
+[functions.merchant-checkout]
+verify_jwt = false
