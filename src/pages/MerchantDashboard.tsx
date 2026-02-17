@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus } from 'lucide-react';
+import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, ImagePlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,8 @@ const MerchantDashboard = () => {
   const [showProductForm, setShowProductForm] = useState(false);
   const [productForm, setProductForm] = useState({ name: '', description: '', price: '', stock: '-1' });
   const [productFormLoading, setProductFormLoading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -153,21 +155,51 @@ const MerchantDashboard = () => {
     setCheckoutLoading(false);
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'File terlalu besar', description: 'Maksimal 2MB', variant: 'destructive' });
+      return;
+    }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setProductFormLoading(true);
     try {
+      let imageUrl: string | null = null;
+
+      // Upload image if selected
+      if (imageFile && merchant?.id) {
+        const ext = imageFile.name.split('.').pop();
+        const filePath = `${merchant.id}/${Date.now()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('merchant-products')
+          .upload(filePath, imageFile);
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage
+          .from('merchant-products')
+          .getPublicUrl(filePath);
+        imageUrl = urlData.publicUrl;
+      }
+
       const { error } = await supabase.from('merchant_products').insert({
         merchant_id: merchant?.id,
         name: productForm.name,
         description: productForm.description || null,
         price: Number(productForm.price),
         stock: Number(productForm.stock),
+        image_url: imageUrl,
       });
       if (error) throw error;
       toast({ title: 'Produk ditambahkan!' });
       setShowProductForm(false);
       setProductForm({ name: '', description: '', price: '', stock: '-1' });
+      setImageFile(null);
+      setImagePreview(null);
       fetchProducts();
     } catch (error: any) {
       toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
@@ -188,7 +220,11 @@ const MerchantDashboard = () => {
               onClick={() => addToCart(product)}
             >
               <CardContent className="p-3 text-center">
-                <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                {product.image_url ? (
+                  <img src={product.image_url} alt={product.name} className="h-16 w-16 mx-auto mb-2 rounded object-cover" />
+                ) : (
+                  <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                )}
                 <p className="font-medium text-sm truncate">{product.name}</p>
                 <p className="text-sm text-primary font-bold">Rp {Number(product.price).toLocaleString()}</p>
                 {product.stock >= 0 && (
@@ -316,6 +352,30 @@ const MerchantDashboard = () => {
             </DialogHeader>
             <form onSubmit={handleAddProduct} className="space-y-4">
               <div className="space-y-2">
+                <Label>Foto Produk</Label>
+                <div className="flex items-center gap-4">
+                  {imagePreview ? (
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl text-xs px-1"
+                        onClick={() => { setImageFile(null); setImagePreview(null); }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors">
+                      <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                    </label>
+                  )}
+                  <p className="text-xs text-muted-foreground">Maks 2MB (JPG, PNG)</p>
+                </div>
+              </div>
+              <div className="space-y-2">
                 <Label>Nama Produk</Label>
                 <Input value={productForm.name} onChange={e => setProductForm({ ...productForm, name: e.target.value })} required />
               </div>
@@ -342,6 +402,7 @@ const MerchantDashboard = () => {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Foto</TableHead>
             <TableHead>Nama</TableHead>
             <TableHead>Harga</TableHead>
             <TableHead>Stok</TableHead>
@@ -351,6 +412,13 @@ const MerchantDashboard = () => {
         <TableBody>
           {products.map(p => (
             <TableRow key={p.id}>
+              <TableCell>
+                {p.image_url ? (
+                  <img src={p.image_url} alt={p.name} className="h-10 w-10 rounded object-cover" />
+                ) : (
+                  <Package className="h-6 w-6 text-muted-foreground" />
+                )}
+              </TableCell>
               <TableCell className="font-medium">{p.name}</TableCell>
               <TableCell>Rp {Number(p.price).toLocaleString()}</TableCell>
               <TableCell>{p.stock < 0 ? '∞' : p.stock}</TableCell>

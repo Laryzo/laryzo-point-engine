@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,6 +21,7 @@ import {
   Zap, 
   CreditCard, 
   Package,
+  Store,
   ChevronRight,
   ChevronLeft,
   Contact,
@@ -96,6 +98,7 @@ const CustomerShop = () => {
   const { toast } = useToast();
   
   const [products, setProducts] = useState<Product[]>([]);
+  const [merchantProducts, setMerchantProducts] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   
@@ -122,6 +125,7 @@ const CustomerShop = () => {
 
   useEffect(() => {
     fetchProducts();
+    fetchMerchantProducts();
     fetchPhoneHistory();
   }, [customer?.id]);
 
@@ -165,6 +169,15 @@ const CustomerShop = () => {
       })));
     }
     setLoading(false);
+  };
+
+  const fetchMerchantProducts = async () => {
+    const { data } = await supabase
+      .from('merchant_products')
+      .select('*, merchants(business_name, name)')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+    setMerchantProducts(data || []);
   };
 
   // Extract brands from products for current category
@@ -519,6 +532,38 @@ const CustomerShop = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Merchant Products Section */}
+      {merchantProducts.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <Store className="h-5 w-5" />
+            Produk Mitra
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {merchantProducts.map((mp: any) => (
+              <Card key={mp.id} className="overflow-hidden">
+                <CardContent className="p-0">
+                  {mp.image_url ? (
+                    <img src={mp.image_url} alt={mp.name} className="w-full h-28 object-cover" />
+                  ) : (
+                    <div className="w-full h-28 bg-muted flex items-center justify-center">
+                      <Package className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <p className="font-medium text-sm truncate">{mp.name}</p>
+                    <p className="text-sm text-primary font-bold">Rp {Number(mp.price).toLocaleString()}</p>
+                    <Badge variant="outline" className="text-[10px] mt-1">
+                      {mp.merchants?.business_name || mp.merchants?.name || 'Mitra'}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
