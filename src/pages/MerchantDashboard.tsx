@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, ImagePlus } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil } from 'lucide-react';
+import MerchantProductForm from '@/components/MerchantProductForm';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -29,10 +29,7 @@ const MerchantDashboard = () => {
 
   // Product form state
   const [showProductForm, setShowProductForm] = useState(false);
-  const [productForm, setProductForm] = useState({ name: '', description: '', price: '', stock: '-1' });
-  const [productFormLoading, setProductFormLoading] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -155,57 +152,7 @@ const MerchantDashboard = () => {
     setCheckoutLoading(false);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: 'File terlalu besar', description: 'Maksimal 2MB', variant: 'destructive' });
-      return;
-    }
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
 
-  const handleAddProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setProductFormLoading(true);
-    try {
-      let imageUrl: string | null = null;
-
-      // Upload image if selected
-      if (imageFile && merchant?.id) {
-        const ext = imageFile.name.split('.').pop();
-        const filePath = `${merchant.id}/${Date.now()}.${ext}`;
-        const { error: uploadErr } = await supabase.storage
-          .from('merchant-products')
-          .upload(filePath, imageFile);
-        if (uploadErr) throw uploadErr;
-        const { data: urlData } = supabase.storage
-          .from('merchant-products')
-          .getPublicUrl(filePath);
-        imageUrl = urlData.publicUrl;
-      }
-
-      const { error } = await supabase.from('merchant_products').insert({
-        merchant_id: merchant?.id,
-        name: productForm.name,
-        description: productForm.description || null,
-        price: Number(productForm.price),
-        stock: Number(productForm.stock),
-        image_url: imageUrl,
-      });
-      if (error) throw error;
-      toast({ title: 'Produk ditambahkan!' });
-      setShowProductForm(false);
-      setProductForm({ name: '', description: '', price: '', stock: '-1' });
-      setImageFile(null);
-      setImagePreview(null);
-      fetchProducts();
-    } catch (error: any) {
-      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
-    }
-    setProductFormLoading(false);
-  };
 
   const renderPOS = () => (
     <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -342,62 +289,16 @@ const MerchantDashboard = () => {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">Produk Saya</h2>
-        <Dialog open={showProductForm} onOpenChange={setShowProductForm}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <DialogHeader>
-              <DialogTitle>Tambah Produk</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleAddProduct} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Foto Produk</Label>
-                <div className="flex items-center gap-4">
-                  {imagePreview ? (
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
-                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl text-xs px-1"
-                        onClick={() => { setImageFile(null); setImagePreview(null); }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors">
-                      <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                    </label>
-                  )}
-                  <p className="text-xs text-muted-foreground">Maks 2MB (JPG, PNG)</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Nama Produk</Label>
-                <Input value={productForm.name} onChange={e => setProductForm({ ...productForm, name: e.target.value })} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Deskripsi</Label>
-                <Textarea value={productForm.description} onChange={e => setProductForm({ ...productForm, description: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Harga (Rp)</Label>
-                <Input type="number" value={productForm.price} onChange={e => setProductForm({ ...productForm, price: e.target.value })} required min="0" />
-              </div>
-              <div className="space-y-2">
-                <Label>Stok (-1 = unlimited)</Label>
-                <Input type="number" value={productForm.stock} onChange={e => setProductForm({ ...productForm, stock: e.target.value })} required />
-              </div>
-              <Button type="submit" className="w-full" disabled={productFormLoading}>
-                {productFormLoading ? 'Menyimpan...' : 'Simpan'}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => { setEditingProduct(null); setShowProductForm(true); }}><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
       </div>
+
+      <MerchantProductForm
+        open={showProductForm}
+        onOpenChange={setShowProductForm}
+        merchantId={merchant?.id || ''}
+        product={editingProduct}
+        onSuccess={fetchProducts}
+      />
 
       <Table>
         <TableHeader>
@@ -407,6 +308,7 @@ const MerchantDashboard = () => {
             <TableHead>Harga</TableHead>
             <TableHead>Stok</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -426,6 +328,11 @@ const MerchantDashboard = () => {
                 <Badge variant={p.is_active ? 'default' : 'secondary'}>
                   {p.is_active ? 'Aktif' : 'Nonaktif'}
                 </Badge>
+              </TableCell>
+              <TableCell>
+                <Button variant="ghost" size="icon" onClick={() => { setEditingProduct(p); setShowProductForm(true); }}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
               </TableCell>
             </TableRow>
           ))}
