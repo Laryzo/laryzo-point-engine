@@ -418,6 +418,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          logo_url: string | null
           name: string
           updated_at: string
           whatsapp: string | null
@@ -429,6 +430,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          logo_url?: string | null
           name: string
           updated_at?: string
           whatsapp?: string | null
@@ -440,6 +442,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          logo_url?: string | null
           name?: string
           updated_at?: string
           whatsapp?: string | null
