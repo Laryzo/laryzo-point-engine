@@ -31,13 +31,12 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
 
   useEffect(() => {
     if (open && product) {
-      // Reverse-calculate cost from stored price (price = cost * 1.1)
-      const storedPrice = Number(product.price ?? 0);
-      const estimatedCost = Math.round(storedPrice / 1.1);
+      // Use stored cost_price directly, fallback to reverse calculation for old data
+      const costPrice = product.cost_price ?? Math.round(Number(product.price ?? 0) / 1.1);
       setForm({
         name: product.name || '',
         description: product.description || '',
-        costPrice: String(estimatedCost),
+        costPrice: String(product.cost_price ?? Math.round(Number(product.price ?? 0) / 1.1)),
         stock: String(product.stock ?? '-1'),
       });
       setImagePreview(product.image_url || null);
@@ -84,6 +83,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
           name: form.name,
           description: form.description || null,
           price: sellingPrice,
+          cost_price: costNum,
           stock: Number(form.stock),
         };
         if (imageUrl !== undefined) {
@@ -100,6 +100,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
           name: form.name,
           description: form.description || null,
           price: sellingPrice,
+          cost_price: costNum,
           stock: Number(form.stock),
           image_url: imageUrl ?? null,
         });
