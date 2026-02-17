@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.digiflazz-import-products]
 verify_jwt = false
+
+[functions.merchant-register-customer]
+verify_jwt = false
