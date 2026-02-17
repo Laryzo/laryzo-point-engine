@@ -346,7 +346,7 @@ const MerchantDashboard = () => {
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
             <DialogHeader>
               <DialogTitle>Tambah Produk</DialogTitle>
             </DialogHeader>
