@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2, Users, Shield, User, Settings, ImagePlus } from 'lucide-react';
+import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2, Users, Shield, User, Settings, ImagePlus, UserPlus } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import MerchantProductForm from '@/components/MerchantProductForm';
@@ -28,6 +28,13 @@ const MerchantDashboard = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [notes, setNotes] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // New customer registration state
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustEmail, setNewCustEmail] = useState('');
+  const [newCustWhatsapp, setNewCustWhatsapp] = useState('');
+  const [registeringCustomer, setRegisteringCustomer] = useState(false);
 
   // Product form state
   const [showProductForm, setShowProductForm] = useState(false);
@@ -198,6 +205,37 @@ const MerchantDashboard = () => {
       .limit(5);
     setCustomerResults(data || []);
     setSearchLoading(false);
+  };
+
+  const handleRegisterNewCustomer = async () => {
+    if (!newCustName || !newCustEmail || !newCustWhatsapp) {
+      toast({ title: 'Lengkapi data customer', variant: 'destructive' });
+      return;
+    }
+    setRegisteringCustomer(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('merchant-register-customer', {
+        body: { name: newCustName, email: newCustEmail, whatsapp: newCustWhatsapp }
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Gagal mendaftarkan customer');
+
+      setSelectedCustomer(data.customer);
+      setShowNewCustomerForm(false);
+      setNewCustName('');
+      setNewCustEmail('');
+      setNewCustWhatsapp('');
+      setCustomerResults([]);
+
+      if (data.is_new) {
+        toast({ title: 'Customer baru terdaftar!', description: `${data.customer.name} berhasil didaftarkan ke sistem Laryzo. Password: ${data.password}` });
+      } else {
+        toast({ title: 'Customer ditemukan', description: `${data.customer.name} sudah terdaftar di sistem` });
+      }
+    } catch (error: any) {
+      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+    }
+    setRegisteringCustomer(false);
   };
 
   const addToCart = (product: any) => {
@@ -377,21 +415,73 @@ const MerchantDashboard = () => {
                   <span>{selectedCustomer.name}</span>
                   <Button variant="ghost" size="sm" onClick={() => setSelectedCustomer(null)}>×</Button>
                 </div>
-              ) : (
-                <div className="flex gap-1">
+              ) : showNewCustomerForm ? (
+                <div className="space-y-2 border rounded p-2">
+                  <p className="text-xs font-medium text-primary">Daftarkan Customer Baru</p>
                   <Input
-                    placeholder="Cari nama/email..."
-                    value={customerSearch}
-                    onChange={e => setCustomerSearch(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && searchCustomer()}
+                    placeholder="Nama *"
+                    value={newCustName}
+                    onChange={e => setNewCustName(e.target.value)}
                     className="text-sm"
                   />
-                  <Button variant="outline" size="icon" onClick={searchCustomer} disabled={searchLoading}>
-                    <Search className="h-4 w-4" />
-                  </Button>
+                  <Input
+                    placeholder="Email *"
+                    type="email"
+                    value={newCustEmail}
+                    onChange={e => setNewCustEmail(e.target.value)}
+                    className="text-sm"
+                  />
+                  <Input
+                    placeholder="WhatsApp * (contoh: 08123...)"
+                    value={newCustWhatsapp}
+                    onChange={e => setNewCustWhatsapp(e.target.value)}
+                    className="text-sm"
+                  />
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => { setShowNewCustomerForm(false); setNewCustName(''); setNewCustEmail(''); setNewCustWhatsapp(''); }}
+                    >
+                      Batal
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={handleRegisterNewCustomer}
+                      disabled={registeringCustomer}
+                    >
+                      {registeringCustomer ? 'Mendaftar...' : 'Daftarkan'}
+                    </Button>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div className="flex gap-1">
+                    <Input
+                      placeholder="Cari nama/email..."
+                      value={customerSearch}
+                      onChange={e => setCustomerSearch(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && searchCustomer()}
+                      className="text-sm"
+                    />
+                    <Button variant="outline" size="icon" onClick={searchCustomer} disabled={searchLoading}>
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => setShowNewCustomerForm(true)}
+                  >
+                    <UserPlus className="h-3 w-3 mr-1" />
+                    Daftar Customer Baru
+                  </Button>
+                </>
               )}
-              {customerResults.length > 0 && !selectedCustomer && (
+              {customerResults.length > 0 && !selectedCustomer && !showNewCustomerForm && (
                 <div className="border rounded space-y-1 max-h-32 overflow-auto">
                   {customerResults.map(c => (
                     <div
