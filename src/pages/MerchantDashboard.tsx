@@ -66,6 +66,18 @@ const MerchantDashboard = () => {
   const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
 
+  // Delivery edit/delete state
+  const [editingDelivery, setEditingDelivery] = useState<any>(null);
+  const [editDeliveryForm, setEditDeliveryForm] = useState({
+    delivery_status: '',
+    delivery_address: '',
+    delivery_notes: '',
+    delivery_type: '',
+    status: '',
+  });
+  const [savingDeliveryEdit, setSavingDeliveryEdit] = useState(false);
+  const [deletingDelivery, setDeletingDelivery] = useState<any>(null);
+
   // Daily stats state
   const [dailyStats, setDailyStats] = useState({ todayRevenue: 0, todayOrders: 0 });
 
@@ -250,6 +262,54 @@ const MerchantDashboard = () => {
         .eq('id', orderId);
       if (error) throw error;
       toast({ title: 'Status pengiriman diperbarui' });
+      fetchDeliveryOrders();
+    } catch (error: any) {
+      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const openEditDelivery = (order: any) => {
+    setEditingDelivery(order);
+    setEditDeliveryForm({
+      delivery_status: order.delivery_status || '',
+      delivery_address: order.delivery_address || '',
+      delivery_notes: order.delivery_notes || '',
+      delivery_type: order.delivery_type || '',
+      status: order.status || '',
+    });
+  };
+
+  const handleSaveDeliveryEdit = async () => {
+    if (!editingDelivery) return;
+    setSavingDeliveryEdit(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          delivery_status: editDeliveryForm.delivery_status || null,
+          delivery_address: editDeliveryForm.delivery_address || null,
+          delivery_notes: editDeliveryForm.delivery_notes || null,
+          delivery_type: editDeliveryForm.delivery_type,
+          status: editDeliveryForm.status,
+        })
+        .eq('id', editingDelivery.id);
+      if (error) throw error;
+      toast({ title: 'Pesanan pengiriman berhasil diperbarui' });
+      setEditingDelivery(null);
+      fetchDeliveryOrders();
+    } catch (error: any) {
+      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+    }
+    setSavingDeliveryEdit(false);
+  };
+
+  const handleDeleteDelivery = async () => {
+    if (!deletingDelivery) return;
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', deletingDelivery.id);
+      if (error) throw error;
+      toast({ title: 'Pesanan pengiriman berhasil dihapus' });
+      setDeletingDelivery(null);
       fetchDeliveryOrders();
     } catch (error: any) {
       toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
@@ -1275,11 +1335,80 @@ const MerchantDashboard = () => {
                     )}
                   </div>
                 )}
+
+                {/* Edit/Delete for super admin */}
+                {isSuperAdmin && (
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Button size="sm" variant="outline" onClick={() => openEditDelivery(order)}>
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeletingDelivery(order)}>
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Hapus
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Edit Delivery Dialog */}
+      <Dialog open={!!editingDelivery} onOpenChange={(open) => !open && setEditingDelivery(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Pesanan Pengiriman</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Status Order</Label>
+              <Input value={editDeliveryForm.status} onChange={e => setEditDeliveryForm({...editDeliveryForm, status: e.target.value})} placeholder="pending/completed/failed" />
+            </div>
+            <div>
+              <Label>Tipe Pengiriman</Label>
+              <Input value={editDeliveryForm.delivery_type} onChange={e => setEditDeliveryForm({...editDeliveryForm, delivery_type: e.target.value})} placeholder="pickup/external_ojol" />
+            </div>
+            <div>
+              <Label>Status Pengiriman</Label>
+              <Input value={editDeliveryForm.delivery_status} onChange={e => setEditDeliveryForm({...editDeliveryForm, delivery_status: e.target.value})} placeholder="waiting_driver/picked_up/delivered" />
+            </div>
+            <div>
+              <Label>Alamat Pengiriman</Label>
+              <Textarea value={editDeliveryForm.delivery_address} onChange={e => setEditDeliveryForm({...editDeliveryForm, delivery_address: e.target.value})} rows={2} />
+            </div>
+            <div>
+              <Label>Catatan Driver</Label>
+              <Textarea value={editDeliveryForm.delivery_notes} onChange={e => setEditDeliveryForm({...editDeliveryForm, delivery_notes: e.target.value})} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingDelivery(null)}>Batal</Button>
+            <Button onClick={handleSaveDeliveryEdit} disabled={savingDeliveryEdit}>
+              {savingDeliveryEdit ? 'Menyimpan...' : 'Simpan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Delivery Confirmation */}
+      <AlertDialog open={!!deletingDelivery} onOpenChange={(open) => !open && setDeletingDelivery(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Pesanan Pengiriman</AlertDialogTitle>
+            <AlertDialogDescription>
+              Yakin ingin menghapus pesanan pengiriman ini? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteDelivery} className="bg-destructive hover:bg-destructive/90">
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 
