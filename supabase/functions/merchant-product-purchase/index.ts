@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     }
 
     const customerId = custAuth.customer_id;
-    const { product_id } = await req.json();
+    const { product_id, delivery_type, delivery_address, delivery_notes } = await req.json();
 
     if (!product_id) {
       return new Response(JSON.stringify({ error: "product_id required" }), {
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const pointPrice = Number(product.price);
+    const pointPrice = Number(product.point_price || product.price);
     if (pointPrice <= 0) {
       return new Response(JSON.stringify({ error: "Product cannot be purchased with points" }), {
         status: 400,
@@ -114,6 +114,46 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Get merchant info for pickup address
+    const { data: merchant } = await supabase
+      .from("merchants")
+      .select("business_address, business_name")
+      .eq("id", product.merchant_id)
+      .single();
+
+    // Determine delivery fields
+    const effectiveDeliveryType = delivery_type || "none";
+    const effectiveDeliveryStatus = effectiveDeliveryType === "external_ojol" ? "waiting_driver" : null;
+    const pickupAddr = merchant?.business_address || null;
+
+    // Create order in orders table
+    const { data: order, error: orderErr } = await supabase
+      .from("orders")
+      .insert({
+        customer_id: customerId,
+        product_id: product_id,
+        points_used: pointPrice,
+        points_earned: 0,
+        status: "processing",
+        order_type: "food",
+        delivery_type: effectiveDeliveryType,
+        delivery_address: effectiveDeliveryType === "external_ojol" ? delivery_address : null,
+        delivery_notes: delivery_notes || null,
+        delivery_status: effectiveDeliveryStatus,
+        pickup_address: pickupAddr,
+        merchant_id: product.merchant_id,
+      })
+      .select("id")
+      .single();
+
+    if (orderErr) {
+      console.error("Order insert error:", orderErr);
+      return new Response(JSON.stringify({ error: "Gagal membuat pesanan" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Deduct points via point_history insert (trigger auto-syncs customer.points)
     const { error: histErr } = await supabase.from("point_history").insert({
       to_customer: customerId,
@@ -125,6 +165,8 @@ Deno.serve(async (req) => {
 
     if (histErr) {
       console.error("point_history insert error:", histErr);
+      // Rollback order
+      await supabase.from("orders").delete().eq("id", order.id);
       return new Response(JSON.stringify({ error: "Gagal mengurangi poin" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -140,7 +182,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Pembelian berhasil" }),
+      JSON.stringify({ success: true, message: "Pembelian berhasil", order_id: order.id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
