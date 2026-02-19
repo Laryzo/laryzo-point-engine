@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { canonicalizePpobBrand, getPpobBrandFromProductName } from '@/lib/ppob-brand';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { 
   ArrowLeft, 
   Coins, 
@@ -25,7 +26,9 @@ import {
   ChevronRight,
   ChevronLeft,
   Contact,
-  History
+  History,
+  Truck,
+  MapPin
 } from 'lucide-react';
 
 // Declare Contact Picker API types
@@ -114,6 +117,9 @@ const CustomerShop = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
+  const [deliveryType, setDeliveryType] = useState<'none' | 'pickup' | 'external_ojol'>('none');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryNotes, setDeliveryNotes] = useState('');
   const [orderLoading, setOrderLoading] = useState(false);
 
   // Category configurations
@@ -381,6 +387,15 @@ const CustomerShop = () => {
       return;
     }
 
+    if (deliveryType === 'external_ojol' && !deliveryAddress) {
+      toast({
+        title: 'Error',
+        description: 'Alamat pengiriman ojol harus diisi',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (customer.points < selectedProduct.point_price) {
       toast({
         title: 'Poin Tidak Cukup',
@@ -411,6 +426,9 @@ const CustomerShop = () => {
         setSelectedProduct(null);
         setInputValue('');
         setShippingAddress('');
+        setDeliveryType('none');
+        setDeliveryAddress('');
+        setDeliveryNotes('');
         return;
       }
 
@@ -423,6 +441,11 @@ const CustomerShop = () => {
           input_value: inputValue || null,
           shipping_address: shippingAddress || null,
           status: 'pending',
+          order_type: selectedProduct.type === 'ppob' ? 'ppob' : 'product',
+          delivery_type: deliveryType,
+          delivery_address: deliveryType === 'external_ojol' ? deliveryAddress : null,
+          delivery_notes: deliveryNotes || null,
+          delivery_status: deliveryType === 'external_ojol' ? 'waiting_driver' : null,
         }])
         .select()
         .single();
@@ -471,6 +494,9 @@ const CustomerShop = () => {
       setSelectedProduct(null);
       setInputValue('');
       setShippingAddress('');
+      setDeliveryType('none');
+      setDeliveryAddress('');
+      setDeliveryNotes('');
       navigate('/portal/orders');
     } catch (error: any) {
       toast({
@@ -844,6 +870,65 @@ const CustomerShop = () => {
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
                 />
+              </div>
+            )}
+
+            {/* Delivery Options - only for physical/merchant products */}
+            {selectedProduct && (selectedProduct.type === 'physical' || selectedProduct.type === 'merchant') && (
+              <div className="space-y-3">
+                <Label>Metode Pengambilan</Label>
+                <RadioGroup
+                  value={deliveryType}
+                  onValueChange={(val) => setDeliveryType(val as 'none' | 'pickup' | 'external_ojol')}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent/50 transition-colors">
+                    <RadioGroupItem value="pickup" id="pickup" />
+                    <Label htmlFor="pickup" className="flex items-center gap-2 cursor-pointer flex-1">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="font-medium text-sm">Ambil Sendiri (Pickup)</p>
+                        <p className="text-xs text-muted-foreground">Ambil langsung di toko mitra</p>
+                      </div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent/50 transition-colors">
+                    <RadioGroupItem value="external_ojol" id="external_ojol" />
+                    <Label htmlFor="external_ojol" className="flex items-center gap-2 cursor-pointer flex-1">
+                      <Truck className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="font-medium text-sm">Kirim via Ojol</p>
+                        <p className="text-xs text-muted-foreground">Dikirim menggunakan Grab/Gojek</p>
+                      </div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                {deliveryType === 'external_ojol' && (
+                  <div className="space-y-3 p-3 bg-muted/50 rounded-lg border">
+                    <div className="space-y-2">
+                      <Label htmlFor="delivery-address">Alamat Pengiriman Ojol *</Label>
+                      <Input
+                        id="delivery-address"
+                        placeholder="Alamat lengkap tujuan pengiriman"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="delivery-notes">Catatan untuk Driver (opsional)</Label>
+                      <Input
+                        id="delivery-notes"
+                        placeholder="Contoh: Lantai 2, warna pintu biru"
+                        value={deliveryNotes}
+                        onChange={(e) => setDeliveryNotes(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      ⚠️ Ongkos kirim ditanggung pembeli, dibayar langsung ke driver ojol.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
