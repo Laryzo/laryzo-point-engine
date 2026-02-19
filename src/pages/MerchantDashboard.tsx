@@ -82,6 +82,53 @@ const MerchantDashboard = () => {
     fetchDailyStats();
   }, [isSuperAdmin]);
 
+  // Realtime subscription for new orders
+  useEffect(() => {
+    if (!merchant?.id) return;
+
+    const channel = supabase
+      .channel(`merchant-orders-${merchant.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `merchant_id=eq.${merchant.id}`,
+        },
+        (payload) => {
+          const order = payload.new as any;
+          const deliveryLabel = order.delivery_type === 'external_ojol' ? '🛵 Kirim Ojol' : order.delivery_type === 'pickup' ? '📦 Pickup' : '';
+          
+          toast({
+            title: '🔔 Pesanan Baru Masuk!',
+            description: `${deliveryLabel} — ${order.delivery_address || 'Ambil di tempat'}`,
+          });
+
+          // Refresh delivery orders and daily stats
+          fetchDeliveryOrders();
+          fetchDailyStats();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `merchant_id=eq.${merchant.id}`,
+        },
+        () => {
+          fetchDeliveryOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [merchant?.id]);
+
   const fetchDailyStats = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
