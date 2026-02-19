@@ -455,9 +455,6 @@ const MerchantDashboard = () => {
                 <div className="border-t pt-3 space-y-1 text-sm">
                   <div className="flex justify-between"><span>Subtotal</span><span className="font-bold">Rp {cartTotal.toLocaleString()}</span></div>
                   
-                  {selectedCustomer && customerPointsEarned > 0 && (
-                    <div className="flex justify-between text-green-600"><span>Poin Customer</span><span>+{customerPointsEarned} poin</span></div>
-                  )}
                 </div>
               </>
             )}
