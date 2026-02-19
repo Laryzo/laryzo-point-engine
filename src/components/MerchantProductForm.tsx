@@ -26,14 +26,14 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
   const isEdit = !!product;
 
   const costNum = Number(form.costPrice) || 0;
-  const sellingPrice = Math.ceil((costNum / 0.9) / 500) * 500;
+  const sellingPrice = Math.ceil((costNum / 0.95) / 500) * 500;
 
   useEffect(() => {
     if (open && product) {
       setForm({
         name: product.name || '',
         description: product.description || '',
-        costPrice: String(product.cost_price ?? Math.round(Number(product.price ?? 0) * 0.9)),
+        costPrice: String(product.cost_price ?? Math.round(Number(product.price ?? 0) * 0.95)),
         stock: String(product.stock ?? '-1'),
         pointPrice: String(product.point_price ?? 0),
       });
@@ -159,9 +159,9 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
             <Input type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} required min="0" />
           </div>
           <div className="space-y-2">
-            <Label>Harga Jual (Rp) — sudah termasuk 10% fee admin</Label>
+            <Label>Harga Jual (Rp) — sudah termasuk 5% fee admin</Label>
             <Input type="number" value={sellingPrice || ''} readOnly className="bg-muted" />
-            <p className="text-xs text-muted-foreground">Otomatis dihitung: Harga Asli ÷ 0.9, dibulatkan ke atas per Rp 500</p>
+            <p className="text-xs text-muted-foreground">Otomatis dihitung: Harga Asli ÷ 0.95, dibulatkan ke atas per Rp 500</p>
           </div>
           <div className="space-y-2">
             <Label>Harga Poin (untuk belanja poin customer)</Label>
