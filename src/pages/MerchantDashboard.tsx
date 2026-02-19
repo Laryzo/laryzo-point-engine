@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMerchantAuth } from '@/hooks/useMerchantAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -222,16 +222,26 @@ const MerchantDashboard = () => {
     }
     setChangingPassword(false);
   };
-  const searchCustomer = async () => {
-    if (!customerSearch.trim()) return;
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchCustomer = useCallback(async (query?: string) => {
+    const q = (query ?? customerSearch).trim();
+    if (!q) { setCustomerResults([]); return; }
     setSearchLoading(true);
     const { data } = await supabase
       .from('customers')
       .select('id, name, email, whatsapp, points')
-      .or(`name.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%,whatsapp.ilike.%${customerSearch}%`)
+      .or(`name.ilike.%${q}%,email.ilike.%${q}%,whatsapp.ilike.%${q}%`)
       .limit(5);
     setCustomerResults(data || []);
     setSearchLoading(false);
+  }, [customerSearch]);
+
+  const handleCustomerSearchChange = (value: string) => {
+    setCustomerSearch(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!value.trim()) { setCustomerResults([]); return; }
+    searchTimerRef.current = setTimeout(() => searchCustomer(value), 300);
   };
 
   const handleRegisterNewCustomer = async () => {
@@ -510,17 +520,37 @@ const MerchantDashboard = () => {
                 </div>
               ) : (
                 <>
-                  <div className="flex gap-1">
-                    <Input
-                      placeholder="Cari nama/email..."
-                      value={customerSearch}
-                      onChange={e => setCustomerSearch(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && searchCustomer()}
-                      className="text-sm"
-                    />
-                    <Button variant="outline" size="icon" onClick={searchCustomer} disabled={searchLoading}>
-                      <Search className="h-4 w-4" />
-                    </Button>
+                  <div className="relative">
+                    <div className="flex gap-1">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Cari nama/email/WA..."
+                          value={customerSearch}
+                          onChange={e => handleCustomerSearchChange(e.target.value)}
+                          className="text-sm pl-8"
+                        />
+                      </div>
+                    </div>
+                    {customerResults.length > 0 && !selectedCustomer && (
+                      <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-40 overflow-auto">
+                        {customerResults.map(c => (
+                          <div
+                            key={c.id}
+                            className="px-3 py-2 text-sm hover:bg-accent cursor-pointer flex flex-col"
+                            onClick={() => { setSelectedCustomer(c); setCustomerResults([]); setCustomerSearch(''); }}
+                          >
+                            <span className="font-medium">{c.name}</span>
+                            <span className="text-xs text-muted-foreground">{c.email || c.whatsapp}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {searchLoading && customerSearch.trim() && (
+                      <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg p-3 text-sm text-muted-foreground text-center">
+                        Mencari...
+                      </div>
+                    )}
                   </div>
                   <Button
                     variant="outline"
@@ -532,19 +562,6 @@ const MerchantDashboard = () => {
                     Daftar Customer Baru
                   </Button>
                 </>
-              )}
-              {customerResults.length > 0 && !selectedCustomer && !showNewCustomerForm && (
-                <div className="border rounded space-y-1 max-h-32 overflow-auto">
-                  {customerResults.map(c => (
-                    <div
-                      key={c.id}
-                      className="p-2 text-sm hover:bg-muted cursor-pointer"
-                      onClick={() => { setSelectedCustomer(c); setCustomerResults([]); }}
-                    >
-                      {c.name} - {c.email || c.whatsapp}
-                    </div>
-                  ))}
-                </div>
               )}
             </div>
 
