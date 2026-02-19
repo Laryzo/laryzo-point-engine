@@ -50,11 +50,17 @@ const MerchantDashboard = () => {
   // Settings state
   const [settingsBusinessName, setSettingsBusinessName] = useState('');
   const [settingsBusinessAddress, setSettingsBusinessAddress] = useState('');
+  const [settingsEmail, setSettingsEmail] = useState('');
+  const [settingsWhatsapp, setSettingsWhatsapp] = useState('');
   const [settingsLogoUrl, setSettingsLogoUrl] = useState('');
   const [settingsLogoFile, setSettingsLogoFile] = useState<File | null>(null);
   const [settingsLogoPreview, setSettingsLogoPreview] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
   const [merchantData, setMerchantData] = useState<any>(null);
+
+  // Password change state
+  const [newPassword, setNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const isSuperAdmin = merchant?.merchant_role === 'super_admin';
 
@@ -63,8 +69,8 @@ const MerchantDashboard = () => {
     fetchTransactions();
     if (isSuperAdmin) {
       fetchEmployees();
-      fetchMerchantData();
     }
+    fetchMerchantData();
   }, [isSuperAdmin]);
 
   const fetchProducts = async () => {
@@ -142,6 +148,8 @@ const MerchantDashboard = () => {
       setMerchantData(data);
       setSettingsBusinessName(data.business_name || '');
       setSettingsBusinessAddress(data.business_address || '');
+      setSettingsEmail(data.email || '');
+      setSettingsWhatsapp(data.whatsapp || '');
       setSettingsLogoUrl(data.logo_url || '');
       setSettingsLogoPreview(data.logo_url || '');
     }
@@ -180,6 +188,8 @@ const MerchantDashboard = () => {
         .update({
           business_name: settingsBusinessName,
           business_address: settingsBusinessAddress,
+          email: settingsEmail,
+          whatsapp: settingsWhatsapp || null,
           logo_url: logoUrl,
         })
         .eq('id', merchant.id);
@@ -194,6 +204,23 @@ const MerchantDashboard = () => {
       toast({ title: 'Gagal menyimpan', description: error.message, variant: 'destructive' });
     }
     setSavingSettings(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast({ title: 'Password minimal 6 karakter', variant: 'destructive' });
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast({ title: 'Password berhasil diubah' });
+      setNewPassword('');
+    } catch (error: any) {
+      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+    }
+    setChangingPassword(false);
   };
   const searchCustomer = async () => {
     if (!customerSearch.trim()) return;
@@ -638,6 +665,7 @@ const MerchantDashboard = () => {
           <TableRow>
             <TableHead>Tanggal</TableHead>
             <TableHead>Produk</TableHead>
+            <TableHead>Customer</TableHead>
             <TableHead>Qty</TableHead>
             <TableHead>Total</TableHead>
             <TableHead>Fee Laryzo</TableHead>
@@ -650,6 +678,7 @@ const MerchantDashboard = () => {
             <TableRow key={t.id}>
               <TableCell className="text-sm">{new Date(t.created_at).toLocaleDateString('id-ID')}</TableCell>
               <TableCell className="font-medium">{t.product_name}</TableCell>
+              <TableCell className="text-sm">{t.customer_name || '-'}</TableCell>
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
               <TableCell className="text-muted-foreground">Rp {Number(t.laryzo_fee).toLocaleString()}</TableCell>
@@ -688,7 +717,7 @@ const MerchantDashboard = () => {
           ))}
           {transactions.length === 0 && (
             <TableRow>
-              <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">Belum ada transaksi</TableCell>
+              <TableCell colSpan={isSuperAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">Belum ada transaksi</TableCell>
             </TableRow>
           )}
         </TableBody>
@@ -837,35 +866,37 @@ const MerchantDashboard = () => {
     <div className="p-4 md:p-6 space-y-6 max-w-2xl">
       <h2 className="text-xl font-bold">Pengaturan Toko</h2>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Logo Toko</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <label className="relative w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer group overflow-hidden bg-muted">
-              {settingsLogoPreview ? (
-                <>
-                  <img src={settingsLogoPreview} alt="Logo" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ImagePlus className="h-6 w-6 text-white" />
+      {isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Logo Toko</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <label className="relative w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer group overflow-hidden bg-muted">
+                {settingsLogoPreview ? (
+                  <>
+                    <img src={settingsLogoPreview} alt="Logo" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ImagePlus className="h-6 w-6 text-white" />
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center">
+                    <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Upload</span>
                   </div>
-                </>
-              ) : (
-                <div className="text-center">
-                  <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Upload</span>
-                </div>
-              )}
-              <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
-            </label>
-            <div className="text-sm text-muted-foreground">
-              <p>Klik untuk upload logo toko.</p>
-              <p>Format: JPG, PNG. Maks 2MB.</p>
+                )}
+                <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+              </label>
+              <div className="text-sm text-muted-foreground">
+                <p>Klik untuk upload logo toko.</p>
+                <p>Format: JPG, PNG. Maks 2MB.</p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -878,6 +909,26 @@ const MerchantDashboard = () => {
               value={settingsBusinessName}
               onChange={e => setSettingsBusinessName(e.target.value)}
               placeholder="Nama toko / bisnis Anda"
+              disabled={!isSuperAdmin}
+            />
+          </div>
+          <div>
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={settingsEmail}
+              onChange={e => setSettingsEmail(e.target.value)}
+              placeholder="Email toko / bisnis"
+              disabled={!isSuperAdmin}
+            />
+          </div>
+          <div>
+            <Label>WhatsApp</Label>
+            <Input
+              value={settingsWhatsapp}
+              onChange={e => setSettingsWhatsapp(e.target.value)}
+              placeholder="Nomor WhatsApp (contoh: 08123...)"
+              disabled={!isSuperAdmin}
             />
           </div>
           <div>
@@ -887,14 +938,44 @@ const MerchantDashboard = () => {
               onChange={e => setSettingsBusinessAddress(e.target.value)}
               placeholder="Alamat lengkap toko / bisnis"
               rows={3}
+              disabled={!isSuperAdmin}
             />
           </div>
         </CardContent>
       </Card>
 
-      <Button onClick={handleSaveSettings} disabled={savingSettings} className="w-full sm:w-auto">
-        {savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan'}
-      </Button>
+      {isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Ubah Password</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Password Baru</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Minimal 6 karakter"
+                minLength={6}
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleChangePassword}
+              disabled={changingPassword || !newPassword}
+            >
+              {changingPassword ? 'Mengubah...' : 'Ubah Password'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {isSuperAdmin && (
+        <Button onClick={handleSaveSettings} disabled={savingSettings} className="w-full sm:w-auto">
+          {savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan'}
+        </Button>
+      )}
     </div>
   );
 
@@ -903,7 +984,7 @@ const MerchantDashboard = () => {
       case 'products': return renderProducts();
       case 'history': return renderHistory();
       case 'employees': return isSuperAdmin ? renderEmployees() : renderPOS();
-      case 'settings': return isSuperAdmin ? renderSettings() : renderPOS();
+      case 'settings': return renderSettings();
       default: return renderPOS();
     }
   };
@@ -955,14 +1036,12 @@ const MerchantDashboard = () => {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
-                  {isSuperAdmin && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton onClick={() => setActiveView('settings')} className={activeView === 'settings' ? 'bg-accent' : ''}>
-                        <Settings className="h-4 w-4" />
-                        <span>Pengaturan Toko</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => setActiveView('settings')} className={activeView === 'settings' ? 'bg-accent' : ''}>
+                      <Settings className="h-4 w-4" />
+                      <span>Pengaturan Toko</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

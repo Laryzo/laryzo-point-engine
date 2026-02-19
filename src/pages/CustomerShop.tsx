@@ -541,26 +541,56 @@ const CustomerShop = () => {
             Produk Mitra
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {merchantProducts.map((mp: any) => (
-              <Card key={mp.id} className="overflow-hidden">
-                <CardContent className="p-0">
-                  {mp.image_url ? (
-                    <img src={mp.image_url} alt={mp.name} className="w-full h-28 object-cover" />
-                  ) : (
-                    <div className="w-full h-28 bg-muted flex items-center justify-center">
-                      <Package className="h-8 w-8 text-muted-foreground" />
+            {merchantProducts.map((mp: any) => {
+              const pointPrice = Number(mp.point_price) || 0;
+              const canBuyWithPoints = pointPrice > 0;
+              return (
+                <Card
+                  key={mp.id}
+                  className={`overflow-hidden ${canBuyWithPoints ? 'cursor-pointer hover:shadow-md hover:border-primary/50 transition-all' : ''}`}
+                  onClick={() => {
+                    if (canBuyWithPoints) {
+                      setSelectedProduct({
+                        id: mp.id,
+                        name: mp.name,
+                        description: mp.description || '',
+                        type: 'merchant',
+                        ppob_type: '',
+                        point_price: pointPrice,
+                        requires_input: '',
+                        image_url: mp.image_url || '',
+                        stock: mp.stock,
+                        requires_shipping: false,
+                      } as Product);
+                    }
+                  }}
+                >
+                  <CardContent className="p-0">
+                    {mp.image_url ? (
+                      <img src={mp.image_url} alt={mp.name} className="w-full h-28 object-cover" />
+                    ) : (
+                      <div className="w-full h-28 bg-muted flex items-center justify-center">
+                        <Package className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <p className="font-medium text-sm truncate">{mp.name}</p>
+                      {canBuyWithPoints ? (
+                        <div className="flex items-center gap-1 text-primary font-bold text-sm">
+                          <Coins className="h-3 w-3" />
+                          <span>{formatNumber(pointPrice)} poin</span>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-primary font-bold">Rp {Number(mp.price).toLocaleString()}</p>
+                      )}
+                      <Badge variant="outline" className="text-[10px] mt-1">
+                        {mp.merchants?.business_name || mp.merchants?.name || 'Mitra'}
+                      </Badge>
                     </div>
-                  )}
-                  <div className="p-3">
-                    <p className="font-medium text-sm truncate">{mp.name}</p>
-                    <p className="text-sm text-primary font-bold">Rp {Number(mp.price).toLocaleString()}</p>
-                    <Badge variant="outline" className="text-[10px] mt-1">
-                      {mp.merchants?.business_name || mp.merchants?.name || 'Mitra'}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
