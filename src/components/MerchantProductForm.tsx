@@ -19,7 +19,7 @@ interface MerchantProductFormProps {
 const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSuccess }: MerchantProductFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', costPrice: '', stock: '-1', pointPrice: '0' });
+  const [form, setForm] = useState({ name: '', description: '', costPrice: '', stock: '-1' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -35,12 +35,11 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         description: product.description || '',
         costPrice: String(product.cost_price ?? Math.round(Number(product.price ?? 0) * 0.95)),
         stock: String(product.stock ?? '-1'),
-        pointPrice: String(product.point_price ?? 0),
       });
       setImagePreview(product.image_url || null);
       setImageFile(null);
     } else if (open && !product) {
-      setForm({ name: '', description: '', costPrice: '', stock: '-1', pointPrice: '0' });
+      setForm({ name: '', description: '', costPrice: '', stock: '-1' });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -76,7 +75,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         imageUrl = urlData.publicUrl;
       }
 
-      const pointPriceNum = Number(form.pointPrice) || 0;
+      const pointPriceNum = 0;
 
       if (isEdit) {
         const updateData: any = {
@@ -162,11 +161,6 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
             <Label>Harga Jual (Rp) — sudah termasuk 5% fee admin</Label>
             <Input type="number" value={sellingPrice || ''} readOnly className="bg-muted" />
             <p className="text-xs text-muted-foreground">Otomatis dihitung: Harga Asli ÷ 0.95, dibulatkan ke atas per Rp 500</p>
-          </div>
-          <div className="space-y-2">
-            <Label>Harga Poin (untuk belanja poin customer)</Label>
-            <Input type="number" value={form.pointPrice} onChange={e => setForm({ ...form, pointPrice: e.target.value })} min="0" />
-            <p className="text-xs text-muted-foreground">Set 0 jika tidak dijual dengan poin</p>
           </div>
           <div className="space-y-2">
             <Label>Stok (-1 = unlimited)</Label>
