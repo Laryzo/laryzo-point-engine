@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
       .from("orders")
       .insert({
         customer_id: customerId,
-        product_id: product_id,
+        // product_id is null for merchant products (FK references products table, not merchant_products)
         points_used: pointPrice,
         points_earned: 0,
         status: "processing",
