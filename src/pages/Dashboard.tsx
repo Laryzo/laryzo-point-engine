@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3 } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins } from 'lucide-react';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
@@ -18,6 +18,7 @@ import ProductManagement from '@/pages/ProductManagement';
 import OrderManagement from '@/pages/OrderManagement';
 import SystemSettings from '@/pages/SystemSettings';
 import MerchantManagement from '@/components/MerchantManagement';
+import PointHistoryManagement from '@/components/PointHistoryManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -103,6 +104,8 @@ const Dashboard = () => {
         return <ProductManagement isSuperAdmin={isSuperAdmin} />;
       case 'orders':
         return <OrderManagement isSuperAdmin={isSuperAdmin} />;
+      case 'point-history':
+        return <PointHistoryManagement isSuperAdmin={isSuperAdmin} />;
       case 'settings':
         return isSuperAdmin ? <SystemSettings /> : null;
       case 'tree':
@@ -373,6 +376,17 @@ const Dashboard = () => {
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
+                        onClick={() => setActiveView('point-history')}
+                        className={activeView === 'point-history' ? 'bg-accent' : ''}
+                      >
+                        <Coins className="h-4 w-4" />
+                        <span>Riwayat Poin</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
                         onClick={() => setActiveView('settings')}
                         className={activeView === 'settings' ? 'bg-accent' : ''}
                       >
@@ -409,6 +423,7 @@ const Dashboard = () => {
                  activeView === 'products' ? 'Products' :
                  activeView === 'orders' ? 'Orders' :
                  activeView === 'merchants' ? 'Mitra' :
+                 activeView === 'point-history' ? 'Riwayat Poin' :
                  activeView === 'settings' ? 'Settings' :
                  'Dashboard'}
               </h1>

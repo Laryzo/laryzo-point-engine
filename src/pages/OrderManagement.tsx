@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Truck, CheckCircle, Loader2, Undo2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, Truck, CheckCircle, Loader2, Undo2, Trash2, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
@@ -59,6 +59,23 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Edit order state
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [editForm, setEditForm] = useState({
+    status: '',
+    input_value: '',
+    shipping_address: '',
+    tracking_number: '',
+    shipping_status: '',
+    admin_notes: '',
+    points_used: 0,
+    points_earned: 0,
+    digiflazz_sn: '',
+    digiflazz_status: '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const PAGE_SIZE = 20;
 
@@ -241,6 +258,54 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
     setShowDeleteConfirm(true);
   };
 
+  const openEditDialog = (order: Order) => {
+    setEditingOrder(order);
+    setEditForm({
+      status: order.status,
+      input_value: order.input_value || '',
+      shipping_address: order.shipping_address || '',
+      tracking_number: order.tracking_number || '',
+      shipping_status: order.shipping_status || '',
+      admin_notes: order.admin_notes || '',
+      points_used: order.points_used,
+      points_earned: order.points_earned,
+      digiflazz_sn: order.digiflazz_sn || '',
+      digiflazz_status: order.digiflazz_status || '',
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingOrder) return;
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: editForm.status,
+          input_value: editForm.input_value || null,
+          shipping_address: editForm.shipping_address || null,
+          tracking_number: editForm.tracking_number || null,
+          shipping_status: editForm.shipping_status || null,
+          admin_notes: editForm.admin_notes || null,
+          points_used: editForm.points_used,
+          points_earned: editForm.points_earned,
+          digiflazz_sn: editForm.digiflazz_sn || null,
+          digiflazz_status: editForm.digiflazz_status || null,
+        })
+        .eq('id', editingOrder.id);
+
+      if (error) throw error;
+      toast({ title: 'Order berhasil diperbarui' });
+      setShowEditDialog(false);
+      setEditingOrder(null);
+      fetchOrders();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+    setSavingEdit(false);
+  };
+
   const deleteOrder = async () => {
     if (!deletingOrder) return;
 
@@ -397,6 +462,16 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
+                                onClick={() => openEditDialog(order)}
+                                title="Edit Order"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {isSuperAdmin && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
                                 disabled={processingOrder === order.id}
                                 onClick={() => openDeleteConfirm(order)}
                                 title="Hapus Order"
@@ -477,6 +552,16 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
                             )}
                             {order.status === 'completed' && (
                               <CheckCircle className="w-4 h-4 text-green-500" />
+                            )}
+                            {isSuperAdmin && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => openEditDialog(order)}
+                                title="Edit Order"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
                             )}
                             {isSuperAdmin && (
                               <Button 
@@ -641,6 +726,78 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Order Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Order</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={editForm.status} onValueChange={v => setEditForm({...editForm, status: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Digiflazz Status</Label>
+                <Input value={editForm.digiflazz_status} onChange={e => setEditForm({...editForm, digiflazz_status: e.target.value})} placeholder="sukses/pending/gagal" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Poin Digunakan</Label>
+                <Input type="number" value={editForm.points_used} onChange={e => setEditForm({...editForm, points_used: Number(e.target.value)})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Poin Earned</Label>
+                <Input type="number" value={editForm.points_earned} onChange={e => setEditForm({...editForm, points_earned: Number(e.target.value)})} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Nomor Tujuan / Input</Label>
+              <Input value={editForm.input_value} onChange={e => setEditForm({...editForm, input_value: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>SN / Token</Label>
+              <Input value={editForm.digiflazz_sn} onChange={e => setEditForm({...editForm, digiflazz_sn: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Alamat Pengiriman</Label>
+              <Textarea value={editForm.shipping_address} onChange={e => setEditForm({...editForm, shipping_address: e.target.value})} rows={2} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nomor Resi</Label>
+                <Input value={editForm.tracking_number} onChange={e => setEditForm({...editForm, tracking_number: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Status Pengiriman</Label>
+                <Input value={editForm.shipping_status} onChange={e => setEditForm({...editForm, shipping_status: e.target.value})} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Catatan Admin</Label>
+              <Textarea value={editForm.admin_notes} onChange={e => setEditForm({...editForm, admin_notes: e.target.value})} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Batal</Button>
+            <Button onClick={handleSaveEdit} disabled={savingEdit}>
+              {savingEdit ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
