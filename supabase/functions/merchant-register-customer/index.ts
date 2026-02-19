@@ -7,7 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-// Generate random alphanumeric password
 function generatePassword(length = 8): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
   let result = ''
@@ -17,7 +16,6 @@ function generatePassword(length = 8): string {
   return result
 }
 
-// BFS to find next available slot in binary tree
 async function findAvailableSlot(supabase: any): Promise<{ parent_id: string | null; position: string | null }> {
   const { data: allCustomers, error } = await supabase
     .from('customers')
@@ -28,7 +26,6 @@ async function findAvailableSlot(supabase: any): Promise<{ parent_id: string | n
     return { parent_id: null, position: null }
   }
 
-  // Build children map
   const childrenMap = new Map<string, { left: boolean; right: boolean }>()
   for (const c of allCustomers) {
     if (c.parent_id) {
@@ -41,7 +38,6 @@ async function findAvailableSlot(supabase: any): Promise<{ parent_id: string | n
     }
   }
 
-  // BFS from roots
   const roots = allCustomers.filter(c => !c.parent_id)
   const queue = [...roots]
 
@@ -49,16 +45,10 @@ async function findAvailableSlot(supabase: any): Promise<{ parent_id: string | n
     const current = queue.shift()!
     const children = childrenMap.get(current.id) || { left: false, right: false }
 
-    if (!children.left) {
-      return { parent_id: current.id, position: 'left' }
-    }
-    if (!children.right) {
-      return { parent_id: current.id, position: 'right' }
-    }
+    if (!children.left) return { parent_id: current.id, position: 'left' }
+    if (!children.right) return { parent_id: current.id, position: 'right' }
 
-    // Add children to queue in order
     const childNodes = allCustomers.filter(c => c.parent_id === current.id)
-    // left first, then right
     const leftChild = childNodes.find(c => c.position === 'left')
     const rightChild = childNodes.find(c => c.position === 'right')
     if (leftChild) queue.push(leftChild)
@@ -66,6 +56,48 @@ async function findAvailableSlot(supabase: any): Promise<{ parent_id: string | n
   }
 
   return { parent_id: null, position: null }
+}
+
+// Send welcome email with login credentials
+async function sendCredentialEmail(
+  recipientEmail: string,
+  customerName: string,
+  customerEmail: string,
+  password: string,
+  merchantName: string
+): Promise<void> {
+  const resendKey = Deno.env.get('RESEND_API_KEY')
+  if (!resendKey) {
+    console.log('RESEND_API_KEY not set, skipping email')
+    return
+  }
+
+  try {
+    const { Resend } = await import('npm:resend@2.0.0')
+    const resend = new Resend(resendKey)
+
+    await resend.emails.send({
+      from: 'Laryzo <no-reply@laryzo.com>',
+      to: recipientEmail,
+      subject: `Akun Laryzo Baru - ${customerName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+          <h2 style="color: #ea580c;">🎉 Selamat Datang di Laryzo!</h2>
+          <p>Akun baru telah dibuat oleh <strong>${merchantName}</strong>:</p>
+          <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+            <p><strong>Nama:</strong> ${customerName}</p>
+            <p><strong>Email:</strong> ${customerEmail}</p>
+            <p><strong>Password:</strong> ${password}</p>
+          </div>
+          <p>Silakan login di portal Laryzo menggunakan kredensial di atas.</p>
+          <p style="color: #999; font-size: 12px;">Harap segera ubah password Anda setelah login pertama.</p>
+        </div>
+      `,
+    })
+    console.log(`Credential email sent to ${recipientEmail}`)
+  } catch (e) {
+    console.error('Failed to send credential email:', e)
+  }
 }
 
 Deno.serve(async (req) => {
@@ -79,7 +111,6 @@ Deno.serve(async (req) => {
   )
 
   try {
-    // Verify caller is authenticated merchant
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(
@@ -98,7 +129,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Check if caller is merchant
     const { data: merchantAuth, error: merchantError } = await supabase
       .from('merchant_auth')
       .select('id, merchant_id')
@@ -112,6 +142,16 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Get merchant info for email
+    const { data: merchantInfo } = await supabase
+      .from('merchants')
+      .select('name, business_name, email')
+      .eq('id', merchantAuth.merchant_id)
+      .single()
+
+    const merchantDisplayName = merchantInfo?.business_name || merchantInfo?.name || 'Mitra Laryzo'
+    const merchantEmail = merchantInfo?.email || null
+
     const { name, email, whatsapp } = await req.json()
 
     if (!name || !email || !whatsapp) {
@@ -123,7 +163,7 @@ Deno.serve(async (req) => {
 
     const sanitizedEmail = email.toLowerCase().trim()
 
-    // Check if customer already exists by email or whatsapp
+    // Check if customer already exists
     const { data: existingByEmail } = await supabase
       .from('customers')
       .select('id, name, email, whatsapp, points')
@@ -150,14 +190,11 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Find available slot in binary tree (BFS)
     const { parent_id, position } = await findAvailableSlot(supabase)
 
-    // Generate password
     const plainPassword = generatePassword(8)
     const hashedPassword = await bcrypt.hash(plainPassword, 10)
 
-    // Create customer
     const { data: newCustomer, error: insertError } = await supabase
       .from('customers')
       .insert({
@@ -173,7 +210,6 @@ Deno.serve(async (req) => {
 
     if (insertError) throw insertError
 
-    // Create customer_auth
     const { error: authInsertError } = await supabase
       .from('customer_auth')
       .insert({
@@ -186,7 +222,6 @@ Deno.serve(async (req) => {
       console.error('Error creating customer_auth:', authInsertError)
     }
 
-    // Create Supabase Auth user
     const { error: authUserError } = await supabase.auth.admin.createUser({
       email: sanitizedEmail,
       password: plainPassword,
@@ -196,6 +231,14 @@ Deno.serve(async (req) => {
 
     if (authUserError && !authUserError.message.includes('already been registered')) {
       console.error('Auth user creation error:', authUserError)
+    }
+
+    // Send credential emails (non-blocking)
+    // 1. Send to customer
+    sendCredentialEmail(sanitizedEmail, name.trim(), sanitizedEmail, plainPassword, merchantDisplayName)
+    // 2. Send to merchant if they have an email
+    if (merchantEmail) {
+      sendCredentialEmail(merchantEmail, name.trim(), sanitizedEmail, plainPassword, merchantDisplayName)
     }
 
     console.log(`New customer registered from merchant POS: ${name} (${sanitizedEmail}) by merchant ${merchantAuth.merchant_id}`)

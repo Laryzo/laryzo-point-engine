@@ -303,6 +303,7 @@ export type Database = {
           is_active: boolean
           merchant_id: string
           name: string
+          point_price: number | null
           price: number
           stock: number
           updated_at: string
@@ -316,6 +317,7 @@ export type Database = {
           is_active?: boolean
           merchant_id: string
           name: string
+          point_price?: number | null
           price?: number
           stock?: number
           updated_at?: string
@@ -329,6 +331,7 @@ export type Database = {
           is_active?: boolean
           merchant_id?: string
           name?: string
+          point_price?: number | null
           price?: number
           stock?: number
           updated_at?: string
@@ -347,6 +350,7 @@ export type Database = {
         Row: {
           created_at: string
           customer_id: string | null
+          customer_name: string | null
           customer_points_earned: number
           id: string
           laryzo_fee: number
@@ -362,6 +366,7 @@ export type Database = {
         Insert: {
           created_at?: string
           customer_id?: string | null
+          customer_name?: string | null
           customer_points_earned?: number
           id?: string
           laryzo_fee?: number
@@ -377,6 +382,7 @@ export type Database = {
         Update: {
           created_at?: string
           customer_id?: string | null
+          customer_name?: string | null
           customer_points_earned?: number
           id?: string
           laryzo_fee?: number

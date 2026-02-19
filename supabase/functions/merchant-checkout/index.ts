@@ -40,11 +40,16 @@ Deno.serve(async (req) => {
 
     // Fetch customer tree data if customer selected
     let customerMap = new Map<string, any>()
+    let customerName: string | null = null
     if (customer_id) {
       const { data: allCustomers } = await supabase
         .from('customers')
         .select('id, name, parent_id, points_blocked')
       allCustomers?.forEach(c => customerMap.set(c.id, c))
+      const selectedCustomer = customerMap.get(customer_id)
+      if (selectedCustomer) {
+        customerName = selectedCustomer.name
+      }
     }
 
     const POINT_PERCENTAGE = 0.01
@@ -63,6 +68,7 @@ Deno.serve(async (req) => {
         merchant_id: merchantId,
         product_id,
         customer_id: customer_id || null,
+        customer_name: customerName,
         product_name,
         price,
         qty,
@@ -74,7 +80,6 @@ Deno.serve(async (req) => {
       if (mtError) throw mtError
 
       // 2. Insert into main transactions table (so it shows in admin panel)
-      // margin stored per-unit so dashboard calculation (margin * qty) works correctly
       const marginPerUnit = fee / qty
 
       const { data: txData, error: txError } = await supabase.from('transactions').insert({
@@ -91,10 +96,9 @@ Deno.serve(async (req) => {
 
       // 3. Distribute points if customer is selected
       if (customer_id && fee > 0) {
-        const pointsPerLevel = fee * POINT_PERCENTAGE // 1% of fee for each level
+        const pointsPerLevel = fee * POINT_PERCENTAGE
         const pointRecords: any[] = []
 
-        // Level 0: self points
         const selfCustomer = customerMap.get(customer_id)
         if (selfCustomer && !selfCustomer.points_blocked) {
           pointRecords.push({
@@ -107,7 +111,6 @@ Deno.serve(async (req) => {
           })
         }
 
-        // Levels 1-10: upline points
         let currentCustomerId = customer_id
         for (let level = 1; level <= MAX_UPLINE_LEVELS; level++) {
           const current = customerMap.get(currentCustomerId)
@@ -127,7 +130,6 @@ Deno.serve(async (req) => {
           currentCustomerId = current.parent_id
         }
 
-        // Insert all point records (trigger will update customer points)
         if (pointRecords.length > 0) {
           const { error: phError } = await supabase.from('point_history').insert(pointRecords)
           if (phError) {

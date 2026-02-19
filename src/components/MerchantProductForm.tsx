@@ -12,37 +12,35 @@ interface MerchantProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   merchantId: string;
-  product?: any; // null = create mode, object = edit mode
+  product?: any;
   onSuccess: () => void;
 }
 
 const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSuccess }: MerchantProductFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', costPrice: '', stock: '-1' });
+  const [form, setForm] = useState({ name: '', description: '', costPrice: '', stock: '-1', pointPrice: '0' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const isEdit = !!product;
 
-  // Calculate selling price = cost + 10% fee, rounded up to nearest 500
   const costNum = Number(form.costPrice) || 0;
   const sellingPrice = Math.ceil((costNum * 1.1) / 500) * 500;
 
   useEffect(() => {
     if (open && product) {
-      // Use stored cost_price directly, fallback to reverse calculation for old data
-      const costPrice = product.cost_price ?? Math.round(Number(product.price ?? 0) / 1.1);
       setForm({
         name: product.name || '',
         description: product.description || '',
         costPrice: String(product.cost_price ?? Math.round(Number(product.price ?? 0) / 1.1)),
         stock: String(product.stock ?? '-1'),
+        pointPrice: String(product.point_price ?? 0),
       });
       setImagePreview(product.image_url || null);
       setImageFile(null);
     } else if (open && !product) {
-      setForm({ name: '', description: '', costPrice: '', stock: '-1' });
+      setForm({ name: '', description: '', costPrice: '', stock: '-1', pointPrice: '0' });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -63,7 +61,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
     e.preventDefault();
     setLoading(true);
     try {
-      let imageUrl: string | null | undefined = undefined; // undefined = no change
+      let imageUrl: string | null | undefined = undefined;
 
       if (imageFile) {
         const ext = imageFile.name.split('.').pop();
@@ -78,6 +76,8 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         imageUrl = urlData.publicUrl;
       }
 
+      const pointPriceNum = Number(form.pointPrice) || 0;
+
       if (isEdit) {
         const updateData: any = {
           name: form.name,
@@ -85,6 +85,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
           price: sellingPrice,
           cost_price: costNum,
           stock: Number(form.stock),
+          point_price: pointPriceNum,
         };
         if (imageUrl !== undefined) {
           updateData.image_url = imageUrl;
@@ -103,6 +104,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
           cost_price: costNum,
           stock: Number(form.stock),
           image_url: imageUrl ?? null,
+          point_price: pointPriceNum,
         });
         if (error) throw error;
         toast({ title: 'Produk ditambahkan!' });
@@ -160,6 +162,11 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
             <Label>Harga Jual (Rp) — termasuk 10% fee</Label>
             <Input type="number" value={sellingPrice || ''} readOnly className="bg-muted" />
             <p className="text-xs text-muted-foreground">Otomatis dihitung: Harga Asli + 10%</p>
+          </div>
+          <div className="space-y-2">
+            <Label>Harga Poin (untuk belanja poin customer)</Label>
+            <Input type="number" value={form.pointPrice} onChange={e => setForm({ ...form, pointPrice: e.target.value })} min="0" />
+            <p className="text-xs text-muted-foreground">Set 0 jika tidak dijual dengan poin</p>
           </div>
           <div className="space-y-2">
             <Label>Stok (-1 = unlimited)</Label>
