@@ -158,7 +158,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
             <Input type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} required min="0" />
           </div>
           <div className="space-y-2">
-            <Label>Harga Jual (Rp) — sudah termasuk 5% fee admin</Label>
+            <Label>Harga Jual (Rp) — selisih dengan harga asli = margin Laryzo</Label>
             <Input type="number" value={sellingPrice || ''} readOnly className="bg-muted" />
             <p className="text-xs text-muted-foreground">Otomatis dihitung: Harga Asli ÷ 0.95, dibulatkan ke atas per Rp 500</p>
           </div>

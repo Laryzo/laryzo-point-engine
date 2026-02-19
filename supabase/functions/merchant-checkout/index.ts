@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     for (const item of items) {
       const { product_id, product_name, price, qty, stock, cost_price } = item
       const total = price * qty
-      const fee = total * 0.05 // 5% fee for Laryzo (margin)
+      const fee = (price - (cost_price || 0)) * qty // Margin Laryzo = selisih harga jual - harga asli
       const pointsPerCustomer = fee * POINT_PERCENTAGE // 1% of fee per eligible customer
       const customerPoints = customer_id ? pointsPerCustomer : 0
 
