@@ -1,40 +1,83 @@
 
-# Perbaiki Rumus Harga Jual Produk Mitra
 
-## Masalah
-Rumus saat ini: `harga_jual = harga_asli * 1.1` (markup 10%)
-- Contoh: Harga asli 15.000 → 15.000 * 1.1 = 16.500
+# Fase 1: Database & Scaling — Fondasi SuperApp Laryzo
 
-Ini **salah** karena fee 10% dihitung dari harga jual, bukan dari harga asli. Artinya harga asli harus = harga jual - 10% dari harga jual = harga jual * 0.9.
+## Ringkasan
+Memperkuat fondasi database dan performa aplikasi dengan memperluas tabel `orders`, menambahkan index, menerapkan pagination, dan mengoptimalkan dashboard agar siap untuk ekspansi modul delivery, wallet, dan marketplace.
 
-## Rumus yang Benar
-`harga_jual = harga_asli / 0.9`, dibulatkan ke atas per 500.
-- Contoh: 15.000 / 0.9 = 16.666,67 → dibulatkan ke 17.000
+## Perubahan yang Dilakukan
 
-## Perubahan
+### 1. Migrasi Database
 
-### 1. `src/components/MerchantProductForm.tsx`
-- **Baris 29** — Ubah rumus harga jual:
-  - Dari: `Math.ceil((costNum * 1.1) / 500) * 500`
-  - Ke: `Math.ceil((costNum / 0.9) / 500) * 500`
-- **Baris 36** — Ubah rumus balik (reverse) saat edit produk:
-  - Dari: `Math.round(Number(product.price ?? 0) / 1.1)`
-  - Ke: `Math.round(Number(product.price ?? 0) * 0.9)`
-- Update label/keterangan: "Harga Asli + 10% fee" menjadi penjelasan yang lebih akurat
+Tambahkan kolom baru pada tabel `orders` yang sudah ada (TANPA membuat tabel baru):
 
-### 2. `supabase/functions/merchant-checkout/index.ts`
-- **Baris 62** — Fee tetap `total * 0.1` (10% dari harga jual). Ini sudah benar karena fee memang dihitung dari harga jual.
-- Tidak perlu diubah.
+```text
+orders (kolom baru):
+  + order_type       TEXT DEFAULT 'ppob'    -- 'ppob' | 'food' | 'product'
+  + delivery_type    TEXT DEFAULT 'none'    -- 'none' | 'pickup' | 'external_ojol'
+  + delivery_status  TEXT                   -- 'waiting_driver' | 'picked_up' | 'delivered'
+  + merchant_id      UUID (nullable, FK -> merchants.id)
+  + pickup_address   TEXT (nullable)
+  + delivery_address TEXT (nullable)
+  + delivery_notes   TEXT (nullable)
+```
 
-## Contoh Perhitungan Baru
+Tambahkan index performa:
+- `idx_orders_created_at` pada `orders(created_at DESC)`
+- `idx_orders_status` pada `orders(status)`
+- `idx_orders_merchant_id` pada `orders(merchant_id)` 
+- `idx_orders_order_type` pada `orders(order_type)`
+- `idx_merchant_transactions_merchant_id` pada `merchant_transactions(merchant_id)`
+- `idx_merchant_transactions_created_at` pada `merchant_transactions(created_at DESC)`
 
-| Harga Asli | Harga Jual (sebelum) | Harga Jual (sesudah) |
-|-----------|---------------------|---------------------|
-| 10.000 | 11.000 | 11.500 |
-| 15.000 | 16.500 | 17.000 |
-| 20.000 | 22.000 | 22.500 |
+Persiapan tabel wallet (struktur saja, belum aktif):
+- `wallet_balances` — `id, user_id, user_type, balance, updated_at`
+- `wallet_transactions` — `id, wallet_id, amount, type (debit/credit), reference_order_id, description, created_at`
+
+### 2. Optimasi Admin Dashboard (`src/pages/Dashboard.tsx`)
+
+Saat ini dashboard mengambil SEMUA data (`select('*')`) untuk menghitung statistik. Akan diubah menjadi:
+- Gunakan `select('id', { count: 'exact', head: true })` untuk menghitung total tanpa mengunduh semua baris
+- Tambahkan filter tanggal hari ini untuk statistik harian
+- Tambahkan kartu: "Order Hari Ini", "Rasio PPOB vs UMKM", "Merchant Aktif"
+
+### 3. Optimasi Merchant Dashboard (`src/pages/MerchantDashboard.tsx`)
+
+- Limit transaksi dari 100 menjadi 10 di halaman utama POS
+- Tambahkan statistik ringkas: total pendapatan hari ini, jumlah order hari ini
+- Tampilkan hanya 10 order terakhir di riwayat
+
+### 4. Pagination pada Order Management (`src/pages/OrderManagement.tsx`)
+
+- Terapkan pagination server-side (20 order per halaman)
+- Tambahkan navigasi halaman (Previous/Next)
+- Ganti `fetchOrders` dari mengambil semua menjadi mengambil per halaman dengan `.range()`
+
+### 5. Migrasi Data Existing
+
+Semua order yang sudah ada akan otomatis mendapat `order_type = 'ppob'` dan `delivery_type = 'none'` dari DEFAULT value, sehingga tidak ada data yang rusak.
+
+---
 
 ## Detail Teknis
-- 2 baris kode di 1 file frontend yang perlu diubah
-- Edge function checkout tidak perlu diubah (fee calculation sudah benar)
-- Produk yang sudah ada di database tidak berubah otomatis; merchant perlu edit ulang jika ingin harga baru
+
+### File yang Diubah
+| File | Perubahan |
+|------|-----------|
+| `supabase/migrations/` (baru) | Migrasi SQL: kolom baru, index, tabel wallet |
+| `src/pages/Dashboard.tsx` | Optimasi query stats, tambah kartu analytics harian |
+| `src/pages/MerchantDashboard.tsx` | Limit query, tambah stats ringkas harian |
+| `src/pages/OrderManagement.tsx` | Pagination server-side 20/halaman |
+| `src/integrations/supabase/types.ts` | Auto-update dari migrasi |
+
+### Yang TIDAK Diubah
+- Flow PPOB (Digiflazz) tetap utuh
+- Flow checkout merchant-checkout tetap utuh
+- Autentikasi admin/customer/merchant tetap sama
+- RLS policies existing tidak dimodifikasi (hanya tambah policy untuk kolom baru jika diperlukan)
+
+### RLS untuk Wallet (Persiapan)
+- `wallet_balances`: user hanya bisa baca milik sendiri
+- `wallet_transactions`: user hanya bisa baca milik sendiri
+- Admin bisa baca semua
+
