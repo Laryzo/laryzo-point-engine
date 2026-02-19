@@ -86,7 +86,7 @@ const MerchantDashboard = () => {
       .from('merchant_transactions')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(10);
     setTransactions(data || []);
   };
 

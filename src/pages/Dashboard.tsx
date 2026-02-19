@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3 } from 'lucide-react';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
@@ -31,6 +31,10 @@ const Dashboard = () => {
     totalOrders: 0,
     pendingOrders: 0,
     completedOrders: 0,
+    todayOrders: 0,
+    todayPpob: 0,
+    todayUmkm: 0,
+    activeMerchants: 0,
   });
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
@@ -42,22 +46,45 @@ const Dashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const [customersRes, transactionsRes, ordersRes] = await Promise.all([
-        supabase.from('customers').select('*'),
-        supabase.from('transactions').select('*'),
-        supabase.from('orders').select('*'),
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+
+      const [
+        customersRes,
+        transactionsRes,
+        ordersCountRes,
+        pendingRes,
+        completedRes,
+        todayOrdersRes,
+        todayPpobRes,
+        todayUmkmRes,
+        merchantsRes,
+      ] = await Promise.all([
+        supabase.from('customers').select('id', { count: 'exact', head: true }),
+        supabase.from('transactions').select('margin, qty'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['pending', 'processing']),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayISO),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayISO).eq('order_type', 'ppob'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayISO).in('order_type', ['food', 'product']),
+        supabase.from('merchants').select('id', { count: 'exact', head: true }).eq('is_active', true),
       ]);
 
       const totalRevenue = transactionsRes.data?.reduce((sum, t) => sum + (Number(t.margin) || 0) * (t.qty || 0), 0) || 0;
-      const orders = ordersRes.data || [];
 
       setStats({
-        totalCustomers: customersRes.data?.length || 0,
+        totalCustomers: customersRes.count || 0,
         totalTransactions: transactionsRes.data?.length || 0,
         totalRevenue,
-        totalOrders: orders.length,
-        pendingOrders: orders.filter(o => o.status === 'pending' || o.status === 'processing').length,
-        completedOrders: orders.filter(o => o.status === 'completed').length,
+        totalOrders: ordersCountRes.count || 0,
+        pendingOrders: pendingRes.count || 0,
+        completedOrders: completedRes.count || 0,
+        todayOrders: todayOrdersRes.count || 0,
+        todayPpob: todayPpobRes.count || 0,
+        todayUmkm: todayUmkmRes.count || 0,
+        activeMerchants: merchantsRes.count || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -189,6 +216,46 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-green-600">{stats.completedOrders}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Daily Analytics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Order Hari Ini</CardTitle>
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-primary">{stats.todayOrders}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">PPOB Hari Ini</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.todayPpob}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">UMKM Hari Ini</CardTitle>
+                  <Store className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.todayUmkm}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Merchant Aktif</CardTitle>
+                  <Store className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.activeMerchants}</div>
                 </CardContent>
               </Card>
             </div>

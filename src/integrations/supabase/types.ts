@@ -463,11 +463,18 @@ export type Database = {
           admin_notes: string | null
           created_at: string
           customer_id: string
+          delivery_address: string | null
+          delivery_notes: string | null
+          delivery_status: string | null
+          delivery_type: string
           digiflazz_message: string | null
           digiflazz_sn: string | null
           digiflazz_status: string | null
           id: string
           input_value: string | null
+          merchant_id: string | null
+          order_type: string
+          pickup_address: string | null
           points_earned: number
           points_used: number
           processed_at: string | null
@@ -483,11 +490,18 @@ export type Database = {
           admin_notes?: string | null
           created_at?: string
           customer_id: string
+          delivery_address?: string | null
+          delivery_notes?: string | null
+          delivery_status?: string | null
+          delivery_type?: string
           digiflazz_message?: string | null
           digiflazz_sn?: string | null
           digiflazz_status?: string | null
           id?: string
           input_value?: string | null
+          merchant_id?: string | null
+          order_type?: string
+          pickup_address?: string | null
           points_earned?: number
           points_used?: number
           processed_at?: string | null
@@ -503,11 +517,18 @@ export type Database = {
           admin_notes?: string | null
           created_at?: string
           customer_id?: string
+          delivery_address?: string | null
+          delivery_notes?: string | null
+          delivery_status?: string | null
+          delivery_type?: string
           digiflazz_message?: string | null
           digiflazz_sn?: string | null
           digiflazz_status?: string | null
           id?: string
           input_value?: string | null
+          merchant_id?: string | null
+          order_type?: string
+          pickup_address?: string | null
           points_earned?: number
           points_used?: number
           processed_at?: string | null
@@ -525,6 +546,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
             referencedColumns: ["id"]
           },
           {
@@ -758,6 +786,85 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_balances: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          user_type?: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_order_id: string | null
+          type: string
+          wallet_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_order_id?: string | null
+          type?: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_order_id?: string | null
+          type?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_reference_order_id_fkey"
+            columns: ["reference_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_reference_order_id_fkey"
+            columns: ["reference_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_customer_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_balances"
             referencedColumns: ["id"]
           },
         ]
