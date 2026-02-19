@@ -393,6 +393,27 @@ const CustomerShop = () => {
     setOrderLoading(true);
 
     try {
+      // Merchant product purchase uses dedicated edge function
+      if (selectedProduct.type === 'merchant') {
+        const { data: result, error: fnError } = await supabase.functions.invoke('merchant-product-purchase', {
+          body: { product_id: selectedProduct.id },
+        });
+
+        if (fnError) throw new Error(fnError.message || 'Gagal memproses pembelian');
+        if (result && !result.success) throw new Error(result.error || 'Gagal memproses pembelian');
+
+        toast({
+          title: 'Pembelian Berhasil! 🎉',
+          description: `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(selectedProduct.point_price)} poin`,
+        });
+
+        await refreshCustomer();
+        setSelectedProduct(null);
+        setInputValue('');
+        setShippingAddress('');
+        return;
+      }
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert([{
