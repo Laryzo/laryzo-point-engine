@@ -406,6 +406,7 @@ const MerchantDashboard = () => {
   };
 
   const cartTotal = cart.reduce((sum, c) => sum + c.product.price * c.qty, 0);
+  const pendingDeliveryCount = deliveryOrders.filter(o => o.delivery_status !== 'delivered' && o.status !== 'completed').length;
   const laryzoFee = Math.round(cartTotal * 0.1);
   const customerPointsEarned = Math.round(laryzoFee * 0.01);
 
@@ -1336,6 +1337,11 @@ const MerchantDashboard = () => {
                     <SidebarMenuButton onClick={() => setActiveView('delivery')} className={activeView === 'delivery' ? 'bg-accent' : ''}>
                       <Truck className="h-4 w-4" />
                       <span>Pengiriman</span>
+                      {pendingDeliveryCount > 0 && (
+                        <Badge variant="destructive" className="ml-auto h-5 min-w-[20px] px-1.5 text-xs">
+                          {pendingDeliveryCount}
+                        </Badge>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   {isSuperAdmin && (
