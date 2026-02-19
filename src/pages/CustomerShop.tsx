@@ -411,7 +411,12 @@ const CustomerShop = () => {
       // Merchant product purchase uses dedicated edge function
       if (selectedProduct.type === 'merchant') {
         const { data: result, error: fnError } = await supabase.functions.invoke('merchant-product-purchase', {
-          body: { product_id: selectedProduct.id },
+          body: { 
+            product_id: selectedProduct.id,
+            delivery_type: deliveryType,
+            delivery_address: deliveryType === 'external_ojol' ? deliveryAddress : null,
+            delivery_notes: deliveryNotes || null,
+          },
         });
 
         if (fnError) throw new Error(fnError.message || 'Gagal memproses pembelian');
