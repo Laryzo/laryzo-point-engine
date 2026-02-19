@@ -77,7 +77,7 @@ async function sendCredentialEmail(
     const resend = new Resend(resendKey)
 
     await resend.emails.send({
-      from: 'Laryzo <no-reply@laryzo.com>',
+      from: 'Laryzo <no-reply@laryzo.biz.id>',
       to: recipientEmail,
       subject: `Akun Laryzo Baru - ${customerName}`,
       html: `

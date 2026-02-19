@@ -119,7 +119,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email with token
     const emailResponse = await resend.emails.send({
-      from: "Laryzo <onboarding@resend.dev>",
+      from: "Laryzo <no-reply@laryzo.biz.id>",
       to: [email],
       subject: "Reset Password - Laryzo Point Engine",
       html: `

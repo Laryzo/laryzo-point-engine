@@ -95,7 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email with the associated email address
     const emailResponse = await resend.emails.send({
-      from: "Laryzo <onboarding@resend.dev>",
+      from: "Laryzo <no-reply@laryzo.biz.id>",
       to: [customer.email],
       subject: "Email Recovery - Laryzo Point Engine",
       html: `
