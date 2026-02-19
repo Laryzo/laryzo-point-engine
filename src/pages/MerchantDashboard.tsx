@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2, Users, Shield, User, Settings, ImagePlus, UserPlus } from 'lucide-react';
+import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2, Users, Shield, User, Settings, ImagePlus, UserPlus, Truck, Copy, CheckCircle, Clock, MapPin } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import MerchantProductForm from '@/components/MerchantProductForm';
@@ -62,6 +62,10 @@ const MerchantDashboard = () => {
   const [newPassword, setNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // Delivery orders state
+  const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
+
   const isSuperAdmin = merchant?.merchant_role === 'super_admin';
 
   useEffect(() => {
@@ -71,6 +75,7 @@ const MerchantDashboard = () => {
       fetchEmployees();
     }
     fetchMerchantData();
+    fetchDeliveryOrders();
   }, [isSuperAdmin]);
 
   const fetchProducts = async () => {
@@ -153,6 +158,47 @@ const MerchantDashboard = () => {
       setSettingsLogoUrl(data.logo_url || '');
       setSettingsLogoPreview(data.logo_url || '');
     }
+  };
+
+  const fetchDeliveryOrders = async () => {
+    if (!merchant?.id) return;
+    setDeliveryLoading(true);
+    const { data } = await supabase
+      .from('orders')
+      .select('*, customers(name, whatsapp), products(name)')
+      .eq('merchant_id', merchant.id)
+      .in('delivery_type', ['pickup', 'external_ojol'])
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setDeliveryOrders(data || []);
+    setDeliveryLoading(false);
+  };
+
+  const handleUpdateDeliveryStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const updateData: any = { delivery_status: newStatus };
+      if (newStatus === 'delivered') {
+        updateData.status = 'completed';
+        updateData.processed_at = new Date().toISOString();
+      }
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId);
+      if (error) throw error;
+      toast({ title: 'Status pengiriman diperbarui' });
+      fetchDeliveryOrders();
+    } catch (error: any) {
+      toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: `${label} disalin!`, description: text });
+    }).catch(() => {
+      toast({ title: 'Gagal menyalin', variant: 'destructive' });
+    });
   };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -993,10 +1039,126 @@ const MerchantDashboard = () => {
     </div>
   );
 
+  const getDeliveryStatusBadge = (status: string | null) => {
+    switch (status) {
+      case 'waiting_driver': return <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" />Menunggu Driver</Badge>;
+      case 'picked_up': return <Badge className="gap-1 bg-blue-600"><Truck className="h-3 w-3" />Dijemput</Badge>;
+      case 'delivered': return <Badge className="gap-1 bg-green-600"><CheckCircle className="h-3 w-3" />Terkirim</Badge>;
+      default: return <Badge variant="secondary">-</Badge>;
+    }
+  };
+
+  const renderDelivery = () => (
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Pesanan Pengiriman</h2>
+        <Button variant="outline" size="sm" onClick={fetchDeliveryOrders} disabled={deliveryLoading}>
+          {deliveryLoading ? 'Memuat...' : 'Refresh'}
+        </Button>
+      </div>
+
+      {deliveryOrders.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Truck className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>Belum ada pesanan pengiriman</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {deliveryOrders.map((order: any) => (
+            <Card key={order.id}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold">{order.products?.name || 'Produk'}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Customer: {order.customers?.name || '-'} {order.customers?.whatsapp ? `(${order.customers.whatsapp})` : ''}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant={order.delivery_type === 'external_ojol' ? 'default' : 'secondary'}>
+                      {order.delivery_type === 'external_ojol' ? '🏍️ Ojol' : '🏬 Pickup'}
+                    </Badge>
+                    {getDeliveryStatusBadge(order.delivery_status)}
+                  </div>
+                </div>
+
+                {order.delivery_type === 'external_ojol' && order.delivery_address && (
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">📍 Alamat Pengiriman</p>
+                        <p className="text-sm">{order.delivery_address}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => copyToClipboard(order.delivery_address, 'Alamat')}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Salin
+                      </Button>
+                    </div>
+                    {order.delivery_notes && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">📝 Catatan Driver</p>
+                        <p className="text-sm">{order.delivery_notes}</p>
+                      </div>
+                    )}
+                    {merchantData?.business_address && (
+                      <div className="flex items-start justify-between gap-2 pt-2 border-t">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">🏪 Alamat Pickup (Toko Anda)</p>
+                          <p className="text-sm">{merchantData.business_address}</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => copyToClipboard(merchantData.business_address, 'Alamat Toko')}
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          Salin
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {order.delivery_status !== 'delivered' && (
+                  <div className="flex gap-2 pt-2">
+                    {order.delivery_status === 'waiting_driver' && (
+                      <Button size="sm" variant="outline" onClick={() => handleUpdateDeliveryStatus(order.id, 'picked_up')}>
+                        <Truck className="h-3 w-3 mr-1" />
+                        Driver Sudah Jemput
+                      </Button>
+                    )}
+                    {(order.delivery_status === 'waiting_driver' || order.delivery_status === 'picked_up') && (
+                      <Button size="sm" onClick={() => handleUpdateDeliveryStatus(order.id, 'delivered')}>
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Sudah Diterima
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeView) {
       case 'products': return renderProducts();
       case 'history': return renderHistory();
+      case 'delivery': return renderDelivery();
       case 'employees': return isSuperAdmin ? renderEmployees() : renderPOS();
       case 'settings': return renderSettings();
       default: return renderPOS();
@@ -1042,6 +1204,12 @@ const MerchantDashboard = () => {
                       <span>Riwayat</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => setActiveView('delivery')} className={activeView === 'delivery' ? 'bg-accent' : ''}>
+                      <Truck className="h-4 w-4" />
+                      <span>Pengiriman</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton onClick={() => setActiveView('employees')} className={activeView === 'employees' ? 'bg-accent' : ''}>
@@ -1073,7 +1241,7 @@ const MerchantDashboard = () => {
           <div className="border-b bg-card p-4 flex items-center gap-4">
             <SidebarTrigger />
             <h1 className="text-xl font-semibold">
-              {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : activeView === 'employees' ? 'Kelola Karyawan' : activeView === 'settings' ? 'Pengaturan Toko' : 'POS / Kasir'}
+              {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : activeView === 'delivery' ? 'Pengiriman' : activeView === 'employees' ? 'Kelola Karyawan' : activeView === 'settings' ? 'Pengaturan Toko' : 'POS / Kasir'}
             </h1>
           </div>
           <div className="flex-1 overflow-auto">
