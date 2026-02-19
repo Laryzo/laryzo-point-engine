@@ -241,9 +241,10 @@ Deno.serve(async (req) => {
     // Send credential emails (non-blocking)
     // 1. Send to customer
     sendCredentialEmail(sanitizedEmail, name.trim(), sanitizedEmail, plainPassword, merchantDisplayName)
-    // 2. Send to merchant if they have an email
+    // 2. Send to merchant if they have an email (password masked)
     if (merchantEmail) {
-      sendCredentialEmail(merchantEmail, name.trim(), sanitizedEmail, plainPassword, merchantDisplayName)
+      const maskedPassword = '*'.repeat(plainPassword.length)
+      sendCredentialEmail(merchantEmail, name.trim(), sanitizedEmail, maskedPassword, merchantDisplayName)
     }
 
     console.log(`New customer registered from merchant POS: ${name} (${sanitizedEmail}) by merchant ${merchantAuth.merchant_id}`)
