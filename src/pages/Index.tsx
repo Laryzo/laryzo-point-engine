@@ -2,11 +2,13 @@
 import { Button } from "@/components/ui/button";
 import { Store } from "lucide-react";
 import { Link } from "react-router-dom";
+import laryzoLogo from "@/assets/laryzo-logo.png";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
+        <img src={laryzoLogo} alt="Laryzo Logo" className="w-32 h-32 mx-auto mb-4 object-contain" />
         <h1 className="text-4xl md:text-6xl font-bold mb-12 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
           Laryzo
         </h1>
