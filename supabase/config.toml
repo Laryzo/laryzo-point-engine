@@ -71,6 +71,3 @@ verify_jwt = false
 
 [functions.merchant-employee]
 verify_jwt = false
-
-[functions.merchant-point-purchase]
-verify_jwt = false

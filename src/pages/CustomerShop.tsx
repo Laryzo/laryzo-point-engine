@@ -393,27 +393,6 @@ const CustomerShop = () => {
     setOrderLoading(true);
 
     try {
-      // Merchant product purchase - use dedicated edge function
-      if (selectedProduct.type === 'merchant') {
-        const { data, error } = await supabase.functions.invoke('merchant-point-purchase', {
-          body: { product_id: selectedProduct.id },
-        });
-
-        if (error) throw new Error(error.message || 'Gagal memproses pembelian');
-        if (data?.error) throw new Error(data.error);
-
-        toast({
-          title: 'Pembelian Berhasil!',
-          description: data?.message || `Berhasil membeli ${selectedProduct.name}`,
-        });
-
-        await refreshCustomer();
-        setSelectedProduct(null);
-        fetchMerchantProducts();
-        return;
-      }
-
-      // Regular product purchase (PPOB / physical)
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert([{
