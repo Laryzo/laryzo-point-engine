@@ -770,7 +770,7 @@ const CustomerShop = () => {
 
       {/* Order Dialog */}
       <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto overscroll-contain">
           <DialogHeader>
             <DialogTitle>{selectedProduct?.name}</DialogTitle>
             <DialogDescription>
