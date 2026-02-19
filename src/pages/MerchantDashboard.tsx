@@ -66,6 +66,9 @@ const MerchantDashboard = () => {
   const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
 
+  // Daily stats state
+  const [dailyStats, setDailyStats] = useState({ todayRevenue: 0, todayOrders: 0 });
+
   const isSuperAdmin = merchant?.merchant_role === 'super_admin';
 
   useEffect(() => {
@@ -76,7 +79,20 @@ const MerchantDashboard = () => {
     }
     fetchMerchantData();
     fetchDeliveryOrders();
+    fetchDailyStats();
   }, [isSuperAdmin]);
+
+  const fetchDailyStats = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayISO = today.toISOString();
+    const { data } = await supabase
+      .from('merchant_transactions')
+      .select('total')
+      .gte('created_at', todayISO);
+    const todayRevenue = data?.reduce((sum, t) => sum + Number(t.total || 0), 0) || 0;
+    setDailyStats({ todayRevenue, todayOrders: data?.length || 0 });
+  };
 
   const fetchProducts = async () => {
     const { data } = await supabase
@@ -385,6 +401,7 @@ const MerchantDashboard = () => {
       setNotes('');
       fetchProducts();
       fetchTransactions();
+      fetchDailyStats();
     } catch (error: any) {
       toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
     }
@@ -446,7 +463,24 @@ const MerchantDashboard = () => {
   };
 
   const renderPOS = () => (
-    <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Daily Stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium">Pendapatan Hari Ini</p>
+            <p className="text-xl font-bold text-primary">Rp {dailyStats.todayRevenue.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium">Order Hari Ini</p>
+            <p className="text-xl font-bold">{dailyStats.todayOrders}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Product Grid */}
       <div className="lg:col-span-2 space-y-4">
         <h2 className="text-xl font-bold">Pilih Produk</h2>
@@ -629,8 +663,22 @@ const MerchantDashboard = () => {
           </CardContent>
         </Card>
       </div>
+      </div>
     </div>
   );
+
+  const generateGoogleMapsLink = (address: string) => {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  };
+
+  const generateWhatsAppDriverLink = (order: any) => {
+    const merchantName = merchantData?.business_name || merchantData?.name || 'Toko';
+    const pickupAddr = merchantData?.business_address || '-';
+    const destAddr = order.delivery_address || '-';
+    const note = order.delivery_notes || '-';
+    const message = `Halo driver, pickup pesanan Laryzo:\n\nToko: ${merchantName}\nPickup: ${pickupAddr}\nTujuan: ${destAddr}\nCatatan: ${note}`;
+    return `https://wa.me/?text=${encodeURIComponent(message)}`;
+  };
 
   const renderProducts = () => (
     <div className="p-4 md:p-6 space-y-4">
@@ -1116,17 +1164,50 @@ const MerchantDashboard = () => {
                           <p className="text-xs font-medium text-muted-foreground mb-1">🏪 Alamat Pickup (Toko Anda)</p>
                           <p className="text-sm">{merchantData.business_address}</p>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="shrink-0"
-                          onClick={() => copyToClipboard(merchantData.business_address, 'Alamat Toko')}
-                        >
-                          <Copy className="h-3 w-3 mr-1" />
-                          Salin
-                        </Button>
+                        <div className="flex gap-1 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyToClipboard(merchantData.business_address, 'Alamat Toko')}
+                          >
+                            <Copy className="h-3 w-3 mr-1" />
+                            Salin
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                          >
+                            <a href={generateGoogleMapsLink(merchantData.business_address)} target="_blank" rel="noopener noreferrer">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              Maps
+                            </a>
+                          </Button>
+                        </div>
                       </div>
                     )}
+                    {/* Google Maps link for delivery address */}
+                    <div className="flex gap-2 pt-2 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                      >
+                        <a href={generateGoogleMapsLink(order.delivery_address)} target="_blank" rel="noopener noreferrer">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          Maps Tujuan
+                        </a>
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        asChild
+                      >
+                        <a href={generateWhatsAppDriverLink(order)} target="_blank" rel="noopener noreferrer">
+                          📱 Hubungi Driver
+                        </a>
+                      </Button>
+                    </div>
                   </div>
                 )}
 
