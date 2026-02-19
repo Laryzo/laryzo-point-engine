@@ -562,28 +562,25 @@ const CustomerShop = () => {
             Produk Mitra
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {merchantProducts.map((mp: any) => {
-              const pointPrice = Number(mp.point_price) || 0;
-              const canBuyWithPoints = pointPrice > 0;
+          {merchantProducts.map((mp: any) => {
+              const sellingPrice = Number(mp.price) || 0;
               return (
                 <Card
                   key={mp.id}
-                  className={`overflow-hidden ${canBuyWithPoints ? 'cursor-pointer hover:shadow-md hover:border-primary/50 transition-all' : ''}`}
+                  className="overflow-hidden cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
                   onClick={() => {
-                    if (canBuyWithPoints) {
-                      setSelectedProduct({
-                        id: mp.id,
-                        name: mp.name,
-                        description: mp.description || '',
-                        type: 'merchant',
-                        ppob_type: '',
-                        point_price: pointPrice,
-                        requires_input: '',
-                        image_url: mp.image_url || '',
-                        stock: mp.stock,
-                        requires_shipping: false,
-                      } as Product);
-                    }
+                    setSelectedProduct({
+                      id: mp.id,
+                      name: mp.name,
+                      description: mp.description || '',
+                      type: 'merchant',
+                      ppob_type: '',
+                      point_price: sellingPrice,
+                      requires_input: '',
+                      image_url: mp.image_url || '',
+                      stock: mp.stock,
+                      requires_shipping: false,
+                    } as Product);
                   }}
                 >
                   <CardContent className="p-0">
@@ -596,14 +593,10 @@ const CustomerShop = () => {
                     )}
                     <div className="p-3">
                       <p className="font-medium text-sm truncate">{mp.name}</p>
-                      {canBuyWithPoints ? (
-                        <div className="flex items-center gap-1 text-primary font-bold text-sm">
-                          <Coins className="h-3 w-3" />
-                          <span>{formatNumber(pointPrice)} poin</span>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-primary font-bold">Rp {Number(mp.price).toLocaleString()}</p>
-                      )}
+                      <div className="flex items-center gap-1 text-primary font-bold text-sm">
+                        <Coins className="h-3 w-3" />
+                        <span>{formatNumber(sellingPrice)} poin</span>
+                      </div>
                       <Badge variant="outline" className="text-[10px] mt-1">
                         {mp.merchants?.business_name || mp.merchants?.name || 'Mitra'}
                       </Badge>

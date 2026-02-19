@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const pointPrice = Number(product.point_price);
+    const pointPrice = Number(product.price);
     if (pointPrice <= 0) {
       return new Response(JSON.stringify({ error: "Product cannot be purchased with points" }), {
         status: 400,
