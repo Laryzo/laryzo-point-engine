@@ -1,0 +1,1 @@
+ALTER TABLE public.point_history ADD COLUMN description text;

@@ -69,6 +69,7 @@ async function distributePoints(
     level: number
     transaction_id: string
     product_code: string
+    description: string
   }> = []
 
   // 1% to customer themselves (level 0)
@@ -79,7 +80,8 @@ async function distributePoints(
     points: customerPoints,
     level: 0,
     transaction_id: orderId,
-    product_code: productCode
+    product_code: productCode,
+    description: `Bonus poin pembelian ${productCode}`
   })
 
   // Get upline chain (up to 10 levels)
@@ -100,7 +102,8 @@ async function distributePoints(
       points: uplinePoints,
       level,
       transaction_id: orderId,
-      product_code: productCode
+      product_code: productCode,
+      description: `Bonus jaringan level ${level}`
     })
 
     currentCustomerId = customer.parent_id
@@ -404,8 +407,9 @@ Deno.serve(async (req) => {
           to_customer: customer.id,
           points: order.points_used,
           level: 0,
-          transaction_id: null, // Don't set transaction_id - orders are not in transactions table
-          product_code: 'REFUND'
+          transaction_id: null,
+          product_code: 'REFUND',
+          description: `Refund poin - transaksi gagal`
         })
         
         if (refundError) {
@@ -446,8 +450,9 @@ Deno.serve(async (req) => {
           to_customer: customer.id,
           points: order.points_used,
           level: 0,
-          transaction_id: null, // Don't set transaction_id - orders are not in transactions table
-          product_code: 'REFUND'
+          transaction_id: null,
+          product_code: 'REFUND',
+          description: `Refund poin - terjadi kesalahan`
         })
         
         if (refundError) {

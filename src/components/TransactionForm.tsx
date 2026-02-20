@@ -62,6 +62,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
         level: 0,
         points: customerPoints,
         product_code: productCode,
+        description: `Bonus poin ${productName || productCode}`,
       });
 
       // Distribute 1% to each upline (up to 10 levels)
@@ -103,6 +104,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
           level: level,
           points: uplinePoints,
           product_code: productCode,
+          description: `Bonus jaringan level ${level}`,
         });
 
         // Move to next level (parent becomes current customer)

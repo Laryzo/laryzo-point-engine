@@ -331,7 +331,10 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
         from_customer: null,
         points: finalAmount,
         product_code: adjustType === 'add' ? 'MANUAL_ADD' : 'MANUAL_SUBTRACT',
-        level: 0
+        level: 0,
+        description: adjustType === 'add' 
+          ? `Penambahan poin manual${adjustReason ? ': ' + adjustReason : ''}` 
+          : `Pengurangan poin manual${adjustReason ? ': ' + adjustReason : ''}`,
       });
 
       if (historyError) throw historyError;

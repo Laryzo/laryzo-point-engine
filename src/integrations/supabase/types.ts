@@ -574,6 +574,7 @@ export type Database = {
       point_history: {
         Row: {
           created_at: string | null
+          description: string | null
           from_customer: string | null
           id: string
           level: number | null
@@ -584,6 +585,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          description?: string | null
           from_customer?: string | null
           id?: string
           level?: number | null
@@ -594,6 +596,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          description?: string | null
           from_customer?: string | null
           id?: string
           level?: number | null

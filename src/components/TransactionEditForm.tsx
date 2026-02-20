@@ -81,6 +81,7 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
         level: 0,
         points: customerPoints,
         product_code: productCode,
+        description: `Bonus poin ${productName || productCode}`,
       });
 
       // Distribute 1% to each upline (up to 10 levels)
@@ -122,6 +123,7 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
           level: level,
           points: uplinePoints,
           product_code: productCode,
+          description: `Bonus jaringan level ${level}`,
         });
 
         // Move to next level (parent becomes current customer)

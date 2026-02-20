@@ -11,6 +11,7 @@ interface PointHistory {
   points: number;
   created_at: string;
   product_code: string;
+  description: string | null;
 }
 
 const CustomerPointHistory = () => {
@@ -117,7 +118,7 @@ const CustomerPointHistory = () => {
                         <Coins className={`h-4 w-4 ${item.points < 0 ? 'text-red-600' : 'text-green-600'}`} />
                       </div>
                       <div>
-                        <p className="font-medium">{item.points < 0 ? 'Penukaran Poin' : 'Poin dari Laryzo'}</p>
+                        <p className="font-medium">{item.description || (item.points < 0 ? 'Penukaran Poin' : 'Poin dari Laryzo')}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(item.created_at)}</p>
                       </div>
                     </div>

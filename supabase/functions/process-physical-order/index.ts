@@ -43,6 +43,7 @@ async function distributePoints(
     level: number
     transaction_id: string
     product_code: string
+    description: string
   }> = []
 
   // 1% to customer themselves (level 0)
@@ -53,7 +54,8 @@ async function distributePoints(
     points: customerPoints,
     level: 0,
     transaction_id: orderId,
-    product_code: productCode
+    product_code: productCode,
+    description: `Bonus poin pembelian ${productCode}`
   })
 
   // Get upline chain (up to 10 levels)
@@ -74,7 +76,8 @@ async function distributePoints(
       points: uplinePoints,
       level,
       transaction_id: orderId,
-      product_code: productCode
+      product_code: productCode,
+      description: `Bonus jaringan level ${level}`
     })
 
     currentCustomerId = customer.parent_id
