@@ -7,7 +7,7 @@ const corsHeaders = {
 
 // Haversine formula to calculate distance between two GPS coordinates
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 +
@@ -25,6 +25,10 @@ function calculateGojekShipping(distanceKm: number): number {
   if (distanceKm <= 12) return 22000;
   return 22000 + Math.ceil(distanceKm - 12) * 3000;
 }
+
+const SHIPPING_FEE_PERCENTAGE = 0.20; // 20% fee from shipping cost = Laryzo margin
+const POINT_PERCENTAGE = 0.01; // 1% per level for point engine
+const MAX_UPLINE_LEVELS = 10;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -99,10 +103,43 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Get merchant info for pickup address and GPS
+    const { data: merchant } = await supabase
+      .from("merchants")
+      .select("business_address, business_name, latitude, longitude")
+      .eq("id", product.merchant_id)
+      .single();
+
+    // Determine delivery fields
+    const effectiveDeliveryType = delivery_type || "none";
+    const effectiveDeliveryStatus = effectiveDeliveryType === "external_ojol" ? "waiting_driver" : null;
+    const pickupAddr = merchant?.business_address || null;
+
+    // Calculate distance and shipping cost if both GPS coordinates available
+    let estimatedDistanceKm: number | null = null;
+    let estimatedShippingCost: number | null = null;
+    let shippingFee = 0; // 20% fee from shipping = Laryzo margin
+
+    if (effectiveDeliveryType === "external_ojol" &&
+        merchant?.latitude && merchant?.longitude &&
+        delivery_latitude && delivery_longitude) {
+      estimatedDistanceKm = Math.round(
+        haversineDistance(
+          Number(merchant.latitude), Number(merchant.longitude),
+          Number(delivery_latitude), Number(delivery_longitude)
+        ) * 10
+      ) / 10;
+      estimatedShippingCost = calculateGojekShipping(estimatedDistanceKm);
+      shippingFee = Math.round(estimatedShippingCost * SHIPPING_FEE_PERCENTAGE); // 20% fee
+    }
+
+    // Total points to deduct = product price + full shipping cost
+    const totalPointsDeducted = pointPrice + (estimatedShippingCost || 0);
+
     // Check customer points
     const { data: customer } = await supabase
       .from("customers")
-      .select("points, points_blocked, name")
+      .select("points, points_blocked, name, parent_id")
       .eq("id", customerId)
       .single();
 
@@ -120,7 +157,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if ((customer.points || 0) < pointPrice) {
+    if ((customer.points || 0) < totalPointsDeducted) {
       return new Response(JSON.stringify({ error: "Poin tidak cukup" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -135,40 +172,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get merchant info for pickup address and GPS
-    const { data: merchant } = await supabase
-      .from("merchants")
-      .select("business_address, business_name, latitude, longitude")
-      .eq("id", product.merchant_id)
-      .single();
-
-    // Determine delivery fields
-    const effectiveDeliveryType = delivery_type || "none";
-    const effectiveDeliveryStatus = effectiveDeliveryType === "external_ojol" ? "waiting_driver" : null;
-    const pickupAddr = merchant?.business_address || null;
-
-    // Calculate distance and shipping cost if both GPS coordinates available
-    let estimatedDistanceKm: number | null = null;
-    let estimatedShippingCost: number | null = null;
-
-    if (effectiveDeliveryType === "external_ojol" &&
-        merchant?.latitude && merchant?.longitude &&
-        delivery_latitude && delivery_longitude) {
-      estimatedDistanceKm = Math.round(
-        haversineDistance(
-          Number(merchant.latitude), Number(merchant.longitude),
-          Number(delivery_latitude), Number(delivery_longitude)
-        ) * 10
-      ) / 10; // Round to 1 decimal
-      estimatedShippingCost = calculateGojekShipping(estimatedDistanceKm);
-    }
-
     // Create order in orders table
     const { data: order, error: orderErr } = await supabase
       .from("orders")
       .insert({
         customer_id: customerId,
-        points_used: pointPrice,
+        points_used: totalPointsDeducted,
         points_earned: 0,
         status: "processing",
         order_type: "food",
@@ -194,25 +203,80 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Deduct points via point_history insert (trigger auto-syncs customer.points)
+    // Deduct total points (product + shipping) via point_history
     const merchantName = merchant?.business_name || 'Merchant';
     const { error: histErr } = await supabase.from("point_history").insert({
       to_customer: customerId,
       from_customer: customerId,
-      points: -pointPrice,
+      points: -totalPointsDeducted,
       product_code: `Beli: ${product.name}`,
       level: 0,
-      description: `Pembelian ${product.name} di ${merchantName}`,
+      description: estimatedShippingCost 
+        ? `Pembelian ${product.name} di ${merchantName} (termasuk ongkir Rp ${estimatedShippingCost.toLocaleString('id-ID')})`
+        : `Pembelian ${product.name} di ${merchantName}`,
     });
 
     if (histErr) {
       console.error("point_history insert error:", histErr);
-      // Rollback order
       await supabase.from("orders").delete().eq("id", order.id);
       return new Response(JSON.stringify({ error: "Gagal mengurangi poin" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Distribute points from 20% shipping fee as Laryzo margin
+    // This fee enters the point engine just like transaction margins
+    if (shippingFee > 0) {
+      const pointsPerLevel = shippingFee * POINT_PERCENTAGE;
+      const pointRecords: any[] = [];
+
+      // Fetch all customers for upline traversal
+      const { data: allCustomers } = await supabase
+        .from("customers")
+        .select("id, parent_id, points_blocked");
+      const customerMap = new Map<string, any>();
+      allCustomers?.forEach((c: any) => customerMap.set(c.id, c));
+
+      // Level 0: self
+      const selfCustomer = customerMap.get(customerId);
+      if (selfCustomer && !selfCustomer.points_blocked) {
+        pointRecords.push({
+          from_customer: customerId,
+          to_customer: customerId,
+          level: 0,
+          points: pointsPerLevel,
+          product_code: `ONGKIR-${product.name.substring(0, 20)}`,
+          description: `Bonus poin ongkir ${product.name}`,
+        });
+      }
+
+      // Levels 1-10: uplines
+      let currentId = customerId;
+      for (let level = 1; level <= MAX_UPLINE_LEVELS; level++) {
+        const current = customerMap.get(currentId);
+        if (!current || !current.parent_id) break;
+        const parent = customerMap.get(current.parent_id);
+        if (parent && !parent.points_blocked) {
+          pointRecords.push({
+            from_customer: customerId,
+            to_customer: current.parent_id,
+            level,
+            points: pointsPerLevel,
+            product_code: `ONGKIR-${product.name.substring(0, 20)}`,
+            description: `Bonus jaringan ongkir level ${level}`,
+          });
+        }
+        currentId = current.parent_id;
+      }
+
+      if (pointRecords.length > 0) {
+        const { error: ptErr } = await supabase.from("point_history").insert(pointRecords);
+        if (ptErr) {
+          console.error("Shipping point distribution error:", ptErr);
+          // Non-fatal: order already created, just log the error
+        }
+      }
     }
 
     // Decrease stock if not unlimited
@@ -228,8 +292,11 @@ Deno.serve(async (req) => {
         success: true,
         message: "Pembelian berhasil",
         order_id: order.id,
+        total_points_used: totalPointsDeducted,
+        product_price: pointPrice,
+        shipping_cost: estimatedShippingCost,
+        shipping_fee_laryzo: shippingFee,
         estimated_distance_km: estimatedDistanceKm,
-        estimated_shipping_cost: estimatedShippingCost,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
