@@ -1357,10 +1357,11 @@ const MerchantDashboard = () => {
 
       {/* Edit Delivery Dialog */}
       <Dialog open={!!editingDelivery} onOpenChange={(open) => !open && setEditingDelivery(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Edit Pesanan Pengiriman</DialogTitle>
           </DialogHeader>
+          <div className="overflow-y-auto flex-1 pr-1">
           <div className="space-y-4">
             <div>
               <Label>Status Order</Label>
@@ -1382,6 +1383,7 @@ const MerchantDashboard = () => {
               <Label>Catatan Driver</Label>
               <Textarea value={editDeliveryForm.delivery_notes} onChange={e => setEditDeliveryForm({...editDeliveryForm, delivery_notes: e.target.value})} rows={2} />
             </div>
+          </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingDelivery(null)}>Batal</Button>
