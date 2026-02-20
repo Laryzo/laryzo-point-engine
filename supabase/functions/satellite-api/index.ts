@@ -342,6 +342,7 @@ Deno.serve(async (req) => {
       level: number
       points: number
       product_code: string
+      description: string
     }> = []
 
     // Give 1% to the customer who made the transaction
@@ -354,6 +355,7 @@ Deno.serve(async (req) => {
       level: 0,
       points: customerPoints,
       product_code: requestData.transaction_data.product_code,
+      description: `Bonus poin ${requestData.transaction_data.product_name || requestData.transaction_data.product_code}`
     })
 
     distributedPoints.push({
@@ -394,6 +396,7 @@ Deno.serve(async (req) => {
             level: level,
             points: uplinePoints,
             product_code: requestData.transaction_data.product_code,
+            description: `Bonus jaringan level ${level}`
           })
 
           distributedPoints.push({

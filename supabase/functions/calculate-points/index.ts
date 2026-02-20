@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     console.log('Fetching transactions...');
     const { data: transactions, error: transactionError } = await supabase
       .from('transactions')
-      .select('id, customer_id, harga_konsumen, harga_pokok, product_code');
+      .select('id, customer_id, harga_konsumen, harga_pokok, product_code, product_name');
 
     if (transactionError) {
       console.error('Error fetching transactions:', transactionError);
@@ -128,7 +128,8 @@ Deno.serve(async (req) => {
           to_customer: transaction.customer_id,
           level: 0,
           points: selfPoints,
-          product_code: transaction.product_code
+          product_code: transaction.product_code,
+          description: `Bonus poin ${transaction.product_name || transaction.product_code || 'transaksi'}`
         });
       }
 
@@ -155,7 +156,8 @@ Deno.serve(async (req) => {
           to_customer: parentId,
           level: level,
           points: uplinePoints,
-          product_code: transaction.product_code
+          product_code: transaction.product_code,
+          description: `Bonus jaringan level ${level}`
         });
 
         currentCustomerId = parentId;

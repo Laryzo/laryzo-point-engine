@@ -183,10 +183,10 @@ const CustomerDashboard = () => {
                 <div key={point.id} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-green-100 rounded-full">
-                      <Coins className="h-4 w-4 text-green-600" />
+                      <Coins className={`h-4 w-4 ${Number(point.points) < 0 ? 'text-red-600' : 'text-green-600'}`} />
                     </div>
                     <div>
-                      <p className="font-medium text-sm">Poin dari Laryzo</p>
+                      <p className="font-medium text-sm">{point.description || (Number(point.points) < 0 ? 'Penukaran Poin' : 'Poin dari Laryzo')}</p>
                       <p className="text-xs text-muted-foreground">{formatDate(point.created_at)}</p>
                     </div>
                   </div>

@@ -155,12 +155,14 @@ Deno.serve(async (req) => {
     }
 
     // Deduct points via point_history insert (trigger auto-syncs customer.points)
+    const merchantName = merchant?.business_name || 'Merchant';
     const { error: histErr } = await supabase.from("point_history").insert({
       to_customer: customerId,
       from_customer: customerId,
       points: -pointPrice,
       product_code: `Beli: ${product.name}`,
       level: 0,
+      description: `Pembelian ${product.name} di ${merchantName}`,
     });
 
     if (histErr) {
