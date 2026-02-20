@@ -803,12 +803,22 @@ const MerchantDashboard = () => {
   };
 
   const generateWhatsAppDriverLink = (order: any) => {
+    const customerName = order.customers?.name || 'Customer';
     const merchantName = merchantData?.business_name || merchantData?.name || 'Toko';
     const pickupAddr = merchantData?.business_address || '-';
+    const merchantLat = merchantData?.latitude;
+    const merchantLng = merchantData?.longitude;
+    const pickupPinPoint = (merchantLat && merchantLng) ? `\nhttps://maps.google.com/?q=${merchantLat},${merchantLng}` : '';
     const destAddr = order.delivery_address || '-';
+    const destLat = order.delivery_latitude;
+    const destLng = order.delivery_longitude;
+    const destPinPoint = (destLat && destLng) ? `\nhttps://maps.google.com/?q=${destLat},${destLng}` : '';
     const note = order.delivery_notes || '-';
-    const ongkir = order.estimated_shipping_cost ? `\nEstimasi Ongkir: ${formatShippingCost(Number(order.estimated_shipping_cost))} (${Number(order.estimated_distance_km)} km)` : '';
-    const message = `Halo driver, pickup pesanan Laryzo:\n\nToko: ${merchantName}\nPickup: ${pickupAddr}\nTujuan: ${destAddr}\nCatatan: ${note}${ongkir}`;
+    // Ongkir after 20% fee deduction (driver receives 80%)
+    const rawOngkir = Number(order.estimated_shipping_cost || 0);
+    const ongkirAfterFee = Math.round(rawOngkir * 0.80);
+    const ongkirLine = rawOngkir > 0 ? `\nEstimasi Ongkir: ${formatShippingCost(ongkirAfterFee)} (${Number(order.estimated_distance_km)} km)` : '';
+    const message = `Halo driver, pickup pesanan ${customerName}:\n\nToko: ${merchantName}\nPickup: ${pickupAddr}${pickupPinPoint}\n\nTujuan: ${destAddr}${destPinPoint}\nCatatan: ${note}${ongkirLine}`;
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   };
 
