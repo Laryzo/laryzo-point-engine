@@ -814,11 +814,14 @@ const MerchantDashboard = () => {
     const destLng = order.delivery_longitude;
     const destPinPoint = (destLat && destLng) ? `\nhttps://maps.google.com/?q=${destLat},${destLng}` : '';
     const note = order.delivery_notes || '-';
+    // Product detail
+    const productName = order.products?.name || 'Produk';
+    const pointsUsed = Number(order.points_used || 0);
     // Ongkir after 20% fee deduction (driver receives 80%)
     const rawOngkir = Number(order.estimated_shipping_cost || 0);
     const ongkirAfterFee = Math.round(rawOngkir * 0.80);
     const ongkirLine = rawOngkir > 0 ? `\nEstimasi Ongkir: ${formatShippingCost(ongkirAfterFee)} (${Number(order.estimated_distance_km)} km)` : '';
-    const message = `Halo driver, pickup pesanan ${customerName}:\n\nToko: ${merchantName}\nPickup: ${pickupAddr}${pickupPinPoint}\n\nTujuan: ${destAddr}${destPinPoint}\nCatatan: ${note}${ongkirLine}`;
+    const message = `Halo driver, pickup pesanan ${customerName}:\n\nDetail pesanan:\n${productName} — ${formatShippingCost(pointsUsed)} poin\n\nPenjemputan\nMerchant: ${merchantName}\nAlamat: ${pickupAddr}${pickupPinPoint}\n\nPengantaran\nTujuan: ${destAddr}${destPinPoint}\nCatatan: ${note}${ongkirLine}`;
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   };
 
@@ -1407,7 +1410,7 @@ const MerchantDashboard = () => {
                       <p className="text-xs font-medium text-muted-foreground mb-1">🚚 Estimasi Ongkir (Standar Gojek)</p>
                       {order.estimated_shipping_cost ? (
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold text-primary">{formatShippingCost(Number(order.estimated_shipping_cost))}</p>
+                          <p className="text-sm font-bold text-primary">{formatShippingCost(Math.round(Number(order.estimated_shipping_cost) * 0.80))}</p>
                           <span className="text-xs text-muted-foreground">({Number(order.estimated_distance_km)} km)</span>
                         </div>
                       ) : (
