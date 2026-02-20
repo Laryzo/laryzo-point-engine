@@ -470,6 +470,8 @@ export type Database = {
           digiflazz_message: string | null
           digiflazz_sn: string | null
           digiflazz_status: string | null
+          estimated_distance_km: number | null
+          estimated_shipping_cost: number | null
           id: string
           input_value: string | null
           merchant_id: string | null
@@ -497,6 +499,8 @@ export type Database = {
           digiflazz_message?: string | null
           digiflazz_sn?: string | null
           digiflazz_status?: string | null
+          estimated_distance_km?: number | null
+          estimated_shipping_cost?: number | null
           id?: string
           input_value?: string | null
           merchant_id?: string | null
@@ -524,6 +528,8 @@ export type Database = {
           digiflazz_message?: string | null
           digiflazz_sn?: string | null
           digiflazz_status?: string | null
+          estimated_distance_km?: number | null
+          estimated_shipping_cost?: number | null
           id?: string
           input_value?: string | null
           merchant_id?: string | null
