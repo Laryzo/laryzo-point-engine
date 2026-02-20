@@ -113,16 +113,17 @@ const CustomerPointHistory = () => {
                 {history.map((item) => (
                   <div key={item.id} className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-100 rounded-full">
-                        <Coins className="h-4 w-4 text-green-600" />
+                      <div className={`p-2 rounded-full ${item.points < 0 ? 'bg-red-100' : 'bg-green-100'}`}>
+                        <Coins className={`h-4 w-4 ${item.points < 0 ? 'text-red-600' : 'text-green-600'}`} />
                       </div>
                       <div>
-                        {/* All incoming points shown as "Poin dari Laryzo" for privacy */}
-                        <p className="font-medium">Poin dari Laryzo</p>
+                        <p className="font-medium">{item.points < 0 ? 'Penukaran Poin' : 'Poin dari Laryzo'}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(item.created_at)}</p>
                       </div>
                     </div>
-                    <span className="font-semibold text-green-600">+{formatNumber(item.points)}</span>
+                    <span className={`font-semibold ${item.points < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {item.points < 0 ? '' : '+'}{formatNumber(item.points)}
+                    </span>
                   </div>
                 ))}
               </div>

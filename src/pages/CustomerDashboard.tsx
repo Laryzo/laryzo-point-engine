@@ -190,7 +190,9 @@ const CustomerDashboard = () => {
                       <p className="text-xs text-muted-foreground">{formatDate(point.created_at)}</p>
                     </div>
                   </div>
-                  <span className="font-semibold text-green-600">+{formatNumber(Number(point.points))}</span>
+                  <span className={`font-semibold ${Number(point.points) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {Number(point.points) < 0 ? '' : '+'}{formatNumber(Number(point.points))}
+                  </span>
                 </div>
               ))
             )}
