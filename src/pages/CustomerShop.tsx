@@ -775,7 +775,7 @@ const CustomerShop = () => {
 
       {/* Order Dialog */}
       <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto overscroll-contain">
+        <DialogContent className="max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>{selectedProduct?.name}</DialogTitle>
             <DialogDescription>
@@ -783,6 +783,7 @@ const CustomerShop = () => {
             </DialogDescription>
           </DialogHeader>
 
+          <div className="overflow-y-auto flex-1 pr-1">
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <span>Harga</span>
@@ -942,6 +943,7 @@ const CustomerShop = () => {
                 Poin Anda tidak cukup. Anda membutuhkan {formatNumber(selectedProduct.point_price - customer.points)} poin lagi.
               </p>
             )}
+          </div>
           </div>
 
           <DialogFooter>
