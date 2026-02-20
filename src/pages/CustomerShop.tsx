@@ -436,10 +436,14 @@ const CustomerShop = () => {
       return;
     }
 
-    if (customer.points < selectedProduct.point_price) {
+    // Calculate total including shipping for merchant products with ojol
+    const shippingCost = (selectedProduct.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
+    const totalPointsNeeded = selectedProduct.point_price + shippingCost;
+
+    if (customer.points < totalPointsNeeded) {
       toast({
         title: 'Poin Tidak Cukup',
-        description: `Anda membutuhkan ${formatNumber(selectedProduct.point_price)} poin untuk produk ini`,
+        description: `Anda membutuhkan ${formatNumber(totalPointsNeeded)} poin (produk + ongkir)`,
         variant: 'destructive',
       });
       return;
@@ -464,9 +468,12 @@ const CustomerShop = () => {
         if (fnError) throw new Error(fnError.message || 'Gagal memproses pembelian');
         if (result && !result.success) throw new Error(result.error || 'Gagal memproses pembelian');
 
+        const totalPaid = selectedProduct.point_price + shippingCost;
         toast({
           title: 'Pembelian Berhasil! 🎉',
-          description: `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(selectedProduct.point_price)} poin`,
+          description: shippingCost > 0 
+            ? `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(totalPaid)} poin (termasuk ongkir ${formatNumber(shippingCost)})`
+            : `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(selectedProduct.point_price)} poin`,
         });
 
         await refreshCustomer();
@@ -1040,11 +1047,17 @@ const CustomerShop = () => {
                     </div>
                     {estimatedDistance !== null && estimatedShipping !== null && (
                       <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                        <p className="text-xs font-medium text-primary mb-1">🚚 Estimasi Ongkir</p>
+                        <p className="text-xs font-medium text-primary mb-1">🚚 Estimasi Ongkir (termasuk dalam total bayar)</p>
                         <div className="flex items-center gap-2">
-                          <p className="text-lg font-bold text-primary">Rp {estimatedShipping.toLocaleString('id-ID')}</p>
+                          <div className="flex items-center gap-1 text-lg font-bold text-primary">
+                            <Coins className="h-4 w-4" />
+                            <span>{formatNumber(estimatedShipping)} poin</span>
+                          </div>
                           <span className="text-xs text-muted-foreground">({estimatedDistance.toFixed(1)} km)</span>
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Total bayar: {formatNumber((selectedProduct?.point_price || 0) + estimatedShipping)} poin (produk + ongkir)
+                        </p>
                       </div>
                     )}
                     <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
@@ -1057,18 +1070,23 @@ const CustomerShop = () => {
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      ⚠️ Ongkos kirim ditanggung pembeli, dibayar langsung ke driver ojol.
+                      💡 Ongkos kirim sudah termasuk dalam total pembayaran poin. Laryzo yang akan membayar driver.
                     </p>
                   </div>
                 )}
               </div>
             )}
 
-            {customer && selectedProduct && customer.points < selectedProduct.point_price && (
-              <p className="text-sm text-destructive">
-                Poin Anda tidak cukup. Anda membutuhkan {formatNumber(selectedProduct.point_price - customer.points)} poin lagi.
-              </p>
-            )}
+            {customer && selectedProduct && (() => {
+              const shippingForCheck = (selectedProduct.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
+              const totalForCheck = selectedProduct.point_price + shippingForCheck;
+              return customer.points < totalForCheck ? (
+                <p className="text-sm text-destructive">
+                  Poin Anda tidak cukup. Anda membutuhkan {formatNumber(totalForCheck - customer.points)} poin lagi.
+                  {shippingForCheck > 0 && ` (Produk: ${formatNumber(selectedProduct.point_price)} + Ongkir: ${formatNumber(shippingForCheck)})`}
+                </p>
+              ) : null;
+            })()}
           </div>
           </div>
 
@@ -1078,9 +1096,16 @@ const CustomerShop = () => {
             </Button>
             <Button 
               onClick={handleOrder} 
-              disabled={orderLoading || (customer && selectedProduct && customer.points < selectedProduct.point_price)}
+              disabled={orderLoading || (customer && selectedProduct && (() => {
+                const sc = (selectedProduct.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
+                return customer.points < (selectedProduct.point_price + sc);
+              })())}
             >
-              {orderLoading ? 'Memproses...' : 'Beli Sekarang'}
+              {orderLoading ? 'Memproses...' : (() => {
+                const sc = (selectedProduct?.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
+                const total = (selectedProduct?.point_price || 0) + sc;
+                return sc > 0 ? `Bayar ${formatNumber(total)} Poin` : 'Beli Sekarang';
+              })()}
             </Button>
           </DialogFooter>
         </DialogContent>
