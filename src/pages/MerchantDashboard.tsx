@@ -15,6 +15,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 
+// Gojek standard shipping cost calculation
+const calculateGojekShipping = (distanceKm: number): number => {
+  if (distanceKm <= 0) return 0;
+  if (distanceKm <= 3) return 10000;
+  if (distanceKm <= 7) return 15000;
+  if (distanceKm <= 12) return 22000;
+  return 22000 + Math.ceil(distanceKm - 12) * 3000;
+};
+
+const formatShippingCost = (cost: number) => `Rp ${cost.toLocaleString('id-ID')}`;
+
 const MerchantDashboard = () => {
   const { merchant, logout } = useMerchantAuth();
   const { toast } = useToast();
@@ -74,6 +85,7 @@ const MerchantDashboard = () => {
     delivery_notes: '',
     delivery_type: '',
     status: '',
+    estimated_distance_km: '',
   });
   const [savingDeliveryEdit, setSavingDeliveryEdit] = useState(false);
   const [deletingDelivery, setDeletingDelivery] = useState<any>(null);
@@ -276,6 +288,7 @@ const MerchantDashboard = () => {
       delivery_notes: order.delivery_notes || '',
       delivery_type: order.delivery_type || '',
       status: order.status || '',
+      estimated_distance_km: order.estimated_distance_km ? String(order.estimated_distance_km) : '',
     });
   };
 
@@ -283,6 +296,8 @@ const MerchantDashboard = () => {
     if (!editingDelivery) return;
     setSavingDeliveryEdit(true);
     try {
+      const distKm = editDeliveryForm.estimated_distance_km ? Number(editDeliveryForm.estimated_distance_km) : null;
+      const shippingCost = distKm ? calculateGojekShipping(distKm) : null;
       const { error } = await supabase
         .from('orders')
         .update({
@@ -291,6 +306,8 @@ const MerchantDashboard = () => {
           delivery_notes: editDeliveryForm.delivery_notes || null,
           delivery_type: editDeliveryForm.delivery_type,
           status: editDeliveryForm.status,
+          estimated_distance_km: distKm,
+          estimated_shipping_cost: shippingCost,
         })
         .eq('id', editingDelivery.id);
       if (error) throw error;
@@ -784,7 +801,8 @@ const MerchantDashboard = () => {
     const pickupAddr = merchantData?.business_address || '-';
     const destAddr = order.delivery_address || '-';
     const note = order.delivery_notes || '-';
-    const message = `Halo driver, pickup pesanan Laryzo:\n\nToko: ${merchantName}\nPickup: ${pickupAddr}\nTujuan: ${destAddr}\nCatatan: ${note}`;
+    const ongkir = order.estimated_shipping_cost ? `\nEstimasi Ongkir: ${formatShippingCost(Number(order.estimated_shipping_cost))} (${Number(order.estimated_distance_km)} km)` : '';
+    const message = `Halo driver, pickup pesanan Laryzo:\n\nToko: ${merchantName}\nPickup: ${pickupAddr}\nTujuan: ${destAddr}\nCatatan: ${note}${ongkir}`;
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   };
 
@@ -1311,6 +1329,62 @@ const MerchantDashboard = () => {
                       </div>
                     )}
 
+                    {/* Estimasi Ongkir */}
+                    <div className="pt-2 border-t">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">🚚 Estimasi Ongkir (Standar Gojek)</p>
+                      {order.estimated_shipping_cost ? (
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-primary">{formatShippingCost(Number(order.estimated_shipping_cost))}</p>
+                          <span className="text-xs text-muted-foreground">({Number(order.estimated_distance_km)} km)</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            placeholder="Jarak (km)"
+                            className="w-28 h-8 text-sm"
+                            min={0}
+                            step={0.5}
+                            onChange={(e) => {
+                              const km = Number(e.target.value);
+                              if (km > 0) {
+                                const cost = calculateGojekShipping(km);
+                                const el = e.target.parentElement?.querySelector('.ongkir-preview') as HTMLElement;
+                                if (el) el.textContent = formatShippingCost(cost);
+                              }
+                            }}
+                            id={`distance-${order.id}`}
+                          />
+                          <span className="ongkir-preview text-sm font-medium text-primary">-</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              const input = document.getElementById(`distance-${order.id}`) as HTMLInputElement;
+                              const km = Number(input?.value);
+                              if (!km || km <= 0) {
+                                toast({ title: 'Masukkan jarak yang valid', variant: 'destructive' });
+                                return;
+                              }
+                              const cost = calculateGojekShipping(km);
+                              const { error } = await supabase.from('orders').update({
+                                estimated_distance_km: km,
+                                estimated_shipping_cost: cost,
+                              }).eq('id', order.id);
+                              if (error) {
+                                toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
+                              } else {
+                                toast({ title: 'Estimasi ongkir tersimpan', description: `${km} km = ${formatShippingCost(cost)}` });
+                                fetchDeliveryOrders();
+                              }
+                            }}
+                          >
+                            Simpan
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Action buttons */}
                     <div className="flex gap-2 pt-2 border-t">
                       {order.delivery_address && (
@@ -1401,6 +1475,22 @@ const MerchantDashboard = () => {
             <div>
               <Label>Catatan Driver</Label>
               <Textarea value={editDeliveryForm.delivery_notes} onChange={e => setEditDeliveryForm({...editDeliveryForm, delivery_notes: e.target.value})} rows={2} />
+            </div>
+            <div>
+              <Label>Estimasi Jarak (km)</Label>
+              <Input
+                type="number"
+                value={editDeliveryForm.estimated_distance_km}
+                onChange={e => setEditDeliveryForm({...editDeliveryForm, estimated_distance_km: e.target.value})}
+                placeholder="Contoh: 5"
+                min={0}
+                step={0.5}
+              />
+              {editDeliveryForm.estimated_distance_km && Number(editDeliveryForm.estimated_distance_km) > 0 && (
+                <p className="text-sm text-primary font-medium mt-1">
+                  Estimasi Ongkir: {formatShippingCost(calculateGojekShipping(Number(editDeliveryForm.estimated_distance_km)))}
+                </p>
+              )}
             </div>
           </div>
           </div>
