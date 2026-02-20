@@ -1243,69 +1243,88 @@ const MerchantDashboard = () => {
                   </div>
                 </div>
 
-                {order.delivery_type === 'external_ojol' && order.delivery_address && (
+                {order.delivery_type === 'external_ojol' && (
                   <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">📍 Alamat Pengiriman</p>
-                        <p className="text-sm">{order.delivery_address}</p>
+                    {/* Pickup Point - Alamat Toko */}
+                    {(() => {
+                      const pickupAddr = order.pickup_address || merchantData?.business_address;
+                      const merchantName = merchantData?.business_name || merchantData?.name || 'Toko';
+                      return (
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">🏪 Pickup Point — {merchantName}</p>
+                            {pickupAddr ? (
+                              <p className="text-sm font-medium">{pickupAddr}</p>
+                            ) : (
+                              <p className="text-sm text-destructive italic">Alamat toko belum diatur. Silakan isi di Pengaturan Toko.</p>
+                            )}
+                          </div>
+                          {pickupAddr && (
+                            <div className="flex gap-1 shrink-0">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyToClipboard(pickupAddr, 'Alamat Pickup')}
+                              >
+                                <Copy className="h-3 w-3 mr-1" />
+                                Salin
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                              >
+                                <a href={generateGoogleMapsLink(pickupAddr)} target="_blank" rel="noopener noreferrer">
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  Maps
+                                </a>
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Alamat Pengiriman (Tujuan) */}
+                    {order.delivery_address && (
+                      <div className="flex items-start justify-between gap-2 pt-2 border-t">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">📍 Alamat Pengiriman (Tujuan)</p>
+                          <p className="text-sm">{order.delivery_address}</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => copyToClipboard(order.delivery_address, 'Alamat Tujuan')}
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          Salin
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() => copyToClipboard(order.delivery_address, 'Alamat')}
-                      >
-                        <Copy className="h-3 w-3 mr-1" />
-                        Salin
-                      </Button>
-                    </div>
+                    )}
+
                     {order.delivery_notes && (
-                      <div>
+                      <div className="pt-2 border-t">
                         <p className="text-xs font-medium text-muted-foreground mb-1">📝 Catatan Driver</p>
                         <p className="text-sm">{order.delivery_notes}</p>
                       </div>
                     )}
-                    {merchantData?.business_address && (
-                      <div className="flex items-start justify-between gap-2 pt-2 border-t">
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-muted-foreground mb-1">🏪 Alamat Pickup (Toko Anda)</p>
-                          <p className="text-sm">{merchantData.business_address}</p>
-                        </div>
-                        <div className="flex gap-1 shrink-0">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyToClipboard(merchantData.business_address, 'Alamat Toko')}
-                          >
-                            <Copy className="h-3 w-3 mr-1" />
-                            Salin
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                          >
-                            <a href={generateGoogleMapsLink(merchantData.business_address)} target="_blank" rel="noopener noreferrer">
-                              <MapPin className="h-3 w-3 mr-1" />
-                              Maps
-                            </a>
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    {/* Google Maps link for delivery address */}
+
+                    {/* Action buttons */}
                     <div className="flex gap-2 pt-2 border-t">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                      >
-                        <a href={generateGoogleMapsLink(order.delivery_address)} target="_blank" rel="noopener noreferrer">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          Maps Tujuan
-                        </a>
-                      </Button>
+                      {order.delivery_address && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                        >
+                          <a href={generateGoogleMapsLink(order.delivery_address)} target="_blank" rel="noopener noreferrer">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            Maps Tujuan
+                          </a>
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         className="bg-green-600 hover:bg-green-700"
