@@ -482,6 +482,7 @@ export type Database = {
           estimated_shipping_cost: number | null
           id: string
           input_value: string | null
+          item_notes: string | null
           merchant_id: string | null
           order_type: string
           pickup_address: string | null
@@ -513,6 +514,7 @@ export type Database = {
           estimated_shipping_cost?: number | null
           id?: string
           input_value?: string | null
+          item_notes?: string | null
           merchant_id?: string | null
           order_type?: string
           pickup_address?: string | null
@@ -544,6 +546,7 @@ export type Database = {
           estimated_shipping_cost?: number | null
           id?: string
           input_value?: string | null
+          item_notes?: string | null
           merchant_id?: string | null
           order_type?: string
           pickup_address?: string | null
@@ -920,11 +923,19 @@ export type Database = {
         Row: {
           created_at: string | null
           customer_id: string | null
+          delivery_address: string | null
+          delivery_notes: string | null
+          delivery_type: string | null
           digiflazz_message: string | null
           digiflazz_sn: string | null
           digiflazz_status: string | null
+          estimated_distance_km: number | null
+          estimated_shipping_cost: number | null
           id: string | null
           input_value: string | null
+          item_notes: string | null
+          merchant_id: string | null
+          order_type: string | null
           points_earned: number | null
           points_used: number | null
           processed_at: string | null
@@ -944,6 +955,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
             referencedColumns: ["id"]
           },
           {
