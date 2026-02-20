@@ -427,7 +427,9 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          latitude: number | null
           logo_url: string | null
+          longitude: number | null
           name: string
           updated_at: string
           whatsapp: string | null
@@ -439,7 +441,9 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          latitude?: number | null
           logo_url?: string | null
+          longitude?: number | null
           name: string
           updated_at?: string
           whatsapp?: string | null
@@ -451,7 +455,9 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          latitude?: number | null
           logo_url?: string | null
+          longitude?: number | null
           name?: string
           updated_at?: string
           whatsapp?: string | null
@@ -464,6 +470,8 @@ export type Database = {
           created_at: string
           customer_id: string
           delivery_address: string | null
+          delivery_latitude: number | null
+          delivery_longitude: number | null
           delivery_notes: string | null
           delivery_status: string | null
           delivery_type: string
@@ -493,6 +501,8 @@ export type Database = {
           created_at?: string
           customer_id: string
           delivery_address?: string | null
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           delivery_notes?: string | null
           delivery_status?: string | null
           delivery_type?: string
@@ -522,6 +532,8 @@ export type Database = {
           created_at?: string
           customer_id?: string
           delivery_address?: string | null
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           delivery_notes?: string | null
           delivery_status?: string | null
           delivery_type?: string

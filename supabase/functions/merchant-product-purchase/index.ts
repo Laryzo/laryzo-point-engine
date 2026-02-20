@@ -2,8 +2,29 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// Haversine formula to calculate distance between two GPS coordinates
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Gojek standard shipping cost
+function calculateGojekShipping(distanceKm: number): number {
+  if (distanceKm <= 0) return 0;
+  if (distanceKm <= 3) return 10000;
+  if (distanceKm <= 7) return 15000;
+  if (distanceKm <= 12) return 22000;
+  return 22000 + Math.ceil(distanceKm - 12) * 3000;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -46,7 +67,7 @@ Deno.serve(async (req) => {
     }
 
     const customerId = custAuth.customer_id;
-    const { product_id, delivery_type, delivery_address, delivery_notes } = await req.json();
+    const { product_id, delivery_type, delivery_address, delivery_notes, delivery_latitude, delivery_longitude } = await req.json();
 
     if (!product_id) {
       return new Response(JSON.stringify({ error: "product_id required" }), {
@@ -114,10 +135,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get merchant info for pickup address
+    // Get merchant info for pickup address and GPS
     const { data: merchant } = await supabase
       .from("merchants")
-      .select("business_address, business_name")
+      .select("business_address, business_name, latitude, longitude")
       .eq("id", product.merchant_id)
       .single();
 
@@ -126,12 +147,27 @@ Deno.serve(async (req) => {
     const effectiveDeliveryStatus = effectiveDeliveryType === "external_ojol" ? "waiting_driver" : null;
     const pickupAddr = merchant?.business_address || null;
 
+    // Calculate distance and shipping cost if both GPS coordinates available
+    let estimatedDistanceKm: number | null = null;
+    let estimatedShippingCost: number | null = null;
+
+    if (effectiveDeliveryType === "external_ojol" &&
+        merchant?.latitude && merchant?.longitude &&
+        delivery_latitude && delivery_longitude) {
+      estimatedDistanceKm = Math.round(
+        haversineDistance(
+          Number(merchant.latitude), Number(merchant.longitude),
+          Number(delivery_latitude), Number(delivery_longitude)
+        ) * 10
+      ) / 10; // Round to 1 decimal
+      estimatedShippingCost = calculateGojekShipping(estimatedDistanceKm);
+    }
+
     // Create order in orders table
     const { data: order, error: orderErr } = await supabase
       .from("orders")
       .insert({
         customer_id: customerId,
-        // product_id is null for merchant products (FK references products table, not merchant_products)
         points_used: pointPrice,
         points_earned: 0,
         status: "processing",
@@ -142,6 +178,10 @@ Deno.serve(async (req) => {
         delivery_status: effectiveDeliveryStatus,
         pickup_address: pickupAddr,
         merchant_id: product.merchant_id,
+        estimated_distance_km: estimatedDistanceKm,
+        estimated_shipping_cost: estimatedShippingCost,
+        delivery_latitude: effectiveDeliveryType === "external_ojol" ? delivery_latitude : null,
+        delivery_longitude: effectiveDeliveryType === "external_ojol" ? delivery_longitude : null,
       })
       .select("id")
       .single();
@@ -184,7 +224,13 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Pembelian berhasil", order_id: order.id }),
+      JSON.stringify({
+        success: true,
+        message: "Pembelian berhasil",
+        order_id: order.id,
+        estimated_distance_km: estimatedDistanceKm,
+        estimated_shipping_cost: estimatedShippingCost,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {

@@ -68,6 +68,8 @@ const MerchantDashboard = () => {
   const [settingsLogoPreview, setSettingsLogoPreview] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
   const [merchantData, setMerchantData] = useState<any>(null);
+  const [settingsLatitude, setSettingsLatitude] = useState('');
+  const [settingsLongitude, setSettingsLongitude] = useState('');
 
   // Password change state
   const [newPassword, setNewPassword] = useState('');
@@ -244,6 +246,8 @@ const MerchantDashboard = () => {
       setSettingsWhatsapp(data.whatsapp || '');
       setSettingsLogoUrl(data.logo_url || '');
       setSettingsLogoPreview(data.logo_url || '');
+      setSettingsLatitude(data.latitude ? String(data.latitude) : '');
+      setSettingsLongitude(data.longitude ? String(data.longitude) : '');
     }
   };
 
@@ -377,6 +381,8 @@ const MerchantDashboard = () => {
           email: settingsEmail,
           whatsapp: settingsWhatsapp || null,
           logo_url: logoUrl,
+          latitude: settingsLatitude ? Number(settingsLatitude) : null,
+          longitude: settingsLongitude ? Number(settingsLongitude) : null,
         })
         .eq('id', merchant.id);
 
@@ -1174,6 +1180,63 @@ const MerchantDashboard = () => {
               rows={3}
               disabled={!isSuperAdmin}
             />
+          </div>
+          <div className="border-t pt-4">
+            <Label className="text-sm font-semibold">📍 Koordinat GPS Toko (untuk hitung ongkir otomatis)</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Buka Google Maps → klik lokasi toko → salin koordinat (contoh: -6.2088, 106.8456)
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Latitude</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={settingsLatitude}
+                  onChange={e => setSettingsLatitude(e.target.value)}
+                  placeholder="-6.2088"
+                  disabled={!isSuperAdmin}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Longitude</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  value={settingsLongitude}
+                  onChange={e => setSettingsLongitude(e.target.value)}
+                  placeholder="106.8456"
+                  disabled={!isSuperAdmin}
+                />
+              </div>
+            </div>
+            {isSuperAdmin && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => {
+                  if (!navigator.geolocation) {
+                    toast({ title: 'Geolokasi tidak didukung browser ini', variant: 'destructive' });
+                    return;
+                  }
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setSettingsLatitude(String(pos.coords.latitude));
+                      setSettingsLongitude(String(pos.coords.longitude));
+                      toast({ title: 'Koordinat GPS berhasil diambil' });
+                    },
+                    (err) => {
+                      toast({ title: 'Gagal ambil lokasi', description: err.message, variant: 'destructive' });
+                    }
+                  );
+                }}
+              >
+                <MapPin className="h-3 w-3 mr-1" />
+                Gunakan Lokasi Saya
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

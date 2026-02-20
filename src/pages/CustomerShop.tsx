@@ -115,11 +115,16 @@ const CustomerShop = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedMerchantCoords, setSelectedMerchantCoords] = useState<{lat: number, lng: number} | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
   const [deliveryType, setDeliveryType] = useState<'none' | 'pickup' | 'external_ojol'>('none');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [deliveryLat, setDeliveryLat] = useState('');
+  const [deliveryLng, setDeliveryLng] = useState('');
+  const [estimatedDistance, setEstimatedDistance] = useState<number | null>(null);
+  const [estimatedShipping, setEstimatedShipping] = useState<number | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
 
   // Category configurations
@@ -128,6 +133,41 @@ const CustomerShop = () => {
     { id: 'emoney', label: 'E-Money', ppob_type: 'emoney', icon: <CreditCard className="h-8 w-8" /> },
     { id: 'token_pln', label: 'Token PLN', ppob_type: 'token_pln', icon: <Zap className="h-8 w-8" /> },
   ];
+
+  // Haversine formula for client-side distance preview
+  const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  const calculateGojekShipping = (km: number): number => {
+    if (km <= 0) return 0;
+    if (km <= 3) return 10000;
+    if (km <= 7) return 15000;
+    if (km <= 12) return 22000;
+    return 22000 + Math.ceil(km - 12) * 3000;
+  };
+
+  // Auto-calculate shipping when coordinates change
+  useEffect(() => {
+    if (selectedMerchantCoords && deliveryLat && deliveryLng) {
+      const dist = haversineDistance(
+        selectedMerchantCoords.lat, selectedMerchantCoords.lng,
+        Number(deliveryLat), Number(deliveryLng)
+      );
+      const rounded = Math.round(dist * 10) / 10;
+      setEstimatedDistance(rounded);
+      setEstimatedShipping(calculateGojekShipping(rounded));
+    } else {
+      setEstimatedDistance(null);
+      setEstimatedShipping(null);
+    }
+  }, [selectedMerchantCoords, deliveryLat, deliveryLng]);
 
   useEffect(() => {
     fetchProducts();
@@ -180,7 +220,7 @@ const CustomerShop = () => {
   const fetchMerchantProducts = async () => {
     const { data } = await supabase
       .from('merchant_products')
-      .select('*, merchants(business_name, name)')
+      .select('*, merchants(business_name, name, latitude, longitude)')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
     setMerchantProducts(data || []);
@@ -416,6 +456,8 @@ const CustomerShop = () => {
             delivery_type: deliveryType,
             delivery_address: deliveryType === 'external_ojol' ? deliveryAddress : null,
             delivery_notes: deliveryNotes || null,
+            delivery_latitude: deliveryType === 'external_ojol' && deliveryLat ? Number(deliveryLat) : null,
+            delivery_longitude: deliveryType === 'external_ojol' && deliveryLng ? Number(deliveryLng) : null,
           },
         });
 
@@ -434,6 +476,10 @@ const CustomerShop = () => {
         setDeliveryType('none');
         setDeliveryAddress('');
         setDeliveryNotes('');
+        setDeliveryLat('');
+        setDeliveryLng('');
+        setEstimatedDistance(null);
+        setEstimatedShipping(null);
         return;
       }
 
@@ -502,6 +548,10 @@ const CustomerShop = () => {
       setDeliveryType('none');
       setDeliveryAddress('');
       setDeliveryNotes('');
+      setDeliveryLat('');
+      setDeliveryLng('');
+      setEstimatedDistance(null);
+      setEstimatedShipping(null);
       navigate('/portal/orders');
     } catch (error: any) {
       toast({
@@ -612,6 +662,12 @@ const CustomerShop = () => {
                       stock: mp.stock,
                       requires_shipping: false,
                     } as Product);
+                    // Store merchant GPS for auto distance calculation
+                    if (mp.merchants?.latitude && mp.merchants?.longitude) {
+                      setSelectedMerchantCoords({ lat: Number(mp.merchants.latitude), lng: Number(mp.merchants.longitude) });
+                    } else {
+                      setSelectedMerchantCoords(null);
+                    }
                   }}
                 >
                   <CardContent className="p-0">
@@ -930,8 +986,69 @@ const CustomerShop = () => {
                         onChange={(e) => setDeliveryNotes(e.target.value)}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">📍 Koordinat Tujuan (untuk hitung ongkir otomatis)</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Klik "Gunakan Lokasi Saya" atau salin dari Google Maps
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Latitude</Label>
+                          <Input
+                            type="number"
+                            step="any"
+                            value={deliveryLat}
+                            onChange={(e) => setDeliveryLat(e.target.value)}
+                            placeholder="-6.2088"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Longitude</Label>
+                          <Input
+                            type="number"
+                            step="any"
+                            value={deliveryLng}
+                            onChange={(e) => setDeliveryLng(e.target.value)}
+                            placeholder="106.8456"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (!navigator.geolocation) {
+                            toast({ title: 'Geolokasi tidak didukung', variant: 'destructive' });
+                            return;
+                          }
+                          navigator.geolocation.getCurrentPosition(
+                            (pos) => {
+                              setDeliveryLat(String(pos.coords.latitude));
+                              setDeliveryLng(String(pos.coords.longitude));
+                              toast({ title: 'Lokasi berhasil diambil' });
+                            },
+                            (err) => {
+                              toast({ title: 'Gagal ambil lokasi', description: err.message, variant: 'destructive' });
+                            }
+                          );
+                        }}
+                      >
+                        <MapPin className="h-3 w-3 mr-1" />
+                        Gunakan Lokasi Saya
+                      </Button>
+                    </div>
+                    {estimatedDistance !== null && estimatedShipping !== null && (
+                      <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                        <p className="text-xs font-medium text-primary mb-1">🚚 Estimasi Ongkir</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-lg font-bold text-primary">Rp {estimatedShipping.toLocaleString('id-ID')}</p>
+                          <span className="text-xs text-muted-foreground">({estimatedDistance.toFixed(1)} km)</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                      <p className="text-xs font-medium text-primary mb-1">🚚 Estimasi Ongkir (Standar Gojek)</p>
+                      <p className="text-xs font-medium text-primary mb-1">🚚 Tarif Standar Gojek</p>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="flex justify-between"><span>0-3 km</span><span className="font-medium">Rp 10.000</span></div>
                         <div className="flex justify-between"><span>3-7 km</span><span className="font-medium">Rp 15.000</span></div>
@@ -940,7 +1057,7 @@ const CustomerShop = () => {
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      ⚠️ Ongkos kirim ditanggung pembeli, dibayar langsung ke driver ojol. Estimasi ongkir akan ditentukan oleh mitra setelah order masuk.
+                      ⚠️ Ongkos kirim ditanggung pembeli, dibayar langsung ke driver ojol.
                     </p>
                   </div>
                 )}
