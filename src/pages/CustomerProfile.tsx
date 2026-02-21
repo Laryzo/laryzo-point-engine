@@ -5,9 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Mail, Phone, Lock, Save, Loader2, MapPin, Navigation } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Lock, Save, Loader2, MapPin, Navigation, Home } from 'lucide-react';
 
 const CustomerProfile = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const CustomerProfile = () => {
   const [name, setName] = useState(customer?.name || '');
   const [email, setEmail] = useState(customer?.email || '');
   const [whatsapp, setWhatsapp] = useState(customer?.whatsapp || '');
+  const [address, setAddress] = useState(customer?.address || '');
   const [latitude, setLatitude] = useState<string>(customer?.latitude?.toString() || '');
   const [longitude, setLongitude] = useState<string>(customer?.longitude?.toString() || '');
   const [gettingLocation, setGettingLocation] = useState(false);
@@ -51,16 +53,27 @@ const CustomerProfile = () => {
     e.preventDefault();
     if (!customer) return;
 
+    // Validate required fields
+    if (!name.trim() || !email.trim() || !whatsapp.trim() || !address.trim()) {
+      toast({ title: 'Error', description: 'Semua field wajib diisi', variant: 'destructive' });
+      return;
+    }
+
+    if (!latitude || !longitude) {
+      toast({ title: 'Error', description: 'Titik lokasi GPS wajib diisi. Gunakan tombol "Gunakan Lokasi Saya" atau tentukan di Google Maps.', variant: 'destructive' });
+      return;
+    }
+
     setSavingProfile(true);
 
     try {
-      // Update customer data
       const { error: customerError } = await supabase
         .from('customers')
         .update({ 
           name, 
           email, 
           whatsapp,
+          address,
           latitude: latitude ? parseFloat(latitude) : null,
           longitude: longitude ? parseFloat(longitude) : null,
         })
@@ -68,7 +81,6 @@ const CustomerProfile = () => {
 
       if (customerError) throw customerError;
 
-      // Update email in customer_auth if changed
       if (email !== customer.email) {
         const { error: authError } = await supabase
           .from('customer_auth')
@@ -100,60 +112,40 @@ const CustomerProfile = () => {
     if (!customer) return;
 
     if (newPassword !== confirmPassword) {
-      toast({
-        title: 'Error',
-        description: 'Password baru tidak cocok',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Password baru tidak cocok', variant: 'destructive' });
       return;
     }
 
     if (newPassword.length < 6) {
-      toast({
-        title: 'Error',
-        description: 'Password minimal 6 karakter',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Password minimal 6 karakter', variant: 'destructive' });
       return;
     }
 
     setSavingPassword(true);
 
     try {
-      // Call server-side edge function for secure password change
       const { data, error } = await supabase.functions.invoke('customer-change-password', {
-        body: {
-          currentPassword,
-          newPassword
-        }
+        body: { currentPassword, newPassword }
       });
 
-      if (error) {
-        throw new Error(error.message || 'Gagal mengubah password');
-      }
-
-      if (!data.success) {
-        throw new Error(data.error || 'Gagal mengubah password');
-      }
+      if (error) throw new Error(error.message || 'Gagal mengubah password');
+      if (!data.success) throw new Error(data.error || 'Gagal mengubah password');
 
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
 
-      toast({
-        title: 'Berhasil',
-        description: 'Password berhasil diubah',
-      });
+      toast({ title: 'Berhasil', description: 'Password berhasil diubah' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setSavingPassword(false);
     }
   };
+
+  const googleMapsPickerUrl = latitude && longitude
+    ? `https://www.google.com/maps?q=${latitude},${longitude}`
+    : 'https://www.google.com/maps';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -176,28 +168,28 @@ const CustomerProfile = () => {
               <User className="h-5 w-5" />
               Informasi Profil
             </CardTitle>
-            <CardDescription>Perbarui data profil Anda</CardDescription>
+            <CardDescription>Lengkapi data profil Anda. Semua field wajib diisi.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Nama Lengkap
+                  Nama Lengkap <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Nama Anda"
+                  placeholder="Nama lengkap Anda"
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  Email
+                  Email <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="email"
@@ -211,7 +203,7 @@ const CustomerProfile = () => {
               <div className="space-y-2">
                 <Label htmlFor="whatsapp" className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
-                  WhatsApp
+                  Nomor WhatsApp Aktif <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="whatsapp"
@@ -223,43 +215,83 @@ const CustomerProfile = () => {
                 />
               </div>
 
-              {/* GPS Location */}
+              {/* Alamat Lengkap */}
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Lokasi Pengiriman (GPS)
+                <Label htmlFor="address" className="flex items-center gap-2">
+                  <Home className="h-4 w-4" />
+                  Alamat Lengkap <span className="text-destructive">*</span>
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Simpan lokasi Anda agar driver bisa menemukan alamat pengiriman dengan mudah
+                  Tulis alamat lengkap termasuk RT/RW, kelurahan, kecamatan, kota, dan kode pos agar driver mudah menemukan lokasi Anda
                 </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleGetLocation}
-                  disabled={gettingLocation}
-                >
-                  {gettingLocation ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Mengambil Lokasi...
-                    </>
-                  ) : (
-                    <>
-                      <Navigation className="mr-2 h-4 w-4" />
-                      Gunakan Lokasi Saya
-                    </>
-                  )}
-                </Button>
+                <Textarea
+                  id="address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Contoh: Jl. Melati No. 10 RT 03/RW 05, Kel. Sukamaju, Kec. Cibeunying, Kota Bandung 40123"
+                  rows={3}
+                  required
+                />
+              </div>
+
+              {/* GPS Location */}
+              <div className="space-y-2 border-t pt-4">
+                <Label className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Titik Lokasi di Google Maps <span className="text-destructive">*</span>
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Tentukan titik lokasi rumah Anda agar saat memesan tinggal klik alamat rumah tanpa perlu mengetik ulang. Driver juga bisa navigasi langsung ke lokasi Anda.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleGetLocation}
+                    disabled={gettingLocation}
+                  >
+                    {gettingLocation ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Mengambil Lokasi...
+                      </>
+                    ) : (
+                      <>
+                        <Navigation className="mr-2 h-4 w-4" />
+                        Gunakan Lokasi Saya (GPS Otomatis)
+                      </>
+                    )}
+                  </Button>
+                  <a
+                    href={googleMapsPickerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 text-sm text-primary underline hover:no-underline"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    Buka Google Maps untuk pilih titik lokasi manual
+                  </a>
+                </div>
                 {latitude && longitude && (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 mt-2">
                     <div>
                       <Label className="text-xs text-muted-foreground">Latitude</Label>
-                      <Input value={latitude} readOnly className="text-xs bg-muted" />
+                      <Input
+                        value={latitude}
+                        onChange={(e) => setLatitude(e.target.value)}
+                        className="text-xs"
+                        placeholder="-6.2088"
+                      />
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Longitude</Label>
-                      <Input value={longitude} readOnly className="text-xs bg-muted" />
+                      <Input
+                        value={longitude}
+                        onChange={(e) => setLongitude(e.target.value)}
+                        className="text-xs"
+                        placeholder="106.8456"
+                      />
                     </div>
                   </div>
                 )}
@@ -270,8 +302,13 @@ const CustomerProfile = () => {
                     rel="noopener noreferrer"
                     className="text-xs text-primary underline flex items-center gap-1"
                   >
-                    <MapPin className="h-3 w-3" /> Lihat di Google Maps
+                    <MapPin className="h-3 w-3" /> Lihat lokasi saya di Google Maps
                   </a>
+                )}
+                {!latitude && !longitude && (
+                  <p className="text-xs text-destructive">
+                    ⚠️ Titik lokasi belum ditentukan. Klik tombol di atas untuk mengisi koordinat GPS.
+                  </p>
                 )}
               </div>
 
