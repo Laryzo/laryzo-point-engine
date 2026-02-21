@@ -355,6 +355,17 @@ const MerchantDashboard = () => {
 
   const handleSaveSettings = async () => {
     if (!merchant?.id) return;
+
+    // Validate required fields
+    if (!settingsBusinessName.trim() || !settingsEmail.trim() || !settingsWhatsapp.trim() || !settingsBusinessAddress.trim()) {
+      toast({ title: 'Semua field wajib diisi', variant: 'destructive' });
+      return;
+    }
+    if (!settingsLatitude || !settingsLongitude) {
+      toast({ title: 'Titik lokasi GPS wajib diisi', description: 'Gunakan tombol "Gunakan Lokasi Saya" atau tentukan koordinat dari Google Maps.', variant: 'destructive' });
+      return;
+    }
+
     setSavingSettings(true);
     try {
       let logoUrl = settingsLogoUrl;
@@ -1159,50 +1170,58 @@ const MerchantDashboard = () => {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Informasi Bisnis</CardTitle>
+          <p className="text-xs text-muted-foreground">Semua field wajib diisi.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Nama Bisnis</Label>
+            <Label>Nama Bisnis <span className="text-destructive">*</span></Label>
             <Input
               value={settingsBusinessName}
               onChange={e => setSettingsBusinessName(e.target.value)}
               placeholder="Nama toko / bisnis Anda"
               disabled={!isSuperAdmin}
+              required
             />
           </div>
           <div>
-            <Label>Email</Label>
+            <Label>Email <span className="text-destructive">*</span></Label>
             <Input
               type="email"
               value={settingsEmail}
               onChange={e => setSettingsEmail(e.target.value)}
               placeholder="Email toko / bisnis"
               disabled={!isSuperAdmin}
+              required
             />
           </div>
           <div>
-            <Label>WhatsApp</Label>
+            <Label>WhatsApp Aktif <span className="text-destructive">*</span></Label>
             <Input
               value={settingsWhatsapp}
               onChange={e => setSettingsWhatsapp(e.target.value)}
-              placeholder="Nomor WhatsApp (contoh: 08123...)"
+              placeholder="Nomor WhatsApp aktif (contoh: 08123...)"
               disabled={!isSuperAdmin}
+              required
             />
           </div>
           <div>
-            <Label>Alamat Bisnis</Label>
+            <Label>Alamat Lengkap Bisnis <span className="text-destructive">*</span></Label>
+            <p className="text-xs text-muted-foreground mb-1">
+              Tulis alamat lengkap termasuk RT/RW, kelurahan, kecamatan, kota, dan kode pos
+            </p>
             <Textarea
               value={settingsBusinessAddress}
               onChange={e => setSettingsBusinessAddress(e.target.value)}
-              placeholder="Alamat lengkap toko / bisnis"
+              placeholder="Contoh: Jl. Melati No. 10 RT 03/RW 05, Kel. Sukamaju, Kec. Cibeunying, Kota Bandung 40123"
               rows={3}
               disabled={!isSuperAdmin}
+              required
             />
           </div>
           <div className="border-t pt-4">
-            <Label className="text-sm font-semibold">📍 Koordinat GPS Toko (untuk hitung ongkir otomatis)</Label>
+            <Label className="text-sm font-semibold">📍 Titik Lokasi di Google Maps <span className="text-destructive">*</span></Label>
             <p className="text-xs text-muted-foreground mb-2">
-              Buka Google Maps → klik lokasi toko → salin koordinat (contoh: -6.2088, 106.8456)
+              Tentukan titik lokasi toko agar perhitungan ongkir otomatis akurat dan driver bisa navigasi langsung.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -1229,31 +1248,58 @@ const MerchantDashboard = () => {
               </div>
             </div>
             {isSuperAdmin && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => {
-                  if (!navigator.geolocation) {
-                    toast({ title: 'Geolokasi tidak didukung browser ini', variant: 'destructive' });
-                    return;
-                  }
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      setSettingsLatitude(String(pos.coords.latitude));
-                      setSettingsLongitude(String(pos.coords.longitude));
-                      toast({ title: 'Koordinat GPS berhasil diambil' });
-                    },
-                    (err) => {
-                      toast({ title: 'Gagal ambil lokasi', description: err.message, variant: 'destructive' });
+              <div className="flex flex-col gap-2 mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (!navigator.geolocation) {
+                      toast({ title: 'Geolokasi tidak didukung browser ini', variant: 'destructive' });
+                      return;
                     }
-                  );
-                }}
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setSettingsLatitude(String(pos.coords.latitude));
+                        setSettingsLongitude(String(pos.coords.longitude));
+                        toast({ title: 'Koordinat GPS berhasil diambil' });
+                      },
+                      (err) => {
+                        toast({ title: 'Gagal ambil lokasi', description: err.message, variant: 'destructive' });
+                      }
+                    );
+                  }}
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  Gunakan Lokasi Saya (GPS Otomatis)
+                </Button>
+                <a
+                  href={settingsLatitude && settingsLongitude 
+                    ? `https://www.google.com/maps?q=${settingsLatitude},${settingsLongitude}` 
+                    : 'https://www.google.com/maps'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-primary underline hover:no-underline"
+                >
+                  <MapPin className="h-3 w-3" />
+                  Buka Google Maps untuk pilih titik lokasi manual
+                </a>
+              </div>
+            )}
+            {settingsLatitude && settingsLongitude && (
+              <a
+                href={`https://www.google.com/maps?q=${settingsLatitude},${settingsLongitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary underline flex items-center gap-1 mt-2"
               >
-                <MapPin className="h-3 w-3 mr-1" />
-                Gunakan Lokasi Saya
-              </Button>
+                <MapPin className="h-3 w-3" /> Lihat lokasi toko di Google Maps
+              </a>
+            )}
+            {!settingsLatitude && !settingsLongitude && isSuperAdmin && (
+              <p className="text-xs text-destructive mt-2">
+                ⚠️ Titik lokasi belum ditentukan. Klik tombol di atas untuk mengisi koordinat GPS.
+              </p>
             )}
           </div>
         </CardContent>

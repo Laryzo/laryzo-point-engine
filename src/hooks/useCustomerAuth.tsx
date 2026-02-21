@@ -10,6 +10,7 @@ interface Customer {
   created_at: string;
   latitude?: number | null;
   longitude?: number | null;
+  address?: string | null;
 }
 
 interface CustomerAuthContextType {
