@@ -490,6 +490,7 @@ export type Database = {
           points_used: number
           processed_at: string | null
           product_id: string | null
+          product_name: string | null
           ref_id: string | null
           shipping_address: string | null
           shipping_status: string | null
@@ -522,6 +523,7 @@ export type Database = {
           points_used?: number
           processed_at?: string | null
           product_id?: string | null
+          product_name?: string | null
           ref_id?: string | null
           shipping_address?: string | null
           shipping_status?: string | null
@@ -554,6 +556,7 @@ export type Database = {
           points_used?: number
           processed_at?: string | null
           product_id?: string | null
+          product_name?: string | null
           ref_id?: string | null
           shipping_address?: string | null
           shipping_status?: string | null

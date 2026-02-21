@@ -121,6 +121,7 @@ const CustomerShop = () => {
   const [deliveryType, setDeliveryType] = useState<'none' | 'pickup' | 'external_ojol'>('none');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [itemNotes, setItemNotes] = useState('');
   const [deliveryLat, setDeliveryLat] = useState('');
   const [deliveryLng, setDeliveryLng] = useState('');
   const [estimatedDistance, setEstimatedDistance] = useState<number | null>(null);
@@ -462,6 +463,7 @@ const CustomerShop = () => {
             delivery_notes: deliveryNotes || null,
             delivery_latitude: deliveryType === 'external_ojol' && deliveryLat ? Number(deliveryLat) : null,
             delivery_longitude: deliveryType === 'external_ojol' && deliveryLng ? Number(deliveryLng) : null,
+            item_notes: itemNotes || null,
           },
         });
 
@@ -483,6 +485,7 @@ const CustomerShop = () => {
         setDeliveryType('none');
         setDeliveryAddress('');
         setDeliveryNotes('');
+        setItemNotes('');
         setDeliveryLat('');
         setDeliveryLng('');
         setEstimatedDistance(null);
@@ -555,6 +558,7 @@ const CustomerShop = () => {
       setDeliveryType('none');
       setDeliveryAddress('');
       setDeliveryNotes('');
+      setItemNotes('');
       setDeliveryLat('');
       setDeliveryLng('');
       setEstimatedDistance(null);
@@ -939,6 +943,20 @@ const CustomerShop = () => {
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
                 />
+              </div>
+            )}
+
+            {/* Item Notes - for merchant products */}
+            {selectedProduct?.type === 'merchant' && (
+              <div className="space-y-2">
+                <Label htmlFor="item-notes">Catatan Pesanan (opsional)</Label>
+                <Input
+                  id="item-notes"
+                  placeholder="Contoh: Sambal pedas, nasi tambah, dll"
+                  value={itemNotes}
+                  onChange={(e) => setItemNotes(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Catatan ini akan diteruskan ke resto dan driver</p>
               </div>
             )}
 

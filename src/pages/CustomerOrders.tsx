@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '@/hooks/useCustomerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Truck } from 'lucide-react';
 
 interface Order {
@@ -17,6 +17,9 @@ interface Order {
   created_at: string;
   product_name: string;
   product_type: string;
+  item_notes: string;
+  estimated_shipping_cost: number;
+  order_type: string;
 }
 
 const CustomerOrders = () => {
@@ -32,7 +35,6 @@ const CustomerOrders = () => {
   }, [customer?.id]);
 
   const fetchOrders = async () => {
-    // Use secure view that excludes admin_notes
     const { data, error } = await supabase
       .from('orders_customer_view')
       .select('*')
@@ -47,6 +49,10 @@ const CustomerOrders = () => {
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('id-ID').format(num);
+  };
+
+  const formatCurrency = (num: number) => {
+    return `Rp ${new Intl.NumberFormat('id-ID').format(num)}`;
   };
 
   const formatDate = (date: string) => {
@@ -101,6 +107,11 @@ const CustomerOrders = () => {
     return styles[status] || 'bg-muted text-muted-foreground';
   };
 
+  const getProductPrice = (order: Order) => {
+    const shippingCost = Number(order.estimated_shipping_cost || 0);
+    return Number(order.points_used || 0) - shippingCost;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
@@ -132,59 +143,87 @@ const CustomerOrders = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            {orders.map((order) => (
-              <Card key={order.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      {getStatusIcon(order.status)}
-                      <div>
-                        <h3 className="font-medium">{order.product_name}</h3>
-                        <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
-                      </div>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusStyle(order.status)}`}>
-                      {getStatusLabel(order.status)}
-                    </span>
-                  </div>
+            {orders.map((order) => {
+              const productPrice = getProductPrice(order);
+              const shippingCost = Number(order.estimated_shipping_cost || 0);
 
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Poin Digunakan</span>
-                      <span className="font-medium">{formatNumber(order.points_used)}</span>
+              return (
+                <Card key={order.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        {getStatusIcon(order.status)}
+                        <div>
+                          <h3 className="font-medium">{order.product_name}</h3>
+                          <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
+                        </div>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusStyle(order.status)}`}>
+                        {getStatusLabel(order.status)}
+                      </span>
                     </div>
 
-                    {order.input_value && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Input</span>
-                        <span>{order.input_value}</span>
-                      </div>
-                    )}
+                    <div className="space-y-2 text-sm">
+                      {/* Item notes */}
+                      {order.item_notes && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Catatan</span>
+                          <span>{order.item_notes}</span>
+                        </div>
+                      )}
 
-                    {order.digiflazz_sn && (
+                      {/* Price breakdown */}
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">SN/Token</span>
-                        <span className="font-mono text-xs">{order.digiflazz_sn}</span>
+                        <span className="text-muted-foreground">Harga</span>
+                        <span className="font-medium">{formatCurrency(productPrice > 0 ? productPrice : Number(order.points_used))}</span>
                       </div>
-                    )}
 
-                    {order.tracking_number && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">No. Resi</span>
-                        <span className="font-mono">{order.tracking_number}</span>
-                      </div>
-                    )}
+                      {shippingCost > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Ongkir</span>
+                          <span>{formatCurrency(shippingCost)}</span>
+                        </div>
+                      )}
 
-                    {order.shipping_address && (
-                      <div className="pt-2 border-t">
-                        <span className="text-muted-foreground block mb-1">Alamat Pengiriman</span>
-                        <span className="text-sm">{order.shipping_address}</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      {shippingCost > 0 && (
+                        <div className="flex justify-between font-medium border-t pt-2">
+                          <span>Total</span>
+                          <span>{formatCurrency(Number(order.points_used))}</span>
+                        </div>
+                      )}
+
+                      {order.input_value && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Input</span>
+                          <span>{order.input_value}</span>
+                        </div>
+                      )}
+
+                      {order.digiflazz_sn && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">SN/Token</span>
+                          <span className="font-mono text-xs">{order.digiflazz_sn}</span>
+                        </div>
+                      )}
+
+                      {order.tracking_number && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">No. Resi</span>
+                          <span className="font-mono">{order.tracking_number}</span>
+                        </div>
+                      )}
+
+                      {order.shipping_address && (
+                        <div className="pt-2 border-t">
+                          <span className="text-muted-foreground block mb-1">Alamat Pengiriman</span>
+                          <span className="text-sm">{order.shipping_address}</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </main>

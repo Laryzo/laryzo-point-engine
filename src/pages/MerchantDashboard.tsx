@@ -815,13 +815,18 @@ const MerchantDashboard = () => {
     const destPinPoint = (destLat && destLng) ? `\nhttps://maps.google.com/?q=${destLat},${destLng}` : '';
     const note = order.delivery_notes || '-';
     // Product detail
-    const productName = order.products?.name || 'Produk';
-    const pointsUsed = Number(order.points_used || 0);
+    const productName = order.product_name || order.products?.name || 'Produk';
+    const productPrice = Number(order.points_used || 0) - Number(order.estimated_shipping_cost || 0);
+    const itemNotes = order.item_notes;
     // Ongkir after 20% fee deduction (driver receives 80%)
     const rawOngkir = Number(order.estimated_shipping_cost || 0);
     const ongkirAfterFee = Math.round(rawOngkir * 0.80);
     const ongkirLine = rawOngkir > 0 ? `\nEstimasi Ongkir: ${formatShippingCost(ongkirAfterFee)} (${Number(order.estimated_distance_km)} km)` : '';
-    const message = `Halo driver, pickup pesanan ${customerName}:\n\nDetail pesanan:\n${productName} — ${formatShippingCost(pointsUsed)} poin\n\nPenjemputan\nMerchant: ${merchantName}\nAlamat: ${pickupAddr}${pickupPinPoint}\n\nPengantaran\nTujuan: ${destAddr}${destPinPoint}\nCatatan: ${note}${ongkirLine}`;
+    // Build detail pesanan
+    let detailPesanan = productName;
+    if (itemNotes) detailPesanan += `\nCatatan: ${itemNotes}`;
+    detailPesanan += `\nHarga: ${formatShippingCost(productPrice > 0 ? productPrice : Number(order.points_used || 0))}`;
+    const message = `Halo driver, pickup pesanan ${customerName}:\n\nDetail pesanan:\n${detailPesanan}\n\nPenjemputan\nMerchant: ${merchantName}\nAlamat: ${pickupAddr}${pickupPinPoint}\n\nPengantaran\nTujuan: ${destAddr}${destPinPoint}\nCatatan: ${note}${ongkirLine}`;
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   };
 
@@ -1321,7 +1326,10 @@ const MerchantDashboard = () => {
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-semibold">{order.products?.name || 'Produk'}</p>
+                    <p className="font-semibold">{order.product_name || order.products?.name || 'Produk'}</p>
+                    {order.item_notes && (
+                      <p className="text-xs text-muted-foreground italic">📝 {order.item_notes}</p>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       Customer: {order.customers?.name || '-'} {order.customers?.whatsapp ? `(${order.customers.whatsapp})` : ''}
                     </p>
