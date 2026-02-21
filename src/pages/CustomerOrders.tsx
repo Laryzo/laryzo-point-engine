@@ -154,7 +154,7 @@ const CustomerOrders = () => {
                       <div className="flex items-center gap-3">
                         {getStatusIcon(order.status)}
                         <div>
-                          <h3 className="font-medium">{order.product_name}</h3>
+                          <h3 className="font-medium">{order.product_name || 'Produk'}</h3>
                           <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
                         </div>
                       </div>
@@ -168,14 +168,14 @@ const CustomerOrders = () => {
                       {order.item_notes && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Catatan</span>
-                          <span>{order.item_notes}</span>
+                          <span className="text-right">{order.item_notes}</span>
                         </div>
                       )}
 
                       {/* Price breakdown */}
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Harga</span>
-                        <span className="font-medium">{formatCurrency(productPrice > 0 ? productPrice : Number(order.points_used))}</span>
+                        <span>{formatCurrency(productPrice > 0 ? productPrice : Number(order.points_used))}</span>
                       </div>
 
                       {shippingCost > 0 && (
@@ -185,12 +185,10 @@ const CustomerOrders = () => {
                         </div>
                       )}
 
-                      {shippingCost > 0 && (
-                        <div className="flex justify-between font-medium border-t pt-2">
-                          <span>Total</span>
-                          <span>{formatCurrency(Number(order.points_used))}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between font-medium border-t pt-2">
+                        <span>Total</span>
+                        <span>{formatCurrency(Number(order.points_used))}</span>
+                      </div>
 
                       {order.input_value && (
                         <div className="flex justify-between">
