@@ -8,6 +8,8 @@ interface Customer {
   whatsapp: string;
   points: number;
   created_at: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface CustomerAuthContextType {

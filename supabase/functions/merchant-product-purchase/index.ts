@@ -120,17 +120,21 @@ Deno.serve(async (req) => {
     let estimatedShippingCost: number | null = null;
     let shippingFee = 0; // 20% fee from shipping = Laryzo margin
 
+    // Use provided GPS or fallback to customer's saved GPS
+    const effectiveDeliveryLat = delivery_latitude || null;
+    const effectiveDeliveryLng = delivery_longitude || null;
+
     if (effectiveDeliveryType === "external_ojol" &&
         merchant?.latitude && merchant?.longitude &&
-        delivery_latitude && delivery_longitude) {
+        effectiveDeliveryLat && effectiveDeliveryLng) {
       estimatedDistanceKm = Math.round(
         haversineDistance(
           Number(merchant.latitude), Number(merchant.longitude),
-          Number(delivery_latitude), Number(delivery_longitude)
+          Number(effectiveDeliveryLat), Number(effectiveDeliveryLng)
         ) * 10
       ) / 10;
       estimatedShippingCost = calculateGojekShipping(estimatedDistanceKm);
-      shippingFee = Math.round(estimatedShippingCost * SHIPPING_FEE_PERCENTAGE); // 20% fee
+      shippingFee = Math.round(estimatedShippingCost * SHIPPING_FEE_PERCENTAGE);
     }
 
     // Total points to deduct = product price + full shipping cost
@@ -139,7 +143,7 @@ Deno.serve(async (req) => {
     // Check customer points
     const { data: customer } = await supabase
       .from("customers")
-      .select("points, points_blocked, name, parent_id")
+      .select("points, points_blocked, name, parent_id, latitude, longitude")
       .eq("id", customerId)
       .single();
 

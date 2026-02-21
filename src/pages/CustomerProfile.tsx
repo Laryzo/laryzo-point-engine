@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Mail, Phone, Lock, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Lock, Save, Loader2, MapPin, Navigation } from 'lucide-react';
 
 const CustomerProfile = () => {
   const navigate = useNavigate();
@@ -17,11 +17,35 @@ const CustomerProfile = () => {
   const [name, setName] = useState(customer?.name || '');
   const [email, setEmail] = useState(customer?.email || '');
   const [whatsapp, setWhatsapp] = useState(customer?.whatsapp || '');
+  const [latitude, setLatitude] = useState<string>(customer?.latitude?.toString() || '');
+  const [longitude, setLongitude] = useState<string>(customer?.longitude?.toString() || '');
+  const [gettingLocation, setGettingLocation] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: 'Error', description: 'Browser tidak mendukung GPS', variant: 'destructive' });
+      return;
+    }
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        setGettingLocation(false);
+        toast({ title: 'Berhasil', description: 'Lokasi GPS berhasil diambil' });
+      },
+      (err) => {
+        setGettingLocation(false);
+        toast({ title: 'Error', description: 'Gagal mengambil lokasi: ' + err.message, variant: 'destructive' });
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +57,13 @@ const CustomerProfile = () => {
       // Update customer data
       const { error: customerError } = await supabase
         .from('customers')
-        .update({ name, email, whatsapp })
+        .update({ 
+          name, 
+          email, 
+          whatsapp,
+          latitude: latitude ? parseFloat(latitude) : null,
+          longitude: longitude ? parseFloat(longitude) : null,
+        })
         .eq('id', customer.id);
 
       if (customerError) throw customerError;
@@ -192,6 +222,59 @@ const CustomerProfile = () => {
                   required
                 />
               </div>
+
+              {/* GPS Location */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Lokasi Pengiriman (GPS)
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Simpan lokasi Anda agar driver bisa menemukan alamat pengiriman dengan mudah
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGetLocation}
+                  disabled={gettingLocation}
+                >
+                  {gettingLocation ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Mengambil Lokasi...
+                    </>
+                  ) : (
+                    <>
+                      <Navigation className="mr-2 h-4 w-4" />
+                      Gunakan Lokasi Saya
+                    </>
+                  )}
+                </Button>
+                {latitude && longitude && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Latitude</Label>
+                      <Input value={latitude} readOnly className="text-xs bg-muted" />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Longitude</Label>
+                      <Input value={longitude} readOnly className="text-xs bg-muted" />
+                    </div>
+                  </div>
+                )}
+                {latitude && longitude && (
+                  <a
+                    href={`https://www.google.com/maps?q=${latitude},${longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary underline flex items-center gap-1"
+                  >
+                    <MapPin className="h-3 w-3" /> Lihat di Google Maps
+                  </a>
+                )}
+              </div>
+
               <Button type="submit" className="w-full" disabled={savingProfile}>
                 {savingProfile ? (
                   <>
