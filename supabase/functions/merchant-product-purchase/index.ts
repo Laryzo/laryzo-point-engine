@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     }
 
     const customerId = custAuth.customer_id;
-    const { product_id, delivery_type, delivery_address, delivery_notes, delivery_latitude, delivery_longitude } = await req.json();
+    const { product_id, delivery_type, delivery_address, delivery_notes, delivery_latitude, delivery_longitude, item_notes } = await req.json();
 
     if (!product_id) {
       return new Response(JSON.stringify({ error: "product_id required" }), {
@@ -191,6 +191,8 @@ Deno.serve(async (req) => {
         estimated_shipping_cost: estimatedShippingCost,
         delivery_latitude: effectiveDeliveryType === "external_ojol" ? delivery_latitude : null,
         delivery_longitude: effectiveDeliveryType === "external_ojol" ? delivery_longitude : null,
+        item_notes: item_notes || null,
+        product_name: product.name,
       })
       .select("id")
       .single();
