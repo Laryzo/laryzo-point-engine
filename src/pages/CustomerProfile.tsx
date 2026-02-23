@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Mail, Phone, Lock, Save, Loader2, MapPin, Navigation, Home } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Lock, Save, Loader2, Home } from 'lucide-react';
+import MapLocationPicker from '@/components/MapLocationPicker';
 
 const CustomerProfile = () => {
   const navigate = useNavigate();
@@ -21,32 +22,16 @@ const CustomerProfile = () => {
   const [address, setAddress] = useState(customer?.address || '');
   const [latitude, setLatitude] = useState<string>(customer?.latitude?.toString() || '');
   const [longitude, setLongitude] = useState<string>(customer?.longitude?.toString() || '');
-  const [gettingLocation, setGettingLocation] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      toast({ title: 'Error', description: 'Browser tidak mendukung GPS', variant: 'destructive' });
-      return;
-    }
-    setGettingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude.toFixed(6));
-        setLongitude(pos.coords.longitude.toFixed(6));
-        setGettingLocation(false);
-        toast({ title: 'Berhasil', description: 'Lokasi GPS berhasil diambil' });
-      },
-      (err) => {
-        setGettingLocation(false);
-        toast({ title: 'Error', description: 'Gagal mengambil lokasi: ' + err.message, variant: 'destructive' });
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
+  const handleLocationSave = (lat: string, lng: string) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    toast({ title: 'Berhasil', description: 'Titik lokasi berhasil ditentukan. Jangan lupa klik "Simpan Perubahan" di bawah.' });
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -60,7 +45,7 @@ const CustomerProfile = () => {
     }
 
     if (!latitude || !longitude) {
-      toast({ title: 'Error', description: 'Titik lokasi GPS wajib diisi. Gunakan tombol "Gunakan Lokasi Saya" atau tentukan di Google Maps.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Titik lokasi wajib diisi. Gunakan peta untuk menentukan lokasi Anda.', variant: 'destructive' });
       return;
     }
 
@@ -143,9 +128,6 @@ const CustomerProfile = () => {
     }
   };
 
-  const googleMapsPickerUrl = latitude && longitude
-    ? `https://www.google.com/maps?q=${latitude},${longitude}`
-    : 'https://www.google.com/maps';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -234,80 +216,22 @@ const CustomerProfile = () => {
                 />
               </div>
 
-              {/* GPS Location */}
+              {/* GPS Location via Map Picker */}
               <div className="space-y-2 border-t pt-4">
-                <Label className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Titik Lokasi di Google Maps <span className="text-destructive">*</span>
+                <Label className="text-sm font-semibold">
+                  📍 Titik Lokasi di Peta <span className="text-destructive">*</span>
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Tentukan titik lokasi rumah Anda agar saat memesan tinggal klik alamat rumah tanpa perlu mengetik ulang. Driver juga bisa navigasi langsung ke lokasi Anda.
+                  Tentukan titik lokasi rumah Anda dengan mengklik peta atau menggeser pin, lalu klik "Simpan Lokasi". Driver bisa navigasi langsung ke lokasi Anda.
                 </p>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleGetLocation}
-                    disabled={gettingLocation}
-                  >
-                    {gettingLocation ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Mengambil Lokasi...
-                      </>
-                    ) : (
-                      <>
-                        <Navigation className="mr-2 h-4 w-4" />
-                        Gunakan Lokasi Saya (GPS Otomatis)
-                      </>
-                    )}
-                  </Button>
-                  <a
-                    href={googleMapsPickerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 text-sm text-primary underline hover:no-underline"
-                  >
-                    <MapPin className="h-4 w-4" />
-                    Buka Google Maps untuk pilih titik lokasi manual
-                  </a>
-                </div>
-                {latitude && longitude && (
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Latitude</Label>
-                      <Input
-                        value={latitude}
-                        onChange={(e) => setLatitude(e.target.value)}
-                        className="text-xs"
-                        placeholder="-6.2088"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Longitude</Label>
-                      <Input
-                        value={longitude}
-                        onChange={(e) => setLongitude(e.target.value)}
-                        className="text-xs"
-                        placeholder="106.8456"
-                      />
-                    </div>
-                  </div>
-                )}
-                {latitude && longitude && (
-                  <a
-                    href={`https://www.google.com/maps?q=${latitude},${longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary underline flex items-center gap-1"
-                  >
-                    <MapPin className="h-3 w-3" /> Lihat lokasi saya di Google Maps
-                  </a>
-                )}
+                <MapLocationPicker
+                  latitude={latitude}
+                  longitude={longitude}
+                  onSave={handleLocationSave}
+                />
                 {!latitude && !longitude && (
                   <p className="text-xs text-destructive">
-                    ⚠️ Titik lokasi belum ditentukan. Klik tombol di atas untuk mengisi koordinat GPS.
+                    ⚠️ Titik lokasi belum ditentukan. Gunakan peta di atas untuk menentukan lokasi.
                   </p>
                 )}
               </div>

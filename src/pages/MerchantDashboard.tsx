@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Store, LogOut, ShoppingCart, Package, History, Plus, Search, Minus, Pencil, Trash2, Users, Shield, User, Settings, ImagePlus, UserPlus, Truck, Copy, CheckCircle, Clock, MapPin } from 'lucide-react';
+import MapLocationPicker from '@/components/MapLocationPicker';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import MerchantProductForm from '@/components/MerchantProductForm';
@@ -362,7 +363,7 @@ const MerchantDashboard = () => {
       return;
     }
     if (!settingsLatitude || !settingsLongitude) {
-      toast({ title: 'Titik lokasi GPS wajib diisi', description: 'Gunakan tombol "Gunakan Lokasi Saya" atau tentukan koordinat dari Google Maps.', variant: 'destructive' });
+      toast({ title: 'Titik lokasi wajib diisi', description: 'Gunakan peta untuk menentukan titik lokasi toko Anda.', variant: 'destructive' });
       return;
     }
 
@@ -1219,86 +1220,23 @@ const MerchantDashboard = () => {
             />
           </div>
           <div className="border-t pt-4">
-            <Label className="text-sm font-semibold">📍 Titik Lokasi di Google Maps <span className="text-destructive">*</span></Label>
+            <Label className="text-sm font-semibold">📍 Titik Lokasi Toko di Peta <span className="text-destructive">*</span></Label>
             <p className="text-xs text-muted-foreground mb-2">
               Tentukan titik lokasi toko agar perhitungan ongkir otomatis akurat dan driver bisa navigasi langsung.
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Latitude</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={settingsLatitude}
-                  onChange={e => setSettingsLatitude(e.target.value)}
-                  placeholder="-6.2088"
-                  disabled={!isSuperAdmin}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Longitude</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={settingsLongitude}
-                  onChange={e => setSettingsLongitude(e.target.value)}
-                  placeholder="106.8456"
-                  disabled={!isSuperAdmin}
-                />
-              </div>
-            </div>
-            {isSuperAdmin && (
-              <div className="flex flex-col gap-2 mt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (!navigator.geolocation) {
-                      toast({ title: 'Geolokasi tidak didukung browser ini', variant: 'destructive' });
-                      return;
-                    }
-                    navigator.geolocation.getCurrentPosition(
-                      (pos) => {
-                        setSettingsLatitude(String(pos.coords.latitude));
-                        setSettingsLongitude(String(pos.coords.longitude));
-                        toast({ title: 'Koordinat GPS berhasil diambil' });
-                      },
-                      (err) => {
-                        toast({ title: 'Gagal ambil lokasi', description: err.message, variant: 'destructive' });
-                      }
-                    );
-                  }}
-                >
-                  <MapPin className="h-3 w-3 mr-1" />
-                  Gunakan Lokasi Saya (GPS Otomatis)
-                </Button>
-                <a
-                  href={settingsLatitude && settingsLongitude 
-                    ? `https://www.google.com/maps?q=${settingsLatitude},${settingsLongitude}` 
-                    : 'https://www.google.com/maps'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-primary underline hover:no-underline"
-                >
-                  <MapPin className="h-3 w-3" />
-                  Buka Google Maps untuk pilih titik lokasi manual
-                </a>
-              </div>
-            )}
-            {settingsLatitude && settingsLongitude && (
-              <a
-                href={`https://www.google.com/maps?q=${settingsLatitude},${settingsLongitude}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary underline flex items-center gap-1 mt-2"
-              >
-                <MapPin className="h-3 w-3" /> Lihat lokasi toko di Google Maps
-              </a>
-            )}
+            <MapLocationPicker
+              latitude={settingsLatitude}
+              longitude={settingsLongitude}
+              onSave={(lat, lng) => {
+                setSettingsLatitude(lat);
+                setSettingsLongitude(lng);
+                toast({ title: 'Titik lokasi ditentukan', description: 'Jangan lupa klik "Simpan Pengaturan" di bawah.' });
+              }}
+              disabled={!isSuperAdmin}
+            />
             {!settingsLatitude && !settingsLongitude && isSuperAdmin && (
               <p className="text-xs text-destructive mt-2">
-                ⚠️ Titik lokasi belum ditentukan. Klik tombol di atas untuk mengisi koordinat GPS.
+                ⚠️ Titik lokasi belum ditentukan. Gunakan peta di atas untuk menentukan lokasi.
               </p>
             )}
           </div>

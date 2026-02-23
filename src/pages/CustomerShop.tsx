@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { canonicalizePpobBrand, getPpobBrandFromProductName } from '@/lib/ppob-brand';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import MapLocationPicker from '@/components/MapLocationPicker';
 import { 
   ArrowLeft, 
   Coins, 
@@ -1012,56 +1013,19 @@ const CustomerShop = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">📍 Koordinat Tujuan (untuk hitung ongkir otomatis)</Label>
+                      <Label className="text-sm font-medium">📍 Titik Lokasi Tujuan (untuk hitung ongkir otomatis)</Label>
                       <p className="text-xs text-muted-foreground">
-                        Klik "Gunakan Lokasi Saya" atau salin dari Google Maps
+                        Klik peta atau geser pin untuk menentukan lokasi tujuan, lalu klik "Simpan Lokasi".
                       </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs">Latitude</Label>
-                          <Input
-                            type="number"
-                            step="any"
-                            value={deliveryLat}
-                            onChange={(e) => setDeliveryLat(e.target.value)}
-                            placeholder="-6.2088"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Longitude</Label>
-                          <Input
-                            type="number"
-                            step="any"
-                            value={deliveryLng}
-                            onChange={(e) => setDeliveryLng(e.target.value)}
-                            placeholder="106.8456"
-                          />
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (!navigator.geolocation) {
-                            toast({ title: 'Geolokasi tidak didukung', variant: 'destructive' });
-                            return;
-                          }
-                          navigator.geolocation.getCurrentPosition(
-                            (pos) => {
-                              setDeliveryLat(String(pos.coords.latitude));
-                              setDeliveryLng(String(pos.coords.longitude));
-                              toast({ title: 'Lokasi berhasil diambil' });
-                            },
-                            (err) => {
-                              toast({ title: 'Gagal ambil lokasi', description: err.message, variant: 'destructive' });
-                            }
-                          );
+                      <MapLocationPicker
+                        latitude={deliveryLat}
+                        longitude={deliveryLng}
+                        onSave={(lat, lng) => {
+                          setDeliveryLat(lat);
+                          setDeliveryLng(lng);
+                          toast({ title: 'Lokasi tujuan berhasil ditentukan' });
                         }}
-                      >
-                        <MapPin className="h-3 w-3 mr-1" />
-                        Gunakan Lokasi Saya
-                      </Button>
+                      />
                     </div>
                     {estimatedDistance !== null && estimatedShipping !== null && (
                       <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
