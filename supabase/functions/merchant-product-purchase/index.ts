@@ -231,29 +231,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Distribute points from 20% shipping fee as Laryzo margin
-    // This fee enters the point engine just like transaction margins
-    if (shippingFee > 0) {
-      const pointsPerLevel = shippingFee * POINT_PERCENTAGE;
-      const pointRecords: any[] = [];
+    // Fetch all customers for upline traversal (used by both product and shipping point distribution)
+    const { data: allCustomers } = await supabase
+      .from("customers")
+      .select("id, parent_id, points_blocked");
+    const customerMap = new Map<string, any>();
+    allCustomers?.forEach((c: any) => customerMap.set(c.id, c));
 
-      // Fetch all customers for upline traversal
-      const { data: allCustomers } = await supabase
-        .from("customers")
-        .select("id, parent_id, points_blocked");
-      const customerMap = new Map<string, any>();
-      allCustomers?.forEach((c: any) => customerMap.set(c.id, c));
+    // --- Distribute points from PRODUCT MARGIN (price - cost_price) ---
+    const productMargin = Number(product.price || 0) - Number(product.cost_price || 0);
+    if (productMargin > 0) {
+      const pointsPerLevel = productMargin * POINT_PERCENTAGE;
+      const productPointRecords: any[] = [];
 
       // Level 0: self
       const selfCustomer = customerMap.get(customerId);
       if (selfCustomer && !selfCustomer.points_blocked) {
-        pointRecords.push({
+        productPointRecords.push({
           from_customer: customerId,
           to_customer: customerId,
           level: 0,
           points: pointsPerLevel,
-          product_code: `ONGKIR-${product.name.substring(0, 20)}`,
-          description: `Bonus poin ongkir ${product.name}`,
+          product_code: `MITRA-${product.name.substring(0, 20)}`,
+          description: `Bonus poin ${product.name}`,
         });
       }
 
@@ -264,7 +264,52 @@ Deno.serve(async (req) => {
         if (!current || !current.parent_id) break;
         const parent = customerMap.get(current.parent_id);
         if (parent && !parent.points_blocked) {
-          pointRecords.push({
+          productPointRecords.push({
+            from_customer: customerId,
+            to_customer: current.parent_id,
+            level,
+            points: pointsPerLevel,
+            product_code: `MITRA-${product.name.substring(0, 20)}`,
+            description: `Bonus jaringan level ${level}`,
+          });
+        }
+        currentId = current.parent_id;
+      }
+
+      if (productPointRecords.length > 0) {
+        const { error: ptErr } = await supabase.from("point_history").insert(productPointRecords);
+        if (ptErr) {
+          console.error("Product point distribution error:", ptErr);
+        }
+      }
+    }
+
+    // --- Distribute points from 20% SHIPPING FEE as Laryzo margin ---
+    if (shippingFee > 0) {
+      const pointsPerLevel = shippingFee * POINT_PERCENTAGE;
+      const shippingPointRecords: any[] = [];
+
+      // Level 0: self
+      const selfCustomer = customerMap.get(customerId);
+      if (selfCustomer && !selfCustomer.points_blocked) {
+        shippingPointRecords.push({
+          from_customer: customerId,
+          to_customer: customerId,
+          level: 0,
+          points: pointsPerLevel,
+          product_code: `ONGKIR-${product.name.substring(0, 20)}`,
+          description: `Bonus poin ongkir ${product.name}`,
+        });
+      }
+
+      // Levels 1-10: uplines
+      let currentId2 = customerId;
+      for (let level = 1; level <= MAX_UPLINE_LEVELS; level++) {
+        const current = customerMap.get(currentId2);
+        if (!current || !current.parent_id) break;
+        const parent = customerMap.get(current.parent_id);
+        if (parent && !parent.points_blocked) {
+          shippingPointRecords.push({
             from_customer: customerId,
             to_customer: current.parent_id,
             level,
@@ -273,14 +318,13 @@ Deno.serve(async (req) => {
             description: `Bonus jaringan ongkir level ${level}`,
           });
         }
-        currentId = current.parent_id;
+        currentId2 = current.parent_id;
       }
 
-      if (pointRecords.length > 0) {
-        const { error: ptErr } = await supabase.from("point_history").insert(pointRecords);
+      if (shippingPointRecords.length > 0) {
+        const { error: ptErr } = await supabase.from("point_history").insert(shippingPointRecords);
         if (ptErr) {
           console.error("Shipping point distribution error:", ptErr);
-          // Non-fatal: order already created, just log the error
         }
       }
     }
