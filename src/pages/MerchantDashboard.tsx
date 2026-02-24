@@ -93,6 +93,10 @@ const MerchantDashboard = () => {
   const [savingDeliveryEdit, setSavingDeliveryEdit] = useState(false);
   const [deletingDelivery, setDeletingDelivery] = useState<any>(null);
 
+  // Merchant customers state
+  const [merchantCustomers, setMerchantCustomers] = useState<any[]>([]);
+  const [merchantCustomersLoading, setMerchantCustomersLoading] = useState(false);
+
   // Daily stats state
   const [dailyStats, setDailyStats] = useState({ todayRevenue: 0, todayOrders: 0 });
 
@@ -107,6 +111,7 @@ const MerchantDashboard = () => {
     fetchMerchantData();
     fetchDeliveryOrders();
     fetchDailyStats();
+    fetchMerchantCustomers();
   }, [isSuperAdmin]);
 
   // Realtime subscription for new orders
@@ -166,6 +171,43 @@ const MerchantDashboard = () => {
       .gte('created_at', todayISO);
     const todayRevenue = data?.reduce((sum, t) => sum + Number(t.total || 0), 0) || 0;
     setDailyStats({ todayRevenue, todayOrders: data?.length || 0 });
+  };
+
+  const fetchMerchantCustomers = async () => {
+    setMerchantCustomersLoading(true);
+    try {
+      const { data } = await supabase
+        .from('merchant_transactions')
+        .select('customer_id, customer_name, created_at, total, qty')
+        .not('customer_id', 'is', null)
+        .order('created_at', { ascending: false });
+
+      // Group by customer_id
+      const customerMap = new Map<string, { id: string; name: string; totalSpent: number; totalQty: number; totalOrders: number; lastOrder: string }>();
+      (data || []).forEach(t => {
+        if (!t.customer_id) return;
+        const existing = customerMap.get(t.customer_id);
+        if (existing) {
+          existing.totalSpent += Number(t.total || 0);
+          existing.totalQty += Number(t.qty || 0);
+          existing.totalOrders += 1;
+          if (t.created_at > existing.lastOrder) existing.lastOrder = t.created_at;
+        } else {
+          customerMap.set(t.customer_id, {
+            id: t.customer_id,
+            name: t.customer_name || 'Customer',
+            totalSpent: Number(t.total || 0),
+            totalQty: Number(t.qty || 0),
+            totalOrders: 1,
+            lastOrder: t.created_at,
+          });
+        }
+      });
+      setMerchantCustomers(Array.from(customerMap.values()).sort((a, b) => b.totalSpent - a.totalSpent));
+    } catch (error) {
+      console.error('Error fetching merchant customers:', error);
+    }
+    setMerchantCustomersLoading(false);
   };
 
   const fetchProducts = async () => {
@@ -545,6 +587,7 @@ const MerchantDashboard = () => {
       fetchProducts();
       fetchTransactions();
       fetchDailyStats();
+      fetchMerchantCustomers();
     } catch (error: any) {
       toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
     }
@@ -1591,15 +1634,54 @@ const MerchantDashboard = () => {
     </div>
   );
 
+  const renderMerchantCustomers = () => (
+    <div className="p-4 md:p-6 space-y-4">
+      <h2 className="text-xl font-bold">Daftar Customer</h2>
+      <p className="text-sm text-muted-foreground">Customer yang pernah membeli produk di toko Anda.</p>
+
+      {merchantCustomersLoading ? (
+        <div className="text-center py-8 text-muted-foreground">Memuat data customer...</div>
+      ) : merchantCustomers.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">Belum ada customer yang membeli produk.</div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nama Customer</TableHead>
+              <TableHead>Total Belanja</TableHead>
+              <TableHead>Total Item</TableHead>
+              <TableHead>Jumlah Transaksi</TableHead>
+              <TableHead>Transaksi Terakhir</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {merchantCustomers.map(c => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell>Rp {c.totalSpent.toLocaleString('id-ID')}</TableCell>
+                <TableCell>{c.totalQty}</TableCell>
+                <TableCell>{c.totalOrders}x</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {new Date(c.lastOrder).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+
   const renderContent = () => {
-    switch (activeView) {
-      case 'products': return renderProducts();
-      case 'history': return renderHistory();
-      case 'delivery': return renderDelivery();
-      case 'employees': return isSuperAdmin ? renderEmployees() : renderPOS();
-      case 'settings': return renderSettings();
-      default: return renderPOS();
-    }
+      switch (activeView) {
+        case 'products': return renderProducts();
+        case 'history': return renderHistory();
+        case 'delivery': return renderDelivery();
+        case 'customers': return renderMerchantCustomers();
+        case 'employees': return isSuperAdmin ? renderEmployees() : renderPOS();
+        case 'settings': return renderSettings();
+        default: return renderPOS();
+      }
   };
 
   return (
@@ -1652,10 +1734,16 @@ const MerchantDashboard = () => {
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => setActiveView('customers')} className={activeView === 'customers' ? 'bg-accent' : ''}>
+                      <Users className="h-4 w-4" />
+                      <span>Daftar Customer</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton onClick={() => setActiveView('employees')} className={activeView === 'employees' ? 'bg-accent' : ''}>
-                        <Users className="h-4 w-4" />
+                        <Shield className="h-4 w-4" />
                         <span>Karyawan</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -1683,7 +1771,7 @@ const MerchantDashboard = () => {
           <div className="border-b bg-card p-4 flex items-center gap-4">
             <SidebarTrigger />
             <h1 className="text-xl font-semibold">
-              {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : activeView === 'delivery' ? 'Pengiriman' : activeView === 'employees' ? 'Kelola Karyawan' : activeView === 'settings' ? 'Pengaturan Toko' : 'POS / Kasir'}
+              {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : activeView === 'delivery' ? 'Pengiriman' : activeView === 'customers' ? 'Daftar Customer' : activeView === 'employees' ? 'Kelola Karyawan' : activeView === 'settings' ? 'Pengaturan Toko' : 'POS / Kasir'}
             </h1>
           </div>
           <div className="flex-1 overflow-auto">
