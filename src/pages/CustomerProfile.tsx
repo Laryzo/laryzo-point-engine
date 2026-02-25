@@ -77,6 +77,10 @@ const CustomerProfile = () => {
 
       await refreshCustomer();
       
+      // Update local state to reflect saved values immediately
+      setLatitude(latitude);
+      setLongitude(longitude);
+      
       toast({
         title: 'Berhasil',
         description: 'Profil berhasil diperbarui',
