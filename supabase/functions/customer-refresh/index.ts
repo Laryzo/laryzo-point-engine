@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     // Fetch latest customer data
     const { data: customer, error: customerError } = await supabase
       .from('customers')
-      .select('id, name, email, whatsapp, points, created_at')
+      .select('id, name, email, whatsapp, points, created_at, latitude, longitude, address')
       .eq('id', customer_id)
       .single()
 

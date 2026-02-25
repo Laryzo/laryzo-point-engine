@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
           parent_id: parentId,
           position: position
         })
-        .select('id, name, email, whatsapp, points, created_at')
+        .select('id, name, email, whatsapp, points, created_at, latitude, longitude, address')
         .single()
 
       if (customerError) {
@@ -281,7 +281,7 @@ Deno.serve(async (req) => {
     // Fetch customer data
     const { data: customer, error: customerError } = await supabase
       .from('customers')
-      .select('id, name, email, whatsapp, points, created_at')
+      .select('id, name, email, whatsapp, points, created_at, latitude, longitude, address')
       .eq('id', authData.customer_id)
       .single()
 
