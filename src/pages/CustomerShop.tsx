@@ -120,11 +120,11 @@ const CustomerShop = () => {
   const [inputValue, setInputValue] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
   const [deliveryType, setDeliveryType] = useState<'none' | 'pickup' | 'external_ojol'>('none');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState(customer?.address || '');
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [itemNotes, setItemNotes] = useState('');
-  const [deliveryLat, setDeliveryLat] = useState('');
-  const [deliveryLng, setDeliveryLng] = useState('');
+  const [deliveryLat, setDeliveryLat] = useState(customer?.latitude?.toString() || '');
+  const [deliveryLng, setDeliveryLng] = useState(customer?.longitude?.toString() || '');
   const [estimatedDistance, setEstimatedDistance] = useState<number | null>(null);
   const [estimatedShipping, setEstimatedShipping] = useState<number | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
@@ -487,8 +487,8 @@ const CustomerShop = () => {
         setDeliveryAddress('');
         setDeliveryNotes('');
         setItemNotes('');
-        setDeliveryLat('');
-        setDeliveryLng('');
+        setDeliveryLat(customer?.latitude?.toString() || '');
+        setDeliveryLng(customer?.longitude?.toString() || '');
         setEstimatedDistance(null);
         setEstimatedShipping(null);
         return;
@@ -560,8 +560,8 @@ const CustomerShop = () => {
       setDeliveryAddress('');
       setDeliveryNotes('');
       setItemNotes('');
-      setDeliveryLat('');
-      setDeliveryLng('');
+      setDeliveryLat(customer?.latitude?.toString() || '');
+      setDeliveryLng(customer?.longitude?.toString() || '');
       setEstimatedDistance(null);
       setEstimatedShipping(null);
       navigate('/portal/orders');
