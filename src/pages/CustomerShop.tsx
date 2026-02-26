@@ -454,6 +454,9 @@ const CustomerShop = () => {
     setOrderLoading(true);
 
     try {
+      // Refresh auth session to ensure token is valid before calling edge functions
+      await supabase.auth.refreshSession();
+
       // Merchant product purchase uses dedicated edge function
       if (selectedProduct.type === 'merchant') {
         const { data: result, error: fnError } = await supabase.functions.invoke('merchant-product-purchase', {
