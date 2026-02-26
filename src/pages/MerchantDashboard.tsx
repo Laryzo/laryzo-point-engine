@@ -853,8 +853,12 @@ const MerchantDashboard = () => {
     </div>
   );
 
-  const generateGoogleMapsLink = (address: string) => {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  const generateGoogleMapsLink = (address?: string | null, lat?: number | null, lng?: number | null) => {
+    if (lat != null && lng != null) {
+      return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    }
+
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address || '')}`;
   };
 
   const generateWhatsAppDriverLink = (order: any) => {
@@ -1504,7 +1508,7 @@ const MerchantDashboard = () => {
                           size="sm"
                           asChild
                         >
-                          <a href={generateGoogleMapsLink(order.delivery_address)} target="_blank" rel="noopener noreferrer">
+                          <a href={generateGoogleMapsLink(order.delivery_address, order.delivery_latitude, order.delivery_longitude)} target="_blank" rel="noopener noreferrer">
                             <MapPin className="h-3 w-3 mr-1" />
                             Maps Tujuan
                           </a>
