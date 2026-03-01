@@ -176,33 +176,65 @@ const MerchantDashboard = () => {
   const fetchMerchantCustomers = async () => {
     setMerchantCustomersLoading(true);
     try {
-      const { data } = await supabase
+      // Fetch from POS transactions (merchant_transactions)
+      const { data: txData } = await supabase
         .from('merchant_transactions')
         .select('customer_id, customer_name, created_at, total, qty')
         .not('customer_id', 'is', null)
         .order('created_at', { ascending: false });
 
-      // Group by customer_id
+      // Fetch from online orders (orders table) for this merchant
+      const { data: orderData } = await supabase
+        .from('orders')
+        .select('customer_id, product_name, created_at, points_used')
+        .not('customer_id', 'is', null)
+        .order('created_at', { ascending: false });
+
+      // Fetch customer names for orders
+      const orderCustomerIds = [...new Set((orderData || []).map(o => o.customer_id))];
+      let customerNames = new Map<string, string>();
+      if (orderCustomerIds.length > 0) {
+        const { data: customers } = await supabase
+          .from('customers')
+          .select('id, name')
+          .in('id', orderCustomerIds);
+        (customers || []).forEach(c => customerNames.set(c.id, c.name || 'Customer'));
+      }
+
+      // Group by customer_id from both sources
       const customerMap = new Map<string, { id: string; name: string; totalSpent: number; totalQty: number; totalOrders: number; lastOrder: string }>();
-      (data || []).forEach(t => {
-        if (!t.customer_id) return;
-        const existing = customerMap.get(t.customer_id);
+
+      const addEntry = (customerId: string, name: string, amount: number, qty: number, createdAt: string) => {
+        const existing = customerMap.get(customerId);
         if (existing) {
-          existing.totalSpent += Number(t.total || 0);
-          existing.totalQty += Number(t.qty || 0);
+          existing.totalSpent += amount;
+          existing.totalQty += qty;
           existing.totalOrders += 1;
-          if (t.created_at > existing.lastOrder) existing.lastOrder = t.created_at;
+          if (createdAt > existing.lastOrder) existing.lastOrder = createdAt;
         } else {
-          customerMap.set(t.customer_id, {
-            id: t.customer_id,
-            name: t.customer_name || 'Customer',
-            totalSpent: Number(t.total || 0),
-            totalQty: Number(t.qty || 0),
+          customerMap.set(customerId, {
+            id: customerId,
+            name,
+            totalSpent: amount,
+            totalQty: qty,
             totalOrders: 1,
-            lastOrder: t.created_at,
+            lastOrder: createdAt,
           });
         }
+      };
+
+      // Add POS transactions
+      (txData || []).forEach(t => {
+        if (!t.customer_id) return;
+        addEntry(t.customer_id, t.customer_name || 'Customer', Number(t.total || 0), Number(t.qty || 0), t.created_at);
       });
+
+      // Add online orders
+      (orderData || []).forEach(o => {
+        if (!o.customer_id) return;
+        addEntry(o.customer_id, customerNames.get(o.customer_id) || 'Customer', Number(o.points_used || 0), 1, o.created_at);
+      });
+
       setMerchantCustomers(Array.from(customerMap.values()).sort((a, b) => b.totalSpent - a.totalSpent));
     } catch (error) {
       console.error('Error fetching merchant customers:', error);
