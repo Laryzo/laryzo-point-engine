@@ -329,6 +329,25 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Insert into merchant_transactions so it appears in merchant's transaction history
+    const laryzoFee = productMargin > 0 ? Math.round(productMargin * 0.05) : 0;
+    const { error: mtxErr } = await supabase.from("merchant_transactions").insert({
+      merchant_id: product.merchant_id,
+      product_id: product_id,
+      product_name: product.name,
+      customer_id: customerId,
+      customer_name: customer.name || 'Customer',
+      price: pointPrice,
+      qty: 1,
+      total: pointPrice,
+      laryzo_fee: laryzoFee,
+      customer_points_earned: 0,
+      notes: item_notes || null,
+    });
+    if (mtxErr) {
+      console.error("merchant_transactions insert error:", mtxErr);
+    }
+
     // Decrease stock if not unlimited
     if (product.stock !== -1) {
       await supabase
