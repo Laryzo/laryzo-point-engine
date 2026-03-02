@@ -132,7 +132,7 @@ const CustomerShop = () => {
   // Category configurations
   const ppobCategories: CategoryConfig[] = [
     { id: 'pulsa', label: 'Pulsa', ppob_type: 'pulsa', icon: <Smartphone className="h-8 w-8" /> },
-    { id: 'emoney', label: 'E-Money', ppob_type: 'emoney', icon: <CreditCard className="h-8 w-8" /> },
+    { id: 'emoney', label: 'E-Wallet', ppob_type: 'emoney', icon: <CreditCard className="h-8 w-8" /> },
     { id: 'token_pln', label: 'Token PLN', ppob_type: 'token_pln', icon: <Zap className="h-8 w-8" /> },
   ];
 

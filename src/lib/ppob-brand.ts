@@ -28,7 +28,7 @@ export function getPpobBrandFromProductName(productName: string): string {
   // TRI is often written as "Three" in Digiflazz names
   if (n.includes(' TRI ') || n.startsWith(' TRI ') || n.includes(' THREE ') || n.startsWith(' THREE ')) return 'TRI';
 
-  // E-money wallets (common variants)
+  // E-wallet providers (common variants)
   if (n.includes(' GOPAY ') || n.includes(' GO PAY ') || n.startsWith(' GOPAY ') || n.startsWith(' GO PAY ')) return 'GOPAY';
   if (n.includes(' OVO ') || n.startsWith(' OVO ')) return 'OVO';
   if (n.includes(' DANA ') || n.startsWith(' DANA ')) return 'DANA';
