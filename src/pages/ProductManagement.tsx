@@ -73,7 +73,7 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
   // PPOB Categories config
   const ppobCategories: CategoryConfig[] = [
     { id: 'pulsa', label: 'Pulsa', ppob_type: 'pulsa', icon: <Smartphone className="h-8 w-8" /> },
-    { id: 'emoney', label: 'E-Money', ppob_type: 'emoney', icon: <CreditCard className="h-8 w-8" /> },
+    { id: 'emoney', label: 'E-Wallet', ppob_type: 'emoney', icon: <CreditCard className="h-8 w-8" /> },
     { id: 'token_pln', label: 'Token PLN', ppob_type: 'token_pln', icon: <Zap className="h-8 w-8" /> },
   ];
 
@@ -796,7 +796,7 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                       <SelectItem value="pulsa">Pulsa</SelectItem>
                       <SelectItem value="data">Paket Data</SelectItem>
                       <SelectItem value="pln">Token PLN</SelectItem>
-                      <SelectItem value="emoney">E-Money</SelectItem>
+                      <SelectItem value="emoney">E-Wallet</SelectItem>
                       <SelectItem value="game">Voucher Game</SelectItem>
                     </SelectContent>
                   </Select>
