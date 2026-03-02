@@ -586,6 +586,7 @@ const MerchantDashboard = () => {
   const [editTxPrice, setEditTxPrice] = useState(0);
   const [editTxNotes, setEditTxNotes] = useState('');
   const [savingTxEdit, setSavingTxEdit] = useState(false);
+  const [deletingTxId, setDeletingTxId] = useState<string | null>(null);
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -659,13 +660,19 @@ const MerchantDashboard = () => {
   };
 
   const handleDeleteTx = async (txId: string, productName: string) => {
+    if (deletingTxId) return;
+
+    setDeletingTxId(txId);
     try {
       const { error } = await supabase.from('merchant_transactions').delete().eq('id', txId);
       if (error) throw error;
+      setTransactions(prev => prev.filter(tx => tx.id !== txId));
       toast({ title: 'Transaksi berhasil dihapus', description: productName });
       fetchTransactions();
     } catch (error: any) {
       toast({ title: 'Gagal menghapus', description: error.message, variant: 'destructive' });
+    } finally {
+      setDeletingTxId(null);
     }
   };
 
@@ -1052,9 +1059,17 @@ const MerchantDashboard = () => {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Batal</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteTx(t.id, t.product_name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Hapus
+                          <AlertDialogCancel disabled={deletingTxId === t.id}>Batal</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              void handleDeleteTx(t.id, t.product_name);
+                            }}
+                            disabled={deletingTxId === t.id}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {deletingTxId === t.id ? 'Menghapus...' : 'Hapus'}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
