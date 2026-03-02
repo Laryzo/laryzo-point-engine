@@ -5,6 +5,7 @@ import { hash } from 'https://esm.sh/bcryptjs@3.0.2'
 const ALLOWED_ORIGINS = [
   'https://lovable.dev',
   'https://jkqtqxwtyqrlhblnaohz.lovableproject.com',
+  'https://laryzo.biz.id',
   'http://localhost:5173',
   'http://localhost:3000',
 ]

@@ -6,6 +6,7 @@ import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 const ALLOWED_ORIGINS = [
   'https://lovable.dev',
   'https://jkqtqxwtyqrlhblnaohz.lovableproject.com',
+  'https://laryzo.biz.id',
   'http://localhost:5173',
   'http://localhost:3000',
 ]
