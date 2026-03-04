@@ -524,8 +524,20 @@ const CustomerShop = () => {
 
         if (topupError) {
           console.error('Topup error:', topupError);
-          await supabase.from('orders').delete().eq('id', order.id);
-          throw new Error('Gagal memproses pesanan PPOB');
+          // Don't delete order - edge function may have already processed it
+          // Check if order was actually processed
+          const { data: checkOrder } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('id', order.id)
+            .single();
+          
+          if (checkOrder?.status === 'pending') {
+            // Edge function didn't run, safe to delete
+            await supabase.from('orders').delete().eq('id', order.id);
+          }
+          // If status changed, edge function ran - order has its own refund logic
+          throw new Error('Gagal memproses pesanan PPOB. Cek menu Pesanan untuk status terbaru.');
         }
 
         if (topupResult && !topupResult.success) {
