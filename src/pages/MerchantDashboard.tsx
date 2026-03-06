@@ -184,9 +184,11 @@ const MerchantDashboard = () => {
         .order('created_at', { ascending: false });
 
       // Fetch from online orders (orders table) for this merchant
+      // Only fetch orders that belong to THIS merchant (exclude company PPOB/physical orders)
       const { data: orderData } = await supabase
         .from('orders')
         .select('customer_id, product_name, created_at, points_used')
+        .eq('merchant_id', merchant!.id)
         .not('customer_id', 'is', null)
         .order('created_at', { ascending: false });
 
