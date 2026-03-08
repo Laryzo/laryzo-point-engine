@@ -1,4 +1,5 @@
 
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,20 +11,32 @@ import { MerchantAuthProvider, useMerchantAuth } from "@/hooks/useMerchantAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CustomerProtectedRoute } from "@/components/CustomerProtectedRoute";
 import { MerchantProtectedRoute } from "@/components/MerchantProtectedRoute";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import CustomerLogin from "./pages/CustomerLogin";
-import CustomerDashboard from "./pages/CustomerDashboard";
-import CustomerShop from "./pages/CustomerShop";
-import CustomerOrders from "./pages/CustomerOrders";
-import CustomerPointHistory from "./pages/CustomerPointHistory";
-import CustomerProfile from "./pages/CustomerProfile";
-import MerchantLogin from "./pages/MerchantLogin";
-import MerchantDashboard from "./pages/MerchantDashboard";
-import NotFound from "./pages/NotFound";
+import { Loader2 } from "lucide-react";
+
+// Lazy load all pages
+const Index = lazy(() => import("./pages/Index"));
+const Login = lazy(() => import("./pages/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const CustomerLogin = lazy(() => import("./pages/CustomerLogin"));
+const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard"));
+const CustomerShop = lazy(() => import("./pages/CustomerShop"));
+const CustomerOrders = lazy(() => import("./pages/CustomerOrders"));
+const CustomerPointHistory = lazy(() => import("./pages/CustomerPointHistory"));
+const CustomerProfile = lazy(() => import("./pages/CustomerProfile"));
+const MerchantLogin = lazy(() => import("./pages/MerchantLogin"));
+const MerchantDashboard = lazy(() => import("./pages/MerchantDashboard"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
+
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex flex-col items-center gap-3">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-sm text-muted-foreground">Memuat...</p>
+    </div>
+  </div>
+);
 
 const AdminRoutes = () => {
   const { admin } = useAuth();
@@ -97,27 +110,29 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          {/* Admin Routes */}
-          <Route path="/*" element={
-            <AuthProvider>
-              <AdminRoutes />
-            </AuthProvider>
-          } />
-          {/* Customer Portal Routes */}
-          <Route path="/portal/*" element={
-            <CustomerAuthProvider>
-              <CustomerPortalRoutes />
-            </CustomerAuthProvider>
-          } />
-          {/* Merchant/Mitra Routes */}
-          <Route path="/mitra/*" element={
-            <MerchantAuthProvider>
-              <MerchantRoutes />
-            </MerchantAuthProvider>
-          } />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            {/* Admin Routes */}
+            <Route path="/*" element={
+              <AuthProvider>
+                <AdminRoutes />
+              </AuthProvider>
+            } />
+            {/* Customer Portal Routes */}
+            <Route path="/portal/*" element={
+              <CustomerAuthProvider>
+                <CustomerPortalRoutes />
+              </CustomerAuthProvider>
+            } />
+            {/* Merchant/Mitra Routes */}
+            <Route path="/mitra/*" element={
+              <MerchantAuthProvider>
+                <MerchantRoutes />
+              </MerchantAuthProvider>
+            } />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
