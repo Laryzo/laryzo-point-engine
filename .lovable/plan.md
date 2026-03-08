@@ -1,83 +1,52 @@
 
 
-# Fase 1: Database & Scaling — Fondasi SuperApp Laryzo
+## Diagnosis
 
-## Ringkasan
-Memperkuat fondasi database dan performa aplikasi dengan memperluas tabel `orders`, menambahkan index, menerapkan pagination, dan mengoptimalkan dashboard agar siap untuk ekspansi modul delivery, wallet, dan marketplace.
+Masalah utama bukan karena 3 aplikasi digabung jadi satu, tapi karena **semua halaman di-load sekaligus** saat pertama kali buka aplikasi. Tidak ada code splitting / lazy loading.
 
-## Perubahan yang Dilakukan
+Fakta:
+- `MerchantDashboard.tsx` = **1.839 baris**
+- `CustomerShop.tsx` = **1.114 baris**
+- `Dashboard.tsx` = **466 baris**
+- Semua halaman + komponen besar (leaflet map, xlsx, recharts) di-import langsung di `App.tsx`
 
-### 1. Migrasi Database
+Ketika customer buka `/portal/login`, browser juga men-download kode Admin Dashboard, Merchant Dashboard, dan semua dependensinya. Ini menyebabkan loading lambat dan kadang komponen gagal render.
 
-Tambahkan kolom baru pada tabel `orders` yang sudah ada (TANPA membuat tabel baru):
-
-```text
-orders (kolom baru):
-  + order_type       TEXT DEFAULT 'ppob'    -- 'ppob' | 'food' | 'product'
-  + delivery_type    TEXT DEFAULT 'none'    -- 'none' | 'pickup' | 'external_ojol'
-  + delivery_status  TEXT                   -- 'waiting_driver' | 'picked_up' | 'delivered'
-  + merchant_id      UUID (nullable, FK -> merchants.id)
-  + pickup_address   TEXT (nullable)
-  + delivery_address TEXT (nullable)
-  + delivery_notes   TEXT (nullable)
-```
-
-Tambahkan index performa:
-- `idx_orders_created_at` pada `orders(created_at DESC)`
-- `idx_orders_status` pada `orders(status)`
-- `idx_orders_merchant_id` pada `orders(merchant_id)` 
-- `idx_orders_order_type` pada `orders(order_type)`
-- `idx_merchant_transactions_merchant_id` pada `merchant_transactions(merchant_id)`
-- `idx_merchant_transactions_created_at` pada `merchant_transactions(created_at DESC)`
-
-Persiapan tabel wallet (struktur saja, belum aktif):
-- `wallet_balances` — `id, user_id, user_type, balance, updated_at`
-- `wallet_transactions` — `id, wallet_id, amount, type (debit/credit), reference_order_id, description, created_at`
-
-### 2. Optimasi Admin Dashboard (`src/pages/Dashboard.tsx`)
-
-Saat ini dashboard mengambil SEMUA data (`select('*')`) untuk menghitung statistik. Akan diubah menjadi:
-- Gunakan `select('id', { count: 'exact', head: true })` untuk menghitung total tanpa mengunduh semua baris
-- Tambahkan filter tanggal hari ini untuk statistik harian
-- Tambahkan kartu: "Order Hari Ini", "Rasio PPOB vs UMKM", "Merchant Aktif"
-
-### 3. Optimasi Merchant Dashboard (`src/pages/MerchantDashboard.tsx`)
-
-- Limit transaksi dari 100 menjadi 10 di halaman utama POS
-- Tambahkan statistik ringkas: total pendapatan hari ini, jumlah order hari ini
-- Tampilkan hanya 10 order terakhir di riwayat
-
-### 4. Pagination pada Order Management (`src/pages/OrderManagement.tsx`)
-
-- Terapkan pagination server-side (20 order per halaman)
-- Tambahkan navigasi halaman (Previous/Next)
-- Ganti `fetchOrders` dari mengambil semua menjadi mengambil per halaman dengan `.range()`
-
-### 5. Migrasi Data Existing
-
-Semua order yang sudah ada akan otomatis mendapat `order_type = 'ppob'` dan `delivery_type = 'none'` dari DEFAULT value, sehingga tidak ada data yang rusak.
+**Tidak perlu pisah jadi 3 aplikasi terpisah.** Cukup gunakan **React lazy loading** agar setiap halaman hanya di-download saat dibutuhkan.
 
 ---
 
-## Detail Teknis
+## Rencana Perbaikan
 
-### File yang Diubah
-| File | Perubahan |
-|------|-----------|
-| `supabase/migrations/` (baru) | Migrasi SQL: kolom baru, index, tabel wallet |
-| `src/pages/Dashboard.tsx` | Optimasi query stats, tambah kartu analytics harian |
-| `src/pages/MerchantDashboard.tsx` | Limit query, tambah stats ringkas harian |
-| `src/pages/OrderManagement.tsx` | Pagination server-side 20/halaman |
-| `src/integrations/supabase/types.ts` | Auto-update dari migrasi |
+### 1. Lazy load semua halaman di `App.tsx`
 
-### Yang TIDAK Diubah
-- Flow PPOB (Digiflazz) tetap utuh
-- Flow checkout merchant-checkout tetap utuh
-- Autentikasi admin/customer/merchant tetap sama
-- RLS policies existing tidak dimodifikasi (hanya tambah policy untuk kolom baru jika diperlukan)
+Ganti semua `import` halaman menjadi `React.lazy()` + bungkus dengan `<Suspense>`:
 
-### RLS untuk Wallet (Persiapan)
-- `wallet_balances`: user hanya bisa baca milik sendiri
-- `wallet_transactions`: user hanya bisa baca milik sendiri
-- Admin bisa baca semua
+```typescript
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const CustomerShop = lazy(() => import('./pages/CustomerShop'));
+const MerchantDashboard = lazy(() => import('./pages/MerchantDashboard'));
+// ... semua halaman lainnya
+```
+
+### 2. Tambah Suspense fallback loading
+
+Bungkus Routes dengan `<Suspense fallback={<LoadingSpinner />}>` agar user melihat spinner saat chunk di-download.
+
+### 3. Deduplicate React di Vite config
+
+Tambah `resolve.dedupe` di `vite.config.ts` untuk mencegah duplikasi React instance yang menyebabkan context hilang (menu menghilang):
+
+```typescript
+resolve: {
+  alias: { "@": path.resolve(__dirname, "./src") },
+  dedupe: ["react", "react-dom", "react/jsx-runtime"],
+},
+```
+
+### Hasil yang diharapkan
+
+- **Initial load 50-70% lebih kecil** — customer hanya download kode customer, admin hanya download kode admin
+- **Menu tidak hilang lagi** — React instance tunggal, context stabil
+- **Tidak perlu pisah jadi 3 aplikasi** — maintenance tetap mudah, satu codebase
 
