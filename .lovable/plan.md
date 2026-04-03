@@ -1,83 +1,37 @@
 
 
-# Fase 1: Database & Scaling — Fondasi SuperApp Laryzo
+## Rencana: Tambahkan Tombol Deep Link GoSend, GrabExpress & Maxim di Pesanan Pengiriman Merchant
 
-## Ringkasan
-Memperkuat fondasi database dan performa aplikasi dengan memperluas tabel `orders`, menambahkan index, menerapkan pagination, dan mengoptimalkan dashboard agar siap untuk ekspansi modul delivery, wallet, dan marketplace.
+### Apa yang berubah
 
-## Perubahan yang Dilakukan
+Sistem delivery yang ada **tetap dipertahankan** (estimasi ongkir manual, Maps Tujuan, Hubungi Driver). Ditambahkan **3 tombol baru** di setiap order pengiriman ojol: "Pesan GoSend", "Pesan GrabExpress", dan "Pesan Maxim".
 
-### 1. Migrasi Database
+### Cara kerja
 
-Tambahkan kolom baru pada tabel `orders` yang sudah ada (TANPA membuat tabel baru):
+Ketika merchant klik salah satu tombol, aplikasi ojol terbuka di HP merchant dengan alamat pickup (toko) dan tujuan (customer) sudah terisi otomatis menggunakan koordinat GPS dari data order.
 
-```text
-orders (kolom baru):
-  + order_type       TEXT DEFAULT 'ppob'    -- 'ppob' | 'food' | 'product'
-  + delivery_type    TEXT DEFAULT 'none'    -- 'none' | 'pickup' | 'external_ojol'
-  + delivery_status  TEXT                   -- 'waiting_driver' | 'picked_up' | 'delivered'
-  + merchant_id      UUID (nullable, FK -> merchants.id)
-  + pickup_address   TEXT (nullable)
-  + delivery_address TEXT (nullable)
-  + delivery_notes   TEXT (nullable)
-```
+Deep link format:
+- **GoSend**: `gojek://gopay/gosend?pickup_lat=X&pickup_lng=Y&drop_lat=X&drop_lng=Y`
+- **GrabExpress**: `grab://express?pickup_lat=X&pickup_lng=Y&drop_lat=X&drop_lng=Y`  
+- **Maxim**: `maxim://order?from_lat=X&from_lng=Y&to_lat=X&to_lng=Y`
 
-Tambahkan index performa:
-- `idx_orders_created_at` pada `orders(created_at DESC)`
-- `idx_orders_status` pada `orders(status)`
-- `idx_orders_merchant_id` pada `orders(merchant_id)` 
-- `idx_orders_order_type` pada `orders(order_type)`
-- `idx_merchant_transactions_merchant_id` pada `merchant_transactions(merchant_id)`
-- `idx_merchant_transactions_created_at` pada `merchant_transactions(created_at DESC)`
+Jika app tidak terinstall, fallback ke Play Store / web masing-masing.
 
-Persiapan tabel wallet (struktur saja, belum aktif):
-- `wallet_balances` — `id, user_id, user_type, balance, updated_at`
-- `wallet_transactions` — `id, wallet_id, amount, type (debit/credit), reference_order_id, description, created_at`
+### Perubahan file
 
-### 2. Optimasi Admin Dashboard (`src/pages/Dashboard.tsx`)
+**`src/pages/MerchantDashboard.tsx`** (satu-satunya file yang berubah):
 
-Saat ini dashboard mengambil SEMUA data (`select('*')`) untuk menghitung statistik. Akan diubah menjadi:
-- Gunakan `select('id', { count: 'exact', head: true })` untuk menghitung total tanpa mengunduh semua baris
-- Tambahkan filter tanggal hari ini untuk statistik harian
-- Tambahkan kartu: "Order Hari Ini", "Rasio PPOB vs UMKM", "Merchant Aktif"
+1. Tambah fungsi `generateOjolDeepLink(order, provider)` yang membangun URL deep link berdasarkan koordinat merchant + order
+2. Di section "Action buttons" (baris ~1553-1575), tambahkan 3 tombol baru **di samping** tombol "Maps Tujuan" dan "Hubungi Driver" yang sudah ada:
+   - 🟢 **Pesan GoSend** — deep link ke Gojek GoSend
+   - 🟢 **Pesan GrabExpress** — deep link ke Grab Express
+   - 🟡 **Pesan Maxim** — deep link ke Maxim
+3. Tombol hanya muncul jika koordinat pickup (merchant) dan tujuan (order) tersedia
+4. Layout tombol di-wrap agar responsive (flex-wrap) supaya tidak overflow di mobile
 
-### 3. Optimasi Merchant Dashboard (`src/pages/MerchantDashboard.tsx`)
-
-- Limit transaksi dari 100 menjadi 10 di halaman utama POS
-- Tambahkan statistik ringkas: total pendapatan hari ini, jumlah order hari ini
-- Tampilkan hanya 10 order terakhir di riwayat
-
-### 4. Pagination pada Order Management (`src/pages/OrderManagement.tsx`)
-
-- Terapkan pagination server-side (20 order per halaman)
-- Tambahkan navigasi halaman (Previous/Next)
-- Ganti `fetchOrders` dari mengambil semua menjadi mengambil per halaman dengan `.range()`
-
-### 5. Migrasi Data Existing
-
-Semua order yang sudah ada akan otomatis mendapat `order_type = 'ppob'` dan `delivery_type = 'none'` dari DEFAULT value, sehingga tidak ada data yang rusak.
-
----
-
-## Detail Teknis
-
-### File yang Diubah
-| File | Perubahan |
-|------|-----------|
-| `supabase/migrations/` (baru) | Migrasi SQL: kolom baru, index, tabel wallet |
-| `src/pages/Dashboard.tsx` | Optimasi query stats, tambah kartu analytics harian |
-| `src/pages/MerchantDashboard.tsx` | Limit query, tambah stats ringkas harian |
-| `src/pages/OrderManagement.tsx` | Pagination server-side 20/halaman |
-| `src/integrations/supabase/types.ts` | Auto-update dari migrasi |
-
-### Yang TIDAK Diubah
-- Flow PPOB (Digiflazz) tetap utuh
-- Flow checkout merchant-checkout tetap utuh
-- Autentikasi admin/customer/merchant tetap sama
-- RLS policies existing tidak dimodifikasi (hanya tambah policy untuk kolom baru jika diperlukan)
-
-### RLS untuk Wallet (Persiapan)
-- `wallet_balances`: user hanya bisa baca milik sendiri
-- `wallet_transactions`: user hanya bisa baca milik sendiri
-- Admin bisa baca semua
+### Tidak ada perubahan di:
+- Sisi customer (pemesanan tetap sama)
+- Estimasi ongkir manual (tetap ada)
+- Tombol "Hubungi Driver" dan "Maps Tujuan" (tetap ada)
+- Database / backend
 
