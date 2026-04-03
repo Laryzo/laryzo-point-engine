@@ -1550,7 +1550,7 @@ const MerchantDashboard = () => {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex gap-2 pt-2 border-t">
+                    <div className="flex flex-wrap gap-2 pt-2 border-t">
                       {order.delivery_address && (
                         <Button
                           variant="outline"
@@ -1572,6 +1572,63 @@ const MerchantDashboard = () => {
                           📱 Hubungi Driver
                         </a>
                       </Button>
+
+                      {/* Deep Link Ojol Buttons */}
+                      {merchantData?.latitude && merchantData?.longitude && order.delivery_latitude && order.delivery_longitude && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-600 text-green-700 hover:bg-green-50"
+                            asChild
+                          >
+                            <a
+                              href={`gojek://gopay/gosend?pickup_lat=${merchantData.latitude}&pickup_lng=${merchantData.longitude}&pickup_address=${encodeURIComponent(merchantData.business_address || '')}&drop_lat=${order.delivery_latitude}&drop_lng=${order.delivery_longitude}&drop_address=${encodeURIComponent(order.delivery_address || '')}`}
+                              onClick={(e) => {
+                                setTimeout(() => {
+                                  window.open('https://play.google.com/store/apps/details?id=com.gojek.app', '_blank');
+                                }, 1500);
+                              }}
+                            >
+                              🟢 GoSend
+                            </a>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-600 text-green-700 hover:bg-green-50"
+                            asChild
+                          >
+                            <a
+                              href={`grab://express?pickup_lat=${merchantData.latitude}&pickup_lng=${merchantData.longitude}&pickup_address=${encodeURIComponent(merchantData.business_address || '')}&drop_lat=${order.delivery_latitude}&drop_lng=${order.delivery_longitude}&drop_address=${encodeURIComponent(order.delivery_address || '')}`}
+                              onClick={(e) => {
+                                setTimeout(() => {
+                                  window.open('https://play.google.com/store/apps/details?id=com.grabtaxi.passenger', '_blank');
+                                }, 1500);
+                              }}
+                            >
+                              🟢 GrabExpress
+                            </a>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+                            asChild
+                          >
+                            <a
+                              href={`maxim://order?from_lat=${merchantData.latitude}&from_lng=${merchantData.longitude}&to_lat=${order.delivery_latitude}&to_lng=${order.delivery_longitude}`}
+                              onClick={(e) => {
+                                setTimeout(() => {
+                                  window.open('https://play.google.com/store/apps/details?id=com.taxsee.taxsee', '_blank');
+                                }, 1500);
+                              }}
+                            >
+                              🟡 Maxim
+                            </a>
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
