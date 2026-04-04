@@ -908,7 +908,7 @@ const MerchantDashboard = () => {
     let detailPesanan = productName;
     if (itemNotes) detailPesanan += `\nCatatan: ${itemNotes}`;
     detailPesanan += `\nHarga: ${formatShippingCost(productPrice)}`;
-    const message = `Halo driver, pickup pesanan ${customerName}:\n\nDetail pesanan:\n${detailPesanan}\n\nPenjemputan\nMerchant: ${merchantName}\nAlamat: ${pickupAddr}${pickupPinPoint}\n\nPengantaran\nTujuan: ${destAddr}${destPinPoint}\nCatatan: ${note}${ongkirLine}`;
+    const message = `Halo driver, pickup pesanan ${customerName}:\n\nDetail pesanan:\n${detailPesanan}\n\nPenjemputan\nMerchant: ${merchantName}\nAlamat: ${pickupAddr}${pickupPinPoint}\n\nPengantaran\nTujuan: ${destAddr}${destPinPoint}\nCatatan: ${note}`;
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   };
 
