@@ -401,14 +401,13 @@ const CustomerShop = () => {
       return;
     }
 
-    // Calculate total including shipping for merchant products with ojol
-    const shippingCost = (selectedProduct.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
-    const totalPointsNeeded = selectedProduct.point_price + shippingCost;
+    // No shipping cost - ongkir handled by ojol app
+    const totalPointsNeeded = selectedProduct.point_price;
 
     if (customer.points < totalPointsNeeded) {
       toast({
         title: 'Poin Tidak Cukup',
-        description: `Anda membutuhkan ${formatNumber(totalPointsNeeded)} poin (produk + ongkir)`,
+        description: `Anda membutuhkan ${formatNumber(totalPointsNeeded)} poin`,
         variant: 'destructive',
       });
       return;
