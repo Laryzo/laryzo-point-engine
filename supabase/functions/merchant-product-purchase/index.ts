@@ -172,9 +172,7 @@ Deno.serve(async (req) => {
       points: -totalPointsDeducted,
       product_code: `Beli: ${product.name}`,
       level: 0,
-      description: estimatedShippingCost 
-        ? `Pembelian ${product.name} di ${merchantName} (termasuk ongkir Rp ${estimatedShippingCost.toLocaleString('id-ID')})`
-        : `Pembelian ${product.name} di ${merchantName}`,
+      description: `Pembelian ${product.name} di ${merchantName}`,
     });
 
     if (histErr) {
