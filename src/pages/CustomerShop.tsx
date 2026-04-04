@@ -125,8 +125,6 @@ const CustomerShop = () => {
   const [itemNotes, setItemNotes] = useState('');
   const [deliveryLat, setDeliveryLat] = useState(customer?.latitude?.toString() || '');
   const [deliveryLng, setDeliveryLng] = useState(customer?.longitude?.toString() || '');
-  const [estimatedDistance, setEstimatedDistance] = useState<number | null>(null);
-  const [estimatedShipping, setEstimatedShipping] = useState<number | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
 
   // Category configurations
@@ -135,41 +133,6 @@ const CustomerShop = () => {
     { id: 'emoney', label: 'E-Wallet', ppob_type: 'emoney', icon: <CreditCard className="h-8 w-8" /> },
     { id: 'token_pln', label: 'Token PLN', ppob_type: 'token_pln', icon: <Zap className="h-8 w-8" /> },
   ];
-
-  // Haversine formula for client-side distance preview
-  const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  };
-
-  const calculateGojekShipping = (km: number): number => {
-    if (km <= 0) return 0;
-    if (km <= 3) return 10000;
-    if (km <= 7) return 15000;
-    if (km <= 12) return 22000;
-    return 22000 + Math.ceil(km - 12) * 3000;
-  };
-
-  // Auto-calculate shipping when coordinates change
-  useEffect(() => {
-    if (selectedMerchantCoords && deliveryLat && deliveryLng) {
-      const dist = haversineDistance(
-        selectedMerchantCoords.lat, selectedMerchantCoords.lng,
-        Number(deliveryLat), Number(deliveryLng)
-      );
-      const rounded = Math.round(dist * 10) / 10;
-      setEstimatedDistance(rounded);
-      setEstimatedShipping(calculateGojekShipping(rounded));
-    } else {
-      setEstimatedDistance(null);
-      setEstimatedShipping(null);
-    }
-  }, [selectedMerchantCoords, deliveryLat, deliveryLng]);
 
   useEffect(() => {
     fetchProducts();
@@ -438,14 +401,13 @@ const CustomerShop = () => {
       return;
     }
 
-    // Calculate total including shipping for merchant products with ojol
-    const shippingCost = (selectedProduct.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
-    const totalPointsNeeded = selectedProduct.point_price + shippingCost;
+    // No shipping cost - ongkir handled by ojol app
+    const totalPointsNeeded = selectedProduct.point_price;
 
     if (customer.points < totalPointsNeeded) {
       toast({
         title: 'Poin Tidak Cukup',
-        description: `Anda membutuhkan ${formatNumber(totalPointsNeeded)} poin (produk + ongkir)`,
+        description: `Anda membutuhkan ${formatNumber(totalPointsNeeded)} poin`,
         variant: 'destructive',
       });
       return;
@@ -474,12 +436,9 @@ const CustomerShop = () => {
         if (fnError) throw new Error(fnError.message || 'Gagal memproses pembelian');
         if (result && !result.success) throw new Error(result.error || 'Gagal memproses pembelian');
 
-        const totalPaid = selectedProduct.point_price + shippingCost;
         toast({
           title: 'Pembelian Berhasil! 🎉',
-          description: shippingCost > 0 
-            ? `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(totalPaid)} poin (termasuk ongkir ${formatNumber(shippingCost)})`
-            : `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(selectedProduct.point_price)} poin`,
+          description: `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(selectedProduct.point_price)} poin`,
         });
 
         await refreshCustomer();
@@ -492,8 +451,6 @@ const CustomerShop = () => {
         setItemNotes('');
         setDeliveryLat(customer?.latitude?.toString() || '');
         setDeliveryLng(customer?.longitude?.toString() || '');
-        setEstimatedDistance(null);
-        setEstimatedShipping(null);
         return;
       }
 
@@ -577,8 +534,6 @@ const CustomerShop = () => {
       setItemNotes('');
       setDeliveryLat(customer?.latitude?.toString() || '');
       setDeliveryLng(customer?.longitude?.toString() || '');
-      setEstimatedDistance(null);
-      setEstimatedShipping(null);
       navigate('/portal/orders');
     } catch (error: any) {
       toast({
@@ -1028,7 +983,7 @@ const CustomerShop = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">📍 Titik Lokasi Tujuan (untuk hitung ongkir otomatis)</Label>
+                      <Label className="text-sm font-medium">📍 Titik Lokasi Tujuan</Label>
                       <p className="text-xs text-muted-foreground">
                         Klik peta atau geser pin untuk menentukan lokasi tujuan, lalu klik "Simpan Lokasi".
                       </p>
@@ -1042,48 +997,19 @@ const CustomerShop = () => {
                         }}
                       />
                     </div>
-                    {estimatedDistance !== null && estimatedShipping !== null && (
-                      <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                        <p className="text-xs font-medium text-primary mb-1">🚚 Estimasi Ongkir (termasuk dalam total bayar)</p>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1 text-lg font-bold text-primary">
-                            <Coins className="h-4 w-4" />
-                            <span>{formatNumber(estimatedShipping)} poin</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">({estimatedDistance.toFixed(1)} km)</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Total bayar: {formatNumber((selectedProduct?.point_price || 0) + estimatedShipping)} poin (produk + ongkir)
-                        </p>
-                      </div>
-                    )}
-                    <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                      <p className="text-xs font-medium text-primary mb-1">🚚 Tarif Standar Gojek</p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="flex justify-between"><span>0-3 km</span><span className="font-medium">Rp 10.000</span></div>
-                        <div className="flex justify-between"><span>3-7 km</span><span className="font-medium">Rp 15.000</span></div>
-                        <div className="flex justify-between"><span>7-12 km</span><span className="font-medium">Rp 22.000</span></div>
-                        <div className="flex justify-between"><span>12+ km</span><span className="font-medium">+Rp 3.000/km</span></div>
-                      </div>
-                    </div>
                     <p className="text-xs text-muted-foreground">
-                      💡 Ongkos kirim sudah termasuk dalam total pembayaran poin. Laryzo yang akan membayar driver.
+                      💡 Ongkos kirim dibayar langsung melalui aplikasi ojol (GoSend/GrabExpress/Maxim) oleh merchant.
                     </p>
                   </div>
                 )}
               </div>
             )}
 
-            {customer && selectedProduct && (() => {
-              const shippingForCheck = (selectedProduct.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
-              const totalForCheck = selectedProduct.point_price + shippingForCheck;
-              return customer.points < totalForCheck ? (
+            {customer && selectedProduct && customer.points < selectedProduct.point_price && (
                 <p className="text-sm text-destructive">
-                  Poin Anda tidak cukup. Anda membutuhkan {formatNumber(totalForCheck - customer.points)} poin lagi.
-                  {shippingForCheck > 0 && ` (Produk: ${formatNumber(selectedProduct.point_price)} + Ongkir: ${formatNumber(shippingForCheck)})`}
+                  Poin Anda tidak cukup. Anda membutuhkan {formatNumber(selectedProduct.point_price - customer.points)} poin lagi.
                 </p>
-              ) : null;
-            })()}
+            )}
           </div>
           </div>
 
@@ -1093,16 +1019,9 @@ const CustomerShop = () => {
             </Button>
             <Button 
               onClick={handleOrder} 
-              disabled={orderLoading || (customer && selectedProduct && (() => {
-                const sc = (selectedProduct.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
-                return customer.points < (selectedProduct.point_price + sc);
-              })())}
+              disabled={orderLoading || (customer && selectedProduct && customer.points < selectedProduct.point_price)}
             >
-              {orderLoading ? 'Memproses...' : (() => {
-                const sc = (selectedProduct?.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
-                const total = (selectedProduct?.point_price || 0) + sc;
-                return sc > 0 ? `Bayar ${formatNumber(total)} Poin` : 'Beli Sekarang';
-              })()}
+              {orderLoading ? 'Memproses...' : 'Beli Sekarang'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -5,28 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Haversine formula to calculate distance between two GPS coordinates
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// Gojek standard shipping cost
-function calculateGojekShipping(distanceKm: number): number {
-  if (distanceKm <= 0) return 0;
-  if (distanceKm <= 3) return 10000;
-  if (distanceKm <= 7) return 15000;
-  if (distanceKm <= 12) return 22000;
-  return 22000 + Math.ceil(distanceKm - 12) * 3000;
-}
-
-const SHIPPING_FEE_PERCENTAGE = 0.20; // 20% fee from shipping cost = Laryzo margin
 const POINT_PERCENTAGE = 0.01; // 1% per level for point engine
 const MAX_UPLINE_LEVELS = 10;
 
@@ -103,7 +81,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get merchant info for pickup address and GPS
+    // Get merchant info for pickup address
     const { data: merchant } = await supabase
       .from("merchants")
       .select("business_address, business_name, latitude, longitude")
@@ -115,30 +93,9 @@ Deno.serve(async (req) => {
     const effectiveDeliveryStatus = effectiveDeliveryType === "external_ojol" ? "waiting_driver" : null;
     const pickupAddr = merchant?.business_address || null;
 
-    // Calculate distance and shipping cost if both GPS coordinates available
-    let estimatedDistanceKm: number | null = null;
-    let estimatedShippingCost: number | null = null;
-    let shippingFee = 0; // 20% fee from shipping = Laryzo margin
-
-    // Use provided GPS or fallback to customer's saved GPS
-    const effectiveDeliveryLat = delivery_latitude || null;
-    const effectiveDeliveryLng = delivery_longitude || null;
-
-    if (effectiveDeliveryType === "external_ojol" &&
-        merchant?.latitude && merchant?.longitude &&
-        effectiveDeliveryLat && effectiveDeliveryLng) {
-      estimatedDistanceKm = Math.round(
-        haversineDistance(
-          Number(merchant.latitude), Number(merchant.longitude),
-          Number(effectiveDeliveryLat), Number(effectiveDeliveryLng)
-        ) * 10
-      ) / 10;
-      estimatedShippingCost = calculateGojekShipping(estimatedDistanceKm);
-      shippingFee = Math.round(estimatedShippingCost * SHIPPING_FEE_PERCENTAGE);
-    }
-
-    // Total points to deduct = product price + full shipping cost
-    const totalPointsDeducted = pointPrice + (estimatedShippingCost || 0);
+    // No shipping cost charged to customer - ongkir handled by ojol app
+    // Total points to deduct = product price only
+    const totalPointsDeducted = pointPrice;
 
     // Check customer points
     const { data: customer } = await supabase
@@ -191,8 +148,6 @@ Deno.serve(async (req) => {
         delivery_status: effectiveDeliveryStatus,
         pickup_address: pickupAddr,
         merchant_id: product.merchant_id,
-        estimated_distance_km: estimatedDistanceKm,
-        estimated_shipping_cost: estimatedShippingCost,
         delivery_latitude: effectiveDeliveryType === "external_ojol" ? delivery_latitude : null,
         delivery_longitude: effectiveDeliveryType === "external_ojol" ? delivery_longitude : null,
         item_notes: item_notes || null,
@@ -217,9 +172,7 @@ Deno.serve(async (req) => {
       points: -totalPointsDeducted,
       product_code: `Beli: ${product.name}`,
       level: 0,
-      description: estimatedShippingCost 
-        ? `Pembelian ${product.name} di ${merchantName} (termasuk ongkir Rp ${estimatedShippingCost.toLocaleString('id-ID')})`
-        : `Pembelian ${product.name} di ${merchantName}`,
+      description: `Pembelian ${product.name} di ${merchantName}`,
     });
 
     if (histErr) {
@@ -284,50 +237,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // --- Distribute points from 20% SHIPPING FEE as Laryzo margin ---
-    if (shippingFee > 0) {
-      const pointsPerLevel = shippingFee * POINT_PERCENTAGE;
-      const shippingPointRecords: any[] = [];
-
-      // Level 0: self
-      const selfCustomer = customerMap.get(customerId);
-      if (selfCustomer && !selfCustomer.points_blocked) {
-        shippingPointRecords.push({
-          from_customer: customerId,
-          to_customer: customerId,
-          level: 0,
-          points: pointsPerLevel,
-          product_code: `ONGKIR-${product.name.substring(0, 20)}`,
-          description: `Bonus poin ongkir ${product.name}`,
-        });
-      }
-
-      // Levels 1-10: uplines
-      let currentId2 = customerId;
-      for (let level = 1; level <= MAX_UPLINE_LEVELS; level++) {
-        const current = customerMap.get(currentId2);
-        if (!current || !current.parent_id) break;
-        const parent = customerMap.get(current.parent_id);
-        if (parent && !parent.points_blocked) {
-          shippingPointRecords.push({
-            from_customer: customerId,
-            to_customer: current.parent_id,
-            level,
-            points: pointsPerLevel,
-            product_code: `ONGKIR-${product.name.substring(0, 20)}`,
-            description: `Bonus jaringan ongkir level ${level}`,
-          });
-        }
-        currentId2 = current.parent_id;
-      }
-
-      if (shippingPointRecords.length > 0) {
-        const { error: ptErr } = await supabase.from("point_history").insert(shippingPointRecords);
-        if (ptErr) {
-          console.error("Shipping point distribution error:", ptErr);
-        }
-      }
-    }
+    // Shipping fee distribution removed - ongkir handled by ojol app directly
 
     // Insert into merchant_transactions so it appears in merchant's transaction history
     const laryzoFee = productMargin > 0 ? Math.round(productMargin * 0.05) : 0;
@@ -363,9 +273,6 @@ Deno.serve(async (req) => {
         order_id: order.id,
         total_points_used: totalPointsDeducted,
         product_price: pointPrice,
-        shipping_cost: estimatedShippingCost,
-        shipping_fee_laryzo: shippingFee,
-        estimated_distance_km: estimatedDistanceKm,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
