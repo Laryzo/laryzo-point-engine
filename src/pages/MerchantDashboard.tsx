@@ -1573,62 +1573,72 @@ const MerchantDashboard = () => {
                         </a>
                       </Button>
 
-                      {/* Deep Link Ojol Buttons */}
-                      {merchantData?.latitude && merchantData?.longitude && order.delivery_latitude && order.delivery_longitude && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-green-600 text-green-700 hover:bg-green-50"
-                            asChild
-                          >
-                            <a
-                              href={`gojek://gopay/gosend?pickup_lat=${merchantData.latitude}&pickup_lng=${merchantData.longitude}&pickup_address=${encodeURIComponent(merchantData.business_address || '')}&drop_lat=${order.delivery_latitude}&drop_lng=${order.delivery_longitude}&drop_address=${encodeURIComponent(order.delivery_address || '')}`}
-                              onClick={(e) => {
-                                setTimeout(() => {
-                                  window.open('https://play.google.com/store/apps/details?id=com.gojek.app', '_blank');
-                                }, 1500);
-                              }}
+                      {/* Tombol Buka Aplikasi Ojol */}
+                      {(() => {
+                        const pickupAddr = merchantData?.business_address || '';
+                        const destAddr = order.delivery_address || '';
+                        const fullInfo = `Pickup: ${pickupAddr}\nTujuan: ${destAddr}`;
+                        
+                        const openOjolApp = (scheme: string, packageId: string, appName: string) => {
+                          // Copy addresses to clipboard for easy paste in ojol app
+                          navigator.clipboard?.writeText(fullInfo).catch(() => {});
+                          
+                          // Use intent:// for Android - auto fallback to Play Store
+                          const intentUrl = `intent://#Intent;scheme=${scheme};package=${packageId};end`;
+                          
+                          // Try opening via scheme first, fallback to intent
+                          const link = document.createElement('a');
+                          link.href = `${scheme}://`;
+                          link.click();
+                          
+                          // If app doesn't open in 2s, try intent URL (Android) or Play Store
+                          setTimeout(() => {
+                            if (document.hasFocus()) {
+                              // App didn't open, try intent or Play Store
+                              const isAndroid = /android/i.test(navigator.userAgent);
+                              if (isAndroid) {
+                                window.location.href = intentUrl;
+                              } else {
+                                window.open(`https://play.google.com/store/apps/details?id=${packageId}`, '_blank');
+                              }
+                            }
+                          }, 2000);
+                          
+                          toast({
+                            title: `Membuka ${appName}...`,
+                            description: 'Alamat pickup & tujuan sudah disalin. Paste di aplikasi ojol.',
+                          });
+                        };
+
+                        return (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-green-600 text-green-700 hover:bg-green-50"
+                              onClick={() => openOjolApp('gojek', 'com.gojek.app', 'Gojek GoSend')}
                             >
                               🟢 GoSend
-                            </a>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-green-600 text-green-700 hover:bg-green-50"
-                            asChild
-                          >
-                            <a
-                              href={`grab://express?pickup_lat=${merchantData.latitude}&pickup_lng=${merchantData.longitude}&pickup_address=${encodeURIComponent(merchantData.business_address || '')}&drop_lat=${order.delivery_latitude}&drop_lng=${order.delivery_longitude}&drop_address=${encodeURIComponent(order.delivery_address || '')}`}
-                              onClick={(e) => {
-                                setTimeout(() => {
-                                  window.open('https://play.google.com/store/apps/details?id=com.grabtaxi.passenger', '_blank');
-                                }, 1500);
-                              }}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-green-600 text-green-700 hover:bg-green-50"
+                              onClick={() => openOjolApp('grab', 'com.grabtaxi.passenger', 'Grab Express')}
                             >
                               🟢 GrabExpress
-                            </a>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-yellow-500 text-yellow-700 hover:bg-yellow-50"
-                            asChild
-                          >
-                            <a
-                              href={`maxim://order?from_lat=${merchantData.latitude}&from_lng=${merchantData.longitude}&to_lat=${order.delivery_latitude}&to_lng=${order.delivery_longitude}`}
-                              onClick={(e) => {
-                                setTimeout(() => {
-                                  window.open('https://play.google.com/store/apps/details?id=com.taxsee.taxsee', '_blank');
-                                }, 1500);
-                              }}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+                              onClick={() => openOjolApp('taximaxim', 'com.taxsee.taxsee', 'Maxim')}
                             >
                               🟡 Maxim
-                            </a>
-                          </Button>
-                        </>
-                      )}
+                            </Button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
