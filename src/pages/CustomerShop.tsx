@@ -436,12 +436,9 @@ const CustomerShop = () => {
         if (fnError) throw new Error(fnError.message || 'Gagal memproses pembelian');
         if (result && !result.success) throw new Error(result.error || 'Gagal memproses pembelian');
 
-        const totalPaid = selectedProduct.point_price + shippingCost;
         toast({
           title: 'Pembelian Berhasil! 🎉',
-          description: shippingCost > 0 
-            ? `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(totalPaid)} poin (termasuk ongkir ${formatNumber(shippingCost)})`
-            : `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(selectedProduct.point_price)} poin`,
+          description: `${selectedProduct.name} berhasil dibeli dengan ${formatNumber(selectedProduct.point_price)} poin`,
         });
 
         await refreshCustomer();
@@ -454,8 +451,6 @@ const CustomerShop = () => {
         setItemNotes('');
         setDeliveryLat(customer?.latitude?.toString() || '');
         setDeliveryLng(customer?.longitude?.toString() || '');
-        setEstimatedDistance(null);
-        setEstimatedShipping(null);
         return;
       }
 
