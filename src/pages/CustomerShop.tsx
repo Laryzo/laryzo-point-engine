@@ -534,8 +534,6 @@ const CustomerShop = () => {
       setItemNotes('');
       setDeliveryLat(customer?.latitude?.toString() || '');
       setDeliveryLng(customer?.longitude?.toString() || '');
-      setEstimatedDistance(null);
-      setEstimatedShipping(null);
       navigate('/portal/orders');
     } catch (error: any) {
       toast({
