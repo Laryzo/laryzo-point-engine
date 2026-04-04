@@ -367,8 +367,6 @@ const MerchantDashboard = () => {
     if (!editingDelivery) return;
     setSavingDeliveryEdit(true);
     try {
-      const distKm = editDeliveryForm.estimated_distance_km ? Number(editDeliveryForm.estimated_distance_km) : null;
-      const shippingCost = distKm ? calculateGojekShipping(distKm) : null;
       const { error } = await supabase
         .from('orders')
         .update({
@@ -377,8 +375,6 @@ const MerchantDashboard = () => {
           delivery_notes: editDeliveryForm.delivery_notes || null,
           delivery_type: editDeliveryForm.delivery_type,
           status: editDeliveryForm.status,
-          estimated_distance_km: distKm,
-          estimated_shipping_cost: shippingCost,
         })
         .eq('id', editingDelivery.id);
       if (error) throw error;
