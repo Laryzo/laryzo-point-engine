@@ -997,32 +997,8 @@ const CustomerShop = () => {
                         }}
                       />
                     </div>
-                    {estimatedDistance !== null && estimatedShipping !== null && (
-                      <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                        <p className="text-xs font-medium text-primary mb-1">🚚 Estimasi Ongkir (termasuk dalam total bayar)</p>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1 text-lg font-bold text-primary">
-                            <Coins className="h-4 w-4" />
-                            <span>{formatNumber(estimatedShipping)} poin</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">({estimatedDistance.toFixed(1)} km)</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Total bayar: {formatNumber((selectedProduct?.point_price || 0) + estimatedShipping)} poin (produk + ongkir)
-                        </p>
-                      </div>
-                    )}
-                    <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                      <p className="text-xs font-medium text-primary mb-1">🚚 Tarif Standar Gojek</p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="flex justify-between"><span>0-3 km</span><span className="font-medium">Rp 10.000</span></div>
-                        <div className="flex justify-between"><span>3-7 km</span><span className="font-medium">Rp 15.000</span></div>
-                        <div className="flex justify-between"><span>7-12 km</span><span className="font-medium">Rp 22.000</span></div>
-                        <div className="flex justify-between"><span>12+ km</span><span className="font-medium">+Rp 3.000/km</span></div>
-                      </div>
-                    </div>
                     <p className="text-xs text-muted-foreground">
-                      💡 Ongkos kirim sudah termasuk dalam total pembayaran poin. Laryzo yang akan membayar driver.
+                      💡 Ongkos kirim dibayar langsung melalui aplikasi ojol (GoSend/GrabExpress/Maxim) oleh merchant.
                     </p>
                   </div>
                 )}
