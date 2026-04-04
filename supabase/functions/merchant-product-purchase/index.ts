@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get merchant info for pickup address and GPS
+    // Get merchant info for pickup address
     const { data: merchant } = await supabase
       .from("merchants")
       .select("business_address, business_name, latitude, longitude")
@@ -93,30 +93,9 @@ Deno.serve(async (req) => {
     const effectiveDeliveryStatus = effectiveDeliveryType === "external_ojol" ? "waiting_driver" : null;
     const pickupAddr = merchant?.business_address || null;
 
-    // Calculate distance and shipping cost if both GPS coordinates available
-    let estimatedDistanceKm: number | null = null;
-    let estimatedShippingCost: number | null = null;
-    let shippingFee = 0; // 20% fee from shipping = Laryzo margin
-
-    // Use provided GPS or fallback to customer's saved GPS
-    const effectiveDeliveryLat = delivery_latitude || null;
-    const effectiveDeliveryLng = delivery_longitude || null;
-
-    if (effectiveDeliveryType === "external_ojol" &&
-        merchant?.latitude && merchant?.longitude &&
-        effectiveDeliveryLat && effectiveDeliveryLng) {
-      estimatedDistanceKm = Math.round(
-        haversineDistance(
-          Number(merchant.latitude), Number(merchant.longitude),
-          Number(effectiveDeliveryLat), Number(effectiveDeliveryLng)
-        ) * 10
-      ) / 10;
-      estimatedShippingCost = calculateGojekShipping(estimatedDistanceKm);
-      shippingFee = Math.round(estimatedShippingCost * SHIPPING_FEE_PERCENTAGE);
-    }
-
-    // Total points to deduct = product price + full shipping cost
-    const totalPointsDeducted = pointPrice + (estimatedShippingCost || 0);
+    // No shipping cost charged to customer - ongkir handled by ojol app
+    // Total points to deduct = product price only
+    const totalPointsDeducted = pointPrice;
 
     // Check customer points
     const { data: customer } = await supabase
