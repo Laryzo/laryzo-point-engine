@@ -1475,61 +1475,6 @@ const MerchantDashboard = () => {
                       </div>
                     )}
 
-                    {/* Estimasi Ongkir */}
-                    <div className="pt-2 border-t">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">🚚 Estimasi Ongkir (Standar Gojek)</p>
-                      {order.estimated_shipping_cost ? (
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold text-primary">{formatShippingCost(Math.round(Number(order.estimated_shipping_cost) * 0.80))}</p>
-                          <span className="text-xs text-muted-foreground">({Number(order.estimated_distance_km)} km)</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Jarak (km)"
-                            className="w-28 h-8 text-sm"
-                            min={0}
-                            step={0.5}
-                            onChange={(e) => {
-                              const km = Number(e.target.value);
-                              if (km > 0) {
-                                const cost = calculateGojekShipping(km);
-                                const el = e.target.parentElement?.querySelector('.ongkir-preview') as HTMLElement;
-                                if (el) el.textContent = formatShippingCost(cost);
-                              }
-                            }}
-                            id={`distance-${order.id}`}
-                          />
-                          <span className="ongkir-preview text-sm font-medium text-primary">-</span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={async () => {
-                              const input = document.getElementById(`distance-${order.id}`) as HTMLInputElement;
-                              const km = Number(input?.value);
-                              if (!km || km <= 0) {
-                                toast({ title: 'Masukkan jarak yang valid', variant: 'destructive' });
-                                return;
-                              }
-                              const cost = calculateGojekShipping(km);
-                              const { error } = await supabase.from('orders').update({
-                                estimated_distance_km: km,
-                                estimated_shipping_cost: cost,
-                              }).eq('id', order.id);
-                              if (error) {
-                                toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
-                              } else {
-                                toast({ title: 'Estimasi ongkir tersimpan', description: `${km} km = ${formatShippingCost(cost)}` });
-                                fetchDeliveryOrders();
-                              }
-                            }}
-                          >
-                            Simpan
-                          </Button>
-                        </div>
-                      )}
-                    </div>
 
                     {/* Action buttons */}
                     <div className="flex flex-wrap gap-2 pt-2 border-t">
