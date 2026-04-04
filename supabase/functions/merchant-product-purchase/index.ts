@@ -5,28 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Haversine formula to calculate distance between two GPS coordinates
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// Gojek standard shipping cost
-function calculateGojekShipping(distanceKm: number): number {
-  if (distanceKm <= 0) return 0;
-  if (distanceKm <= 3) return 10000;
-  if (distanceKm <= 7) return 15000;
-  if (distanceKm <= 12) return 22000;
-  return 22000 + Math.ceil(distanceKm - 12) * 3000;
-}
-
-const SHIPPING_FEE_PERCENTAGE = 0.20; // 20% fee from shipping cost = Laryzo margin
 const POINT_PERCENTAGE = 0.01; // 1% per level for point engine
 const MAX_UPLINE_LEVELS = 10;
 
