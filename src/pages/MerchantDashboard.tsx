@@ -360,7 +360,6 @@ const MerchantDashboard = () => {
       delivery_notes: order.delivery_notes || '',
       delivery_type: order.delivery_type || '',
       status: order.status || '',
-      estimated_distance_km: order.estimated_distance_km ? String(order.estimated_distance_km) : '',
     });
   };
 
