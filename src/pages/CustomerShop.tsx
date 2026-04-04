@@ -1019,16 +1019,9 @@ const CustomerShop = () => {
             </Button>
             <Button 
               onClick={handleOrder} 
-              disabled={orderLoading || (customer && selectedProduct && (() => {
-                const sc = (selectedProduct.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
-                return customer.points < (selectedProduct.point_price + sc);
-              })())}
+              disabled={orderLoading || (customer && selectedProduct && customer.points < selectedProduct.point_price)}
             >
-              {orderLoading ? 'Memproses...' : (() => {
-                const sc = (selectedProduct?.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
-                const total = (selectedProduct?.point_price || 0) + sc;
-                return sc > 0 ? `Bayar ${formatNumber(total)} Poin` : 'Beli Sekarang';
-              })()}
+              {orderLoading ? 'Memproses...' : 'Beli Sekarang'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1634,22 +1634,6 @@ const MerchantDashboard = () => {
               <Label>Catatan Driver</Label>
               <Textarea value={editDeliveryForm.delivery_notes} onChange={e => setEditDeliveryForm({...editDeliveryForm, delivery_notes: e.target.value})} rows={2} />
             </div>
-            <div>
-              <Label>Estimasi Jarak (km)</Label>
-              <Input
-                type="number"
-                value={editDeliveryForm.estimated_distance_km}
-                onChange={e => setEditDeliveryForm({...editDeliveryForm, estimated_distance_km: e.target.value})}
-                placeholder="Contoh: 5"
-                min={0}
-                step={0.5}
-              />
-              {editDeliveryForm.estimated_distance_km && Number(editDeliveryForm.estimated_distance_km) > 0 && (
-                <p className="text-sm text-primary font-medium mt-1">
-                  Estimasi Ongkir: {formatShippingCost(calculateGojekShipping(Number(editDeliveryForm.estimated_distance_km)))}
-                </p>
-              )}
-            </div>
           </div>
           </div>
           <DialogFooter>
