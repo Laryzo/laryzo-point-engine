@@ -1005,16 +1005,11 @@ const CustomerShop = () => {
               </div>
             )}
 
-            {customer && selectedProduct && (() => {
-              const shippingForCheck = (selectedProduct.type === 'merchant' && deliveryType === 'external_ojol' && estimatedShipping) ? estimatedShipping : 0;
-              const totalForCheck = selectedProduct.point_price + shippingForCheck;
-              return customer.points < totalForCheck ? (
+            {customer && selectedProduct && customer.points < selectedProduct.point_price && (
                 <p className="text-sm text-destructive">
-                  Poin Anda tidak cukup. Anda membutuhkan {formatNumber(totalForCheck - customer.points)} poin lagi.
-                  {shippingForCheck > 0 && ` (Produk: ${formatNumber(selectedProduct.point_price)} + Ongkir: ${formatNumber(shippingForCheck)})`}
+                  Poin Anda tidak cukup. Anda membutuhkan {formatNumber(selectedProduct.point_price - customer.points)} poin lagi.
                 </p>
-              ) : null;
-            })()}
+            )}
           </div>
           </div>
 
