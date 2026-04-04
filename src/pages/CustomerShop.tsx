@@ -125,51 +125,7 @@ const CustomerShop = () => {
   const [itemNotes, setItemNotes] = useState('');
   const [deliveryLat, setDeliveryLat] = useState(customer?.latitude?.toString() || '');
   const [deliveryLng, setDeliveryLng] = useState(customer?.longitude?.toString() || '');
-  const [estimatedDistance, setEstimatedDistance] = useState<number | null>(null);
-  const [estimatedShipping, setEstimatedShipping] = useState<number | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
-
-  // Category configurations
-  const ppobCategories: CategoryConfig[] = [
-    { id: 'pulsa', label: 'Pulsa', ppob_type: 'pulsa', icon: <Smartphone className="h-8 w-8" /> },
-    { id: 'emoney', label: 'E-Wallet', ppob_type: 'emoney', icon: <CreditCard className="h-8 w-8" /> },
-    { id: 'token_pln', label: 'Token PLN', ppob_type: 'token_pln', icon: <Zap className="h-8 w-8" /> },
-  ];
-
-  // Haversine formula for client-side distance preview
-  const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  };
-
-  const calculateGojekShipping = (km: number): number => {
-    if (km <= 0) return 0;
-    if (km <= 3) return 10000;
-    if (km <= 7) return 15000;
-    if (km <= 12) return 22000;
-    return 22000 + Math.ceil(km - 12) * 3000;
-  };
-
-  // Auto-calculate shipping when coordinates change
-  useEffect(() => {
-    if (selectedMerchantCoords && deliveryLat && deliveryLng) {
-      const dist = haversineDistance(
-        selectedMerchantCoords.lat, selectedMerchantCoords.lng,
-        Number(deliveryLat), Number(deliveryLng)
-      );
-      const rounded = Math.round(dist * 10) / 10;
-      setEstimatedDistance(rounded);
-      setEstimatedShipping(calculateGojekShipping(rounded));
-    } else {
-      setEstimatedDistance(null);
-      setEstimatedShipping(null);
-    }
-  }, [selectedMerchantCoords, deliveryLat, deliveryLng]);
 
   useEffect(() => {
     fetchProducts();

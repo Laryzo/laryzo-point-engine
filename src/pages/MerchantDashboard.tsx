@@ -79,7 +79,7 @@ const MerchantDashboard = () => {
     delivery_notes: '',
     delivery_type: '',
     status: '',
-    estimated_distance_km: '',
+    
   });
   const [savingDeliveryEdit, setSavingDeliveryEdit] = useState(false);
   const [deletingDelivery, setDeletingDelivery] = useState<any>(null);
