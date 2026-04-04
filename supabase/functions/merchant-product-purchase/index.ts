@@ -237,50 +237,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // --- Distribute points from 20% SHIPPING FEE as Laryzo margin ---
-    if (shippingFee > 0) {
-      const pointsPerLevel = shippingFee * POINT_PERCENTAGE;
-      const shippingPointRecords: any[] = [];
-
-      // Level 0: self
-      const selfCustomer = customerMap.get(customerId);
-      if (selfCustomer && !selfCustomer.points_blocked) {
-        shippingPointRecords.push({
-          from_customer: customerId,
-          to_customer: customerId,
-          level: 0,
-          points: pointsPerLevel,
-          product_code: `ONGKIR-${product.name.substring(0, 20)}`,
-          description: `Bonus poin ongkir ${product.name}`,
-        });
-      }
-
-      // Levels 1-10: uplines
-      let currentId2 = customerId;
-      for (let level = 1; level <= MAX_UPLINE_LEVELS; level++) {
-        const current = customerMap.get(currentId2);
-        if (!current || !current.parent_id) break;
-        const parent = customerMap.get(current.parent_id);
-        if (parent && !parent.points_blocked) {
-          shippingPointRecords.push({
-            from_customer: customerId,
-            to_customer: current.parent_id,
-            level,
-            points: pointsPerLevel,
-            product_code: `ONGKIR-${product.name.substring(0, 20)}`,
-            description: `Bonus jaringan ongkir level ${level}`,
-          });
-        }
-        currentId2 = current.parent_id;
-      }
-
-      if (shippingPointRecords.length > 0) {
-        const { error: ptErr } = await supabase.from("point_history").insert(shippingPointRecords);
-        if (ptErr) {
-          console.error("Shipping point distribution error:", ptErr);
-        }
-      }
-    }
+    // Shipping fee distribution removed - ongkir handled by ojol app directly
 
     // Insert into merchant_transactions so it appears in merchant's transaction history
     const laryzoFee = productMargin > 0 ? Math.round(productMargin * 0.05) : 0;
