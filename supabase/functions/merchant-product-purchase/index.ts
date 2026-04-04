@@ -273,9 +273,6 @@ Deno.serve(async (req) => {
         order_id: order.id,
         total_points_used: totalPointsDeducted,
         product_price: pointPrice,
-        shipping_cost: estimatedShippingCost,
-        shipping_fee_laryzo: shippingFee,
-        estimated_distance_km: estimatedDistanceKm,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

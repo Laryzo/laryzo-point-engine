@@ -171,20 +171,8 @@ const CustomerOrders = () => {
                         </div>
                       )}
 
-                      {/* Price breakdown */}
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Harga</span>
-                        <span>{formatCurrency(productPrice > 0 ? productPrice : Number(order.points_used))}</span>
-                      </div>
-
-                      {shippingCost > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Ongkir</span>
-                          <span>{formatCurrency(shippingCost)}</span>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between font-medium border-t pt-2">
+                      {/* Price */}
+                      <div className="flex justify-between font-medium">
                         <span>Total</span>
                         <span>{formatCurrency(Number(order.points_used))}</span>
                       </div>
