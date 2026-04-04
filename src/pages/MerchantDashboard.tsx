@@ -16,15 +16,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 
-// Gojek standard shipping cost calculation
-const calculateGojekShipping = (distanceKm: number): number => {
-  if (distanceKm <= 0) return 0;
-  if (distanceKm <= 3) return 10000;
-  if (distanceKm <= 7) return 15000;
-  if (distanceKm <= 12) return 22000;
-  return 22000 + Math.ceil(distanceKm - 12) * 3000;
-};
-
 const formatShippingCost = (cost: number) => `Rp ${cost.toLocaleString('id-ID')}`;
 
 const MerchantDashboard = () => {
