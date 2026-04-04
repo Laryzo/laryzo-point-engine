@@ -902,16 +902,12 @@ const MerchantDashboard = () => {
     const note = order.delivery_notes || '-';
     // Product detail
     const productName = order.product_name || order.products?.name || 'Produk';
-    const productPrice = Number(order.points_used || 0) - Number(order.estimated_shipping_cost || 0);
+    const productPrice = Number(order.points_used || 0);
     const itemNotes = order.item_notes;
-    // Ongkir after 20% fee deduction (driver receives 80%)
-    const rawOngkir = Number(order.estimated_shipping_cost || 0);
-    const ongkirAfterFee = Math.round(rawOngkir * 0.80);
-    const ongkirLine = rawOngkir > 0 ? `\nEstimasi Ongkir: ${formatShippingCost(ongkirAfterFee)} (${Number(order.estimated_distance_km)} km)` : '';
     // Build detail pesanan
     let detailPesanan = productName;
     if (itemNotes) detailPesanan += `\nCatatan: ${itemNotes}`;
-    detailPesanan += `\nHarga: ${formatShippingCost(productPrice > 0 ? productPrice : Number(order.points_used || 0))}`;
+    detailPesanan += `\nHarga: ${formatShippingCost(productPrice)}`;
     const message = `Halo driver, pickup pesanan ${customerName}:\n\nDetail pesanan:\n${detailPesanan}\n\nPenjemputan\nMerchant: ${merchantName}\nAlamat: ${pickupAddr}${pickupPinPoint}\n\nPengantaran\nTujuan: ${destAddr}${destPinPoint}\nCatatan: ${note}${ongkirLine}`;
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   };
