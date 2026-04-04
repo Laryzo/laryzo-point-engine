@@ -148,8 +148,6 @@ Deno.serve(async (req) => {
         delivery_status: effectiveDeliveryStatus,
         pickup_address: pickupAddr,
         merchant_id: product.merchant_id,
-        estimated_distance_km: estimatedDistanceKm,
-        estimated_shipping_cost: estimatedShippingCost,
         delivery_latitude: effectiveDeliveryType === "external_ojol" ? delivery_latitude : null,
         delivery_longitude: effectiveDeliveryType === "external_ojol" ? delivery_longitude : null,
         item_notes: item_notes || null,
