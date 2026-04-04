@@ -108,8 +108,7 @@ const CustomerOrders = () => {
   };
 
   const getProductPrice = (order: Order) => {
-    const shippingCost = Number(order.estimated_shipping_cost || 0);
-    return Number(order.points_used || 0) - shippingCost;
+    return Number(order.points_used || 0);
   };
 
   return (
