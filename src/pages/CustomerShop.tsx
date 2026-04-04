@@ -983,7 +983,7 @@ const CustomerShop = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">📍 Titik Lokasi Tujuan (untuk hitung ongkir otomatis)</Label>
+                      <Label className="text-sm font-medium">📍 Titik Lokasi Tujuan</Label>
                       <p className="text-xs text-muted-foreground">
                         Klik peta atau geser pin untuk menentukan lokasi tujuan, lalu klik "Simpan Lokasi".
                       </p>

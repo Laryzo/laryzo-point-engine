@@ -1300,7 +1300,7 @@ const MerchantDashboard = () => {
           <div className="border-t pt-4">
             <Label className="text-sm font-semibold">📍 Titik Lokasi Toko di Peta <span className="text-destructive">*</span></Label>
             <p className="text-xs text-muted-foreground mb-2">
-              Tentukan titik lokasi toko agar perhitungan ongkir otomatis akurat dan driver bisa navigasi langsung.
+              Tentukan titik lokasi toko agar driver bisa navigasi langsung ke toko Anda.
             </p>
             <MapLocationPicker
               latitude={settingsLatitude}
