@@ -410,7 +410,31 @@ Deno.serve(async (req) => {
       } else if (status === 'pending') {
         updateData.status = 'processing'
       } else {
-        // Failed - refund points via point_history INSERT (trigger handles customers.points update)
+        // Failed - try WhatsApp fallback first
+        const fallback = await tryWhatsAppFallback(
+          supabase,
+          order_id,
+          refId,
+          txData.message || txData.rc || 'Digiflazz menolak transaksi'
+        )
+
+        if (fallback.applied) {
+          // Don't refund — order moves to manual_pending, admin will resolve
+          pointsDeducted = false // mark as "handled" so outer catch doesn't double-refund
+          return new Response(
+            JSON.stringify({
+              success: true,
+              status: 'manual_pending',
+              manual_fallback: true,
+              admin_wa: fallback.admin_wa,
+              ref_id: refId,
+              message: 'Pesanan dialihkan ke admin (WhatsApp)'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // No fallback — refund as usual
         updateData.status = 'failed'
         const { error: refundError } = await supabase.from('point_history').insert({
           from_customer: null,
