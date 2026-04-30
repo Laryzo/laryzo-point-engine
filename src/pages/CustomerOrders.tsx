@@ -4,7 +4,7 @@ import { useCustomerAuth } from '@/hooks/useCustomerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Truck } from 'lucide-react';
+import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Truck, MessageCircle, AlertCircle } from 'lucide-react';
 
 interface Order {
   id: string;
