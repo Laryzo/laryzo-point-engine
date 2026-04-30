@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Truck, CheckCircle, Loader2, Undo2, Trash2, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { RefreshCw, Truck, CheckCircle, Loader2, Undo2, Trash2, ChevronLeft, ChevronRight, Pencil, MessageCircle, XCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
