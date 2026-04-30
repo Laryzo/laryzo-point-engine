@@ -59,6 +59,8 @@ const SystemSettings = () => {
         digiflazz_mode: settingsMap.digiflazz_mode || 'development',
         digiflazz_username: settingsMap.digiflazz_username || '',
         digiflazz_api_key: settingsMap.digiflazz_api_key || '',
+        ppob_fallback_enabled: settingsMap.ppob_fallback_enabled || 'false',
+        admin_ppob_wa_number: settingsMap.admin_ppob_wa_number || '',
       });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
