@@ -104,6 +104,8 @@ const CustomerOrders = () => {
         return <Truck className="h-5 w-5 text-blue-500" />;
       case 'failed':
         return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'manual_pending':
+        return <AlertCircle className="h-5 w-5 text-orange-500" />;
       default:
         return <Package className="h-5 w-5 text-muted-foreground" />;
     }
@@ -117,6 +119,7 @@ const CustomerOrders = () => {
       delivered: 'Terkirim',
       shipped: 'Dalam Pengiriman',
       failed: 'Gagal',
+      manual_pending: 'Menunggu Admin',
     };
     return labels[status] || status;
   };
@@ -129,6 +132,7 @@ const CustomerOrders = () => {
       delivered: 'bg-green-100 text-green-800',
       shipped: 'bg-blue-100 text-blue-800',
       failed: 'bg-red-100 text-red-800',
+      manual_pending: 'bg-orange-100 text-orange-800',
     };
     return styles[status] || 'bg-muted text-muted-foreground';
   };
