@@ -392,6 +392,9 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
   };
 
   const getStatusBadge = (status: string) => {
+    if (status === 'manual_pending') {
+      return <Badge className="bg-orange-500 hover:bg-orange-600 text-white">Manual (WA)</Badge>;
+    }
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       pending: 'secondary',
       processing: 'outline',
