@@ -134,7 +134,60 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
     }
   };
 
-  const processPhysicalOrder = async () => {
+  const resolveManualOrder = async (orderId: string, action: 'success' | 'fail') => {
+    setProcessingOrder(orderId);
+    try {
+      let sn: string | undefined;
+      if (action === 'success') {
+        const input = window.prompt('Masukkan SN/Token (opsional, boleh kosong):', '');
+        if (input === null) {
+          setProcessingOrder(null);
+          return;
+        }
+        sn = input.trim() || undefined;
+      } else {
+        if (!window.confirm('Yakin tandai GAGAL? Poin customer akan di-refund.')) {
+          setProcessingOrder(null);
+          return;
+        }
+      }
+
+      await supabase.auth.refreshSession();
+      const { data, error } = await supabase.functions.invoke('ppob-manual-resolve', {
+        body: { order_id: orderId, action, sn },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Gagal memproses');
+
+      toast({
+        title: 'Berhasil',
+        description: action === 'success'
+          ? `Pesanan ditandai sukses. Distribusi ke ${data.distributed} penerima.`
+          : `Pesanan ditandai gagal. ${Number(data.refunded || 0).toLocaleString('id-ID')} poin direfund.`,
+      });
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setProcessingOrder(null);
+    }
+  };
+
+  const openWaCustomer = (order: Order) => {
+    const wa = order.customers?.whatsapp?.replace(/[^0-9]/g, '') || '';
+    if (!wa) {
+      toast({ title: 'Tidak ada WhatsApp', description: 'Customer belum mengisi nomor WA', variant: 'destructive' });
+      return;
+    }
+    const normalized = wa.startsWith('0') ? '62' + wa.slice(1) : wa.startsWith('62') ? wa : '62' + wa;
+    const shortId = order.id.slice(0, 8).toUpperCase();
+    const text = encodeURIComponent(
+      `Halo ${order.customers?.name || 'customer'}, terkait pesanan PPOB ${order.products?.name || ''} (Order ${shortId}) ke nomor ${order.input_value || '-'}, mohon konfirmasi sebentar ya.`
+    );
+    window.open(`https://wa.me/${normalized}?text=${text}`, '_blank');
+  };
+
     if (!selectedOrder) return;
 
     setProcessingOrder(selectedOrder.id);
