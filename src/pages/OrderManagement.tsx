@@ -530,7 +530,7 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
                                 </Button>
                               </>
                             )}
-
+                            {order.status === 'failed' && !isOrderRefunded(order) && (
                               <Button 
                                 variant="ghost" 
                                 size="sm"
