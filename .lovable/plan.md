@@ -1,37 +1,50 @@
+## Diagnosis: Kenapa Admin Tidak Bisa Login
 
+Pesan error di layar login adalah:
 
-## Rencana: Tambahkan Tombol Deep Link GoSend, GrabExpress & Maxim di Pesanan Pengiriman Merchant
+> "Failed to send a request to the Edge Function"
 
-### Apa yang berubah
+Ini **bukan** masalah email/password salah, dan **bukan** bug di kode `admin-login`. Hasil pengecekan:
 
-Sistem delivery yang ada **tetap dipertahankan** (estimasi ongkir manual, Maps Tujuan, Hubungi Driver). Ditambahkan **3 tombol baru** di setiap order pengiriman ojol: "Pesan GoSend", "Pesan GrabExpress", dan "Pesan Maxim".
+1. Saat dipanggil langsung, endpoint backend memberikan error DNS:
+   `dial tcp: lookup ...supabase.co ... no such host`
+2. **Tidak ada satu pun log edge function** yang muncul (artinya request browser tidak pernah sampai ke server).
+3. Hostname project tidak bisa di-resolve dari mana pun.
 
-### Cara kerja
+### Kesimpulan
+Backend Lovable Cloud project ini sedang **tidak aktif / di-pause** (atau masuk state error). Selama backend tidak aktif:
+- Login admin gagal (seperti yang Anda alami sekarang)
+- Login mitra & customer juga akan gagal
+- PPOB / Digiflazz juga tidak akan jalan
+- Semua query database & edge function tidak bisa dipanggil
 
-Ketika merchant klik salah satu tombol, aplikasi ojol terbuka di HP merchant dengan alamat pickup (toko) dan tujuan (customer) sudah terisi otomatis menggunakan koordinat GPS dari data order.
+Kondisi ini **tidak bisa diperbaiki dengan mengubah kode** — yang harus dilakukan adalah me-resume / mengaktifkan kembali backend-nya.
 
-Deep link format:
-- **GoSend**: `gojek://gopay/gosend?pickup_lat=X&pickup_lng=Y&drop_lat=X&drop_lng=Y`
-- **GrabExpress**: `grab://express?pickup_lat=X&pickup_lng=Y&drop_lat=X&drop_lng=Y`  
-- **Maxim**: `maxim://order?from_lat=X&from_lng=Y&to_lat=X&to_lng=Y`
+---
 
-Jika app tidak terinstall, fallback ke Play Store / web masing-masing.
+## Rencana Perbaikan
 
-### Perubahan file
+### Langkah 1 — Aktifkan kembali Lovable Cloud
+Anda buka **Connectors → Lovable Cloud** di sidebar Lovable, lalu klik tombol **Resume / Enable** untuk backend project ini.
+- Tunggu sampai status backend menjadi **Active / Healthy** (biasanya 30–90 detik).
 
-**`src/pages/MerchantDashboard.tsx`** (satu-satunya file yang berubah):
+### Langkah 2 — Verifikasi backend sudah hidup
+Setelah Anda klik Resume, beri tahu saya. Saya akan:
+1. Cek status backend (DNS hostname & ping).
+2. Panggil edge function `admin-login` secara langsung untuk memastikan sudah merespons.
+3. Cek log edge function untuk memastikan request masuk dengan normal.
 
-1. Tambah fungsi `generateOjolDeepLink(order, provider)` yang membangun URL deep link berdasarkan koordinat merchant + order
-2. Di section "Action buttons" (baris ~1553-1575), tambahkan 3 tombol baru **di samping** tombol "Maps Tujuan" dan "Hubungi Driver" yang sudah ada:
-   - 🟢 **Pesan GoSend** — deep link ke Gojek GoSend
-   - 🟢 **Pesan GrabExpress** — deep link ke Grab Express
-   - 🟡 **Pesan Maxim** — deep link ke Maxim
-3. Tombol hanya muncul jika koordinat pickup (merchant) dan tujuan (order) tersedia
-4. Layout tombol di-wrap agar responsive (flex-wrap) supaya tidak overflow di mobile
+### Langkah 3 — Tes login admin
+Setelah backend sehat, Anda coba login lagi dengan `rodaaset@gmail.com` di halaman `/login`. Seharusnya langsung berhasil tanpa perubahan kode apa pun.
 
-### Tidak ada perubahan di:
-- Sisi customer (pemesanan tetap sama)
-- Estimasi ongkir manual (tetap ada)
-- Tombol "Hubungi Driver" dan "Maps Tujuan" (tetap ada)
-- Database / backend
+### Langkah 4 (opsional) — Jika password lupa
+Jika setelah backend aktif Anda masih dapat error "Email atau password salah" (bukan "Failed to send a request..."), saya akan reset password admin Anda lewat database/edge function `admin-reset-password`.
 
+---
+
+## Yang TIDAK perlu diubah
+- Kode `admin-login`, `useAuth`, dan halaman `Login.tsx` semuanya sudah benar.
+- Tidak ada perubahan database / migration yang dibutuhkan.
+- Tidak ada perubahan CORS / konfigurasi.
+
+Masalahnya murni di tingkat **status backend**, bukan di kode aplikasi.
