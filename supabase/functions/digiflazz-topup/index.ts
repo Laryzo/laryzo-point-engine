@@ -103,6 +103,52 @@ async function distributePoints(
   return pointsToDistribute
 }
 
+/**
+ * Try to mark order as manual_pending (WA fallback) if enabled in system_settings.
+ * Returns true if fallback was applied (poin TIDAK di-refund), false otherwise.
+ */
+async function tryWhatsAppFallback(
+  supabase: any,
+  orderId: string,
+  refId: string,
+  reason: string
+): Promise<{ applied: boolean; admin_wa?: string }> {
+  try {
+    const { data: settings } = await supabase
+      .from('system_settings')
+      .select('key, value')
+      .in('key', ['ppob_fallback_enabled', 'admin_ppob_wa_number'])
+
+    const map = (settings || []).reduce((acc: Record<string, string>, s: any) => {
+      acc[s.key] = s.value
+      return acc
+    }, {})
+
+    const enabled = map.ppob_fallback_enabled === 'true' || map.ppob_fallback_enabled === '1'
+    const adminWa = (map.admin_ppob_wa_number || '').trim()
+
+    if (!enabled || !adminWa) {
+      return { applied: false }
+    }
+
+    await supabase
+      .from('orders')
+      .update({
+        status: 'manual_pending',
+        digiflazz_status: 'manual_fallback',
+        digiflazz_message: `Dialihkan ke admin (WhatsApp): ${reason}`,
+        ref_id: refId,
+      })
+      .eq('id', orderId)
+
+    console.log(`Order ${orderId} dialihkan ke fallback WA admin: ${adminWa}`)
+    return { applied: true, admin_wa: adminWa }
+  } catch (err) {
+    console.error('tryWhatsAppFallback error:', err)
+    return { applied: false }
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
