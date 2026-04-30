@@ -188,6 +188,7 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
     window.open(`https://wa.me/${normalized}?text=${text}`, '_blank');
   };
 
+  const processPhysicalOrder = async () => {
     if (!selectedOrder) return;
 
     setProcessingOrder(selectedOrder.id);
