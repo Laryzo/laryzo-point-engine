@@ -1,50 +1,110 @@
-## Diagnosis: Kenapa Admin Tidak Bisa Login
+## Rencana: Fallback PPOB ke WhatsApp Admin Saat Digiflazz Gagal
 
-Pesan error di layar login adalah:
+### Latar belakang
+Saat ini Digiflazz tidak bisa diakses karena IP whitelist (perlu VPS proxy). Akibatnya semua order PPOB customer otomatis gagal & poin di-refund. Ide ini menjadikan **WhatsApp admin sebagai jalur cadangan**: jika Digiflazz tidak terhubung atau menolak transaksi, order **tidak digagalkan** — melainkan dialihkan ke admin via WhatsApp untuk diproses manual.
 
-> "Failed to send a request to the Edge Function"
+### Konsep alur baru
 
-Ini **bukan** masalah email/password salah, dan **bukan** bug di kode `admin-login`. Hasil pengecekan:
+```text
+Customer order PPOB
+        │
+        ▼
+Buat order (status: pending) + potong poin
+        │
+        ▼
+Edge function digiflazz-topup
+        │
+        ├── Sukses ──► status=completed, distribusi poin (alur lama)
+        │
+        ├── Pending ─► status=processing (alur lama)
+        │
+        └── GAGAL / Tidak bisa konek
+                │
+                ▼
+          status = 'manual_pending'
+          digiflazz_status = 'manual_fallback'
+          (poin TIDAK di-refund — pesanan tetap aktif)
+                │
+                ▼
+          Customer: tampil tombol
+          "Hubungi Admin via WhatsApp"
+          (deep link wa.me/<no_admin>?text=...)
+                │
+                ▼
+          Admin proses manual di Digiflazz dashboard /
+          provider lain, lalu di /admin/orders
+          klik "Tandai Sukses" atau "Tandai Gagal & Refund"
+```
 
-1. Saat dipanggil langsung, endpoint backend memberikan error DNS:
-   `dial tcp: lookup ...supabase.co ... no such host`
-2. **Tidak ada satu pun log edge function** yang muncul (artinya request browser tidak pernah sampai ke server).
-3. Hostname project tidak bisa di-resolve dari mana pun.
+### Yang ditambahkan
 
-### Kesimpulan
-Backend Lovable Cloud project ini sedang **tidak aktif / di-pause** (atau masuk state error). Selama backend tidak aktif:
-- Login admin gagal (seperti yang Anda alami sekarang)
-- Login mitra & customer juga akan gagal
-- PPOB / Digiflazz juga tidak akan jalan
-- Semua query database & edge function tidak bisa dipanggil
+#### 1. Setting baru di System Settings (admin)
+Tambahkan 2 field di halaman `SystemSettings.tsx`:
+- **Nomor WhatsApp Admin PPOB** (`admin_ppob_wa_number`) — format `628xxxxxxxxxx`
+- **Aktifkan Fallback WhatsApp** (`ppob_fallback_enabled`) — toggle on/off
 
-Kondisi ini **tidak bisa diperbaiki dengan mengubah kode** — yang harus dilakukan adalah me-resume / mengaktifkan kembali backend-nya.
+Disimpan di tabel `system_settings` (sudah ada).
 
----
+#### 2. Status order baru: `manual_pending`
+Tambah satu nilai status logis (tidak perlu migration karena kolom `status` bertipe text). Order dengan status ini berarti "menunggu admin proses manual via WhatsApp".
 
-## Rencana Perbaikan
+#### 3. Perubahan di `digiflazz-topup` edge function
+Pada cabang **failed / network error**:
+- Cek apakah `ppob_fallback_enabled = true` dan `admin_ppob_wa_number` terisi.
+- Jika ya:
+  - Set order: `status = 'manual_pending'`, `digiflazz_status = 'manual_fallback'`, `digiflazz_message = 'Dialihkan ke admin (WhatsApp)'`
+  - **Jangan refund poin** (poin tetap terpotong, akan didistribusi saat admin tandai sukses)
+  - Return `success: true, manual_fallback: true, admin_wa: '628xxx'`
+- Jika tidak: jalankan alur refund lama.
 
-### Langkah 1 — Aktifkan kembali Lovable Cloud
-Anda buka **Connectors → Lovable Cloud** di sidebar Lovable, lalu klik tombol **Resume / Enable** untuk backend project ini.
-- Tunggu sampai status backend menjadi **Active / Healthy** (biasanya 30–90 detik).
+Juga tangkap network error (catch outer) dengan logika yang sama.
 
-### Langkah 2 — Verifikasi backend sudah hidup
-Setelah Anda klik Resume, beri tahu saya. Saya akan:
-1. Cek status backend (DNS hostname & ping).
-2. Panggil edge function `admin-login` secara langsung untuk memastikan sudah merespons.
-3. Cek log edge function untuk memastikan request masuk dengan normal.
+#### 4. Customer side — `CustomerShop.tsx` & `CustomerOrders.tsx`
+- Saat checkout, jika response berisi `manual_fallback: true`, tampilkan toast "Pesanan dialihkan ke admin" dan navigasi ke halaman pesanan.
+- Di `CustomerOrders.tsx`, untuk order PPOB ber-status `manual_pending`:
+  - Badge kuning "Menunggu Admin"
+  - Tombol **"Hubungi Admin via WhatsApp"** dengan deep link berisi template:
+    ```
+    Halo Admin, saya order PPOB:
+    • Produk: {nama_produk}
+    • Nomor tujuan: {input_value}
+    • Order ID: {short_id}
+    • Customer: {nama}
+    Mohon diproses. Terima kasih.
+    ```
 
-### Langkah 3 — Tes login admin
-Setelah backend sehat, Anda coba login lagi dengan `rodaaset@gmail.com` di halaman `/login`. Seharusnya langsung berhasil tanpa perubahan kode apa pun.
+#### 5. Admin side — `OrderManagement.tsx`
+Untuk order ber-status `manual_pending`:
+- Badge khusus "Manual (WA)"
+- Tombol **"Tandai Sukses"** → set `status='completed'`, `processed_at=now()`, distribusi poin (panggil RPC atau replikasi logika `distributePoints` di edge function baru `ppob-mark-manual`).
+- Tombol **"Tandai Gagal & Refund"** → set `status='failed'`, insert `point_history` refund.
+- Tombol **"Buka WA Customer"** untuk koordinasi.
 
-### Langkah 4 (opsional) — Jika password lupa
-Jika setelah backend aktif Anda masih dapat error "Email atau password salah" (bukan "Failed to send a request..."), saya akan reset password admin Anda lewat database/edge function `admin-reset-password`.
+Untuk menjaga distribusi poin tetap konsisten, dibuat edge function baru: **`ppob-manual-resolve`** yang menerima `{order_id, action: 'success'|'fail', sn?: string}` dan menjalankan logika yang sama dengan cabang sukses/gagal di `digiflazz-topup`. Ini memastikan distribusi 1% upline tetap berjalan rapi.
 
----
+#### 6. Tipe & label
+- `getStatusLabel`/`getStatusColor` di customer & admin pages ditambah case `manual_pending`.
 
-## Yang TIDAK perlu diubah
-- Kode `admin-login`, `useAuth`, dan halaman `Login.tsx` semuanya sudah benar.
-- Tidak ada perubahan database / migration yang dibutuhkan.
-- Tidak ada perubahan CORS / konfigurasi.
+### File yang akan diubah/dibuat
 
-Masalahnya murni di tingkat **status backend**, bukan di kode aplikasi.
+**Diubah:**
+- `supabase/functions/digiflazz-topup/index.ts` — branch fallback
+- `src/pages/SystemSettings.tsx` — 2 field setting baru
+- `src/pages/CustomerShop.tsx` — handle response `manual_fallback`
+- `src/pages/CustomerOrders.tsx` — tombol WA untuk manual_pending
+- `src/pages/OrderManagement.tsx` — tombol resolve manual
+
+**Dibuat:**
+- `supabase/functions/ppob-manual-resolve/index.ts` — admin tandai sukses/gagal manual
+
+### Yang TIDAK berubah
+- Logika sukses normal Digiflazz (alur cepat tetap dipakai begitu proxy aktif)
+- Refund otomatis tetap berlaku jika fallback dimatikan
+- Distribusi poin 1% (formula sama, dipanggil saat admin tandai sukses)
+- Database schema (tidak perlu migration)
+
+### Catatan keamanan
+- `ppob-manual-resolve` memvalidasi pemanggil adalah admin (JWT email cocok di tabel `admins`).
+- Setting WA admin disimpan di `system_settings` (sudah RLS admin-only).
+
+Setelah Anda setujui, saya akan implementasikan dan langsung deploy edge function-nya.
