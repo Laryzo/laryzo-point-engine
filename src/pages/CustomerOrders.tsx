@@ -27,10 +27,12 @@ const CustomerOrders = () => {
   const { customer } = useCustomerAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adminWa, setAdminWa] = useState<string>('');
 
   useEffect(() => {
     if (customer) {
       fetchOrders();
+      fetchAdminWa();
     }
   }, [customer?.id]);
 
@@ -45,6 +47,30 @@ const CustomerOrders = () => {
       setOrders(data as Order[]);
     }
     setLoading(false);
+  };
+
+  const fetchAdminWa = async () => {
+    const { data } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'admin_ppob_wa_number')
+      .maybeSingle();
+    if (data?.value) setAdminWa(String(data.value).replace(/[^0-9]/g, ''));
+  };
+
+  const buildWaLink = (order: Order) => {
+    if (!adminWa) return '';
+    const shortId = order.id.slice(0, 8).toUpperCase();
+    const lines = [
+      'Halo Admin, saya ingin melanjutkan pesanan PPOB:',
+      `• Produk: ${order.product_name || '-'}`,
+      `• Nomor tujuan: ${order.input_value || '-'}`,
+      `• Order ID: ${shortId}`,
+      `• Customer: ${customer?.name || '-'}`,
+      '',
+      'Mohon diproses. Terima kasih.',
+    ];
+    return `https://wa.me/${adminWa}?text=${encodeURIComponent(lines.join('\n'))}`;
   };
 
   const formatNumber = (num: number) => {
