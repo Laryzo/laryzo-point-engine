@@ -28,6 +28,8 @@ const SystemSettings = () => {
     digiflazz_mode: 'development',
     digiflazz_username: '',
     digiflazz_api_key: '',
+    ppob_fallback_enabled: 'false',
+    admin_ppob_wa_number: '',
   });
 
   useEffect(() => {
@@ -57,6 +59,8 @@ const SystemSettings = () => {
         digiflazz_mode: settingsMap.digiflazz_mode || 'development',
         digiflazz_username: settingsMap.digiflazz_username || '',
         digiflazz_api_key: settingsMap.digiflazz_api_key || '',
+        ppob_fallback_enabled: settingsMap.ppob_fallback_enabled || 'false',
+        admin_ppob_wa_number: settingsMap.admin_ppob_wa_number || '',
       });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -275,6 +279,53 @@ const SystemSettings = () => {
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 Pastikan menggunakan API Key yang sesuai dengan mode yang dipilih. Gunakan API Key Development untuk testing dan API Key Production untuk transaksi nyata.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+
+        {/* PPOB WhatsApp Fallback */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Fallback PPOB ke WhatsApp Admin</CardTitle>
+            <CardDescription>
+              Jika Digiflazz tidak bisa diakses (jaringan/IP whitelist), pesanan customer akan dialihkan ke admin via WhatsApp untuk diproses manual — bukan langsung digagalkan.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label>Aktifkan Fallback WhatsApp</Label>
+                <p className="text-sm text-muted-foreground">
+                  Saat aktif: order PPOB yang gagal ke Digiflazz akan berstatus "Menunggu Admin" dan poin tidak di-refund otomatis.
+                </p>
+              </div>
+              <Switch
+                checked={formData.ppob_fallback_enabled === 'true'}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, ppob_fallback_enabled: checked ? 'true' : 'false' })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nomor WhatsApp Admin PPOB</Label>
+              <Input
+                type="tel"
+                value={formData.admin_ppob_wa_number || ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, admin_ppob_wa_number: e.target.value.replace(/[^0-9]/g, '') })
+                }
+                placeholder="628xxxxxxxxxx"
+                inputMode="numeric"
+              />
+              <p className="text-sm text-muted-foreground">
+                Format internasional tanpa +, contoh: 6281234567890. Customer akan diarahkan ke nomor ini.
+              </p>
+            </div>
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Setelah memproses manual, admin wajib menandai order sebagai "Sukses" atau "Gagal" di menu Pesanan agar poin terdistribusi atau direfund.
               </AlertDescription>
             </Alert>
           </CardContent>

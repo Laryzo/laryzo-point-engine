@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Truck, CheckCircle, Loader2, Undo2, Trash2, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { RefreshCw, Truck, CheckCircle, Loader2, Undo2, Trash2, ChevronLeft, ChevronRight, Pencil, MessageCircle, XCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
@@ -132,6 +132,60 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
     } finally {
       setProcessingOrder(null);
     }
+  };
+
+  const resolveManualOrder = async (orderId: string, action: 'success' | 'fail') => {
+    setProcessingOrder(orderId);
+    try {
+      let sn: string | undefined;
+      if (action === 'success') {
+        const input = window.prompt('Masukkan SN/Token (opsional, boleh kosong):', '');
+        if (input === null) {
+          setProcessingOrder(null);
+          return;
+        }
+        sn = input.trim() || undefined;
+      } else {
+        if (!window.confirm('Yakin tandai GAGAL? Poin customer akan di-refund.')) {
+          setProcessingOrder(null);
+          return;
+        }
+      }
+
+      await supabase.auth.refreshSession();
+      const { data, error } = await supabase.functions.invoke('ppob-manual-resolve', {
+        body: { order_id: orderId, action, sn },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Gagal memproses');
+
+      toast({
+        title: 'Berhasil',
+        description: action === 'success'
+          ? `Pesanan ditandai sukses. Distribusi ke ${data.distributed} penerima.`
+          : `Pesanan ditandai gagal. ${Number(data.refunded || 0).toLocaleString('id-ID')} poin direfund.`,
+      });
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setProcessingOrder(null);
+    }
+  };
+
+  const openWaCustomer = (order: Order) => {
+    const wa = order.customers?.whatsapp?.replace(/[^0-9]/g, '') || '';
+    if (!wa) {
+      toast({ title: 'Tidak ada WhatsApp', description: 'Customer belum mengisi nomor WA', variant: 'destructive' });
+      return;
+    }
+    const normalized = wa.startsWith('0') ? '62' + wa.slice(1) : wa.startsWith('62') ? wa : '62' + wa;
+    const shortId = order.id.slice(0, 8).toUpperCase();
+    const text = encodeURIComponent(
+      `Halo ${order.customers?.name || 'customer'}, terkait pesanan PPOB ${order.products?.name || ''} (Order ${shortId}) ke nomor ${order.input_value || '-'}, mohon konfirmasi sebentar ya.`
+    );
+    window.open(`https://wa.me/${normalized}?text=${text}`, '_blank');
   };
 
   const processPhysicalOrder = async () => {
@@ -338,6 +392,9 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
   };
 
   const getStatusBadge = (status: string) => {
+    if (status === 'manual_pending') {
+      return <Badge className="bg-orange-500 hover:bg-orange-600 text-white">Manual (WA)</Badge>;
+    }
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       pending: 'secondary',
       processing: 'outline',
@@ -438,6 +495,43 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
                                   <RefreshCw className="w-4 h-4" />
                                 )}
                               </Button>
+                            )}
+                            {order.status === 'manual_pending' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={processingOrder === order.id}
+                                  onClick={() => resolveManualOrder(order.id, 'success')}
+                                  title="Tandai Sukses (sudah diproses manual)"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                                >
+                                  {processingOrder === order.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={processingOrder === order.id}
+                                  onClick={() => resolveManualOrder(order.id, 'fail')}
+                                  title="Tandai Gagal & Refund"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openWaCustomer(order)}
+                                  title="Hubungi Customer via WhatsApp"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                </Button>
+                              </>
                             )}
                             {order.status === 'failed' && !isOrderRefunded(order) && (
                               <Button 

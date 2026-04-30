@@ -474,6 +474,8 @@ const CustomerShop = () => {
 
       if (orderError) throw orderError;
 
+      let manualFallback = false;
+
       if (selectedProduct.type === 'ppob') {
         const { data: topupResult, error: topupError } = await supabase.functions.invoke('digiflazz-topup', {
           body: { order_id: order.id },
@@ -497,7 +499,9 @@ const CustomerShop = () => {
           throw new Error('Gagal memproses pesanan PPOB. Cek menu Pesanan untuk status terbaru.');
         }
 
-        if (topupResult && !topupResult.success) {
+        if (topupResult?.manual_fallback) {
+          manualFallback = true;
+        } else if (topupResult && !topupResult.success) {
           throw new Error(topupResult.error || 'Gagal memproses pesanan PPOB');
         }
       } else {
@@ -518,10 +522,12 @@ const CustomerShop = () => {
       }
 
       toast({
-        title: 'Pesanan Berhasil',
-        description: selectedProduct.type === 'ppob' 
-          ? 'Pesanan PPOB Anda sedang diproses'
-          : 'Pesanan Anda sedang diproses oleh admin',
+        title: manualFallback ? 'Dialihkan ke Admin' : 'Pesanan Berhasil',
+        description: manualFallback
+          ? 'Pesanan PPOB Anda dialihkan ke admin. Silakan hubungi admin via WhatsApp di menu Pesanan.'
+          : selectedProduct.type === 'ppob'
+            ? 'Pesanan PPOB Anda sedang diproses'
+            : 'Pesanan Anda sedang diproses oleh admin',
       });
 
       await refreshCustomer();

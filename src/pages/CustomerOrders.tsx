@@ -4,7 +4,7 @@ import { useCustomerAuth } from '@/hooks/useCustomerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Truck } from 'lucide-react';
+import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Truck, MessageCircle, AlertCircle } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -27,10 +27,12 @@ const CustomerOrders = () => {
   const { customer } = useCustomerAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adminWa, setAdminWa] = useState<string>('');
 
   useEffect(() => {
     if (customer) {
       fetchOrders();
+      fetchAdminWa();
     }
   }, [customer?.id]);
 
@@ -45,6 +47,30 @@ const CustomerOrders = () => {
       setOrders(data as Order[]);
     }
     setLoading(false);
+  };
+
+  const fetchAdminWa = async () => {
+    const { data } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'admin_ppob_wa_number')
+      .maybeSingle();
+    if (data?.value) setAdminWa(String(data.value).replace(/[^0-9]/g, ''));
+  };
+
+  const buildWaLink = (order: Order) => {
+    if (!adminWa) return '';
+    const shortId = order.id.slice(0, 8).toUpperCase();
+    const lines = [
+      'Halo Admin, saya ingin melanjutkan pesanan PPOB:',
+      `• Produk: ${order.product_name || '-'}`,
+      `• Nomor tujuan: ${order.input_value || '-'}`,
+      `• Order ID: ${shortId}`,
+      `• Customer: ${customer?.name || '-'}`,
+      '',
+      'Mohon diproses. Terima kasih.',
+    ];
+    return `https://wa.me/${adminWa}?text=${encodeURIComponent(lines.join('\n'))}`;
   };
 
   const formatNumber = (num: number) => {
@@ -78,6 +104,8 @@ const CustomerOrders = () => {
         return <Truck className="h-5 w-5 text-blue-500" />;
       case 'failed':
         return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'manual_pending':
+        return <AlertCircle className="h-5 w-5 text-orange-500" />;
       default:
         return <Package className="h-5 w-5 text-muted-foreground" />;
     }
@@ -91,6 +119,7 @@ const CustomerOrders = () => {
       delivered: 'Terkirim',
       shipped: 'Dalam Pengiriman',
       failed: 'Gagal',
+      manual_pending: 'Menunggu Admin',
     };
     return labels[status] || status;
   };
@@ -103,6 +132,7 @@ const CustomerOrders = () => {
       delivered: 'bg-green-100 text-green-800',
       shipped: 'bg-blue-100 text-blue-800',
       failed: 'bg-red-100 text-red-800',
+      manual_pending: 'bg-orange-100 text-orange-800',
     };
     return styles[status] || 'bg-muted text-muted-foreground';
   };
@@ -205,6 +235,38 @@ const CustomerOrders = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* WhatsApp fallback button for manual_pending PPOB orders */}
+                    {order.status === 'manual_pending' && order.order_type === 'ppob' && (
+                      <div className="mt-3 pt-3 border-t space-y-2">
+                        <div className="flex items-start gap-2 p-2 bg-orange-50 dark:bg-orange-950/30 rounded text-xs text-orange-900 dark:text-orange-200">
+                          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                          <span>
+                            Pesanan dialihkan ke admin untuk diproses manual. Silakan hubungi admin via WhatsApp.
+                          </span>
+                        </div>
+                        {adminWa ? (
+                          <Button
+                            asChild
+                            className="w-full bg-green-600 hover:bg-green-700 text-white"
+                            size="sm"
+                          >
+                            <a
+                              href={buildWaLink(order)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" />
+                              Hubungi Admin via WhatsApp
+                            </a>
+                          </Button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Nomor WhatsApp admin belum dikonfigurasi.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );

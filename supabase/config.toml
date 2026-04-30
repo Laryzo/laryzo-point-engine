@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.merchant-product-purchase]
 verify_jwt = false
+
+[functions.ppob-manual-resolve]
+verify_jwt = false
