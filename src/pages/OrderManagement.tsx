@@ -493,7 +493,44 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
                                 )}
                               </Button>
                             )}
-                            {order.status === 'failed' && !isOrderRefunded(order) && (
+                            {order.status === 'manual_pending' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={processingOrder === order.id}
+                                  onClick={() => resolveManualOrder(order.id, 'success')}
+                                  title="Tandai Sukses (sudah diproses manual)"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                                >
+                                  {processingOrder === order.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={processingOrder === order.id}
+                                  onClick={() => resolveManualOrder(order.id, 'fail')}
+                                  title="Tandai Gagal & Refund"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openWaCustomer(order)}
+                                  title="Hubungi Customer via WhatsApp"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+
                               <Button 
                                 variant="ghost" 
                                 size="sm"
