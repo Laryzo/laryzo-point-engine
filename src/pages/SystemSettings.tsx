@@ -28,6 +28,8 @@ const SystemSettings = () => {
     digiflazz_mode: 'development',
     digiflazz_username: '',
     digiflazz_api_key: '',
+    ppob_fallback_enabled: 'false',
+    admin_ppob_wa_number: '',
   });
 
   useEffect(() => {
