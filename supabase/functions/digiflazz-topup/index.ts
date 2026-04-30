@@ -475,10 +475,34 @@ Deno.serve(async (req) => {
       )
 
     } catch (innerError) {
-      // Error occurred after points were deducted - refund them via point_history
-      console.error('Error after point deduction, attempting refund:', innerError)
-      
+      // Error occurred after points were deducted (network/Digiflazz down)
+      console.error('Error after point deduction:', innerError)
+
       if (pointsDeducted) {
+        // Try WhatsApp fallback first
+        const fallback = await tryWhatsAppFallback(
+          supabase,
+          order_id,
+          refId,
+          innerError.message || 'Tidak bisa terhubung ke Digiflazz'
+        )
+
+        if (fallback.applied) {
+          pointsDeducted = false
+          return new Response(
+            JSON.stringify({
+              success: true,
+              status: 'manual_pending',
+              manual_fallback: true,
+              admin_wa: fallback.admin_wa,
+              ref_id: refId,
+              message: 'Pesanan dialihkan ke admin (WhatsApp)'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // No fallback — refund as usual
         const { error: refundError } = await supabase.from('point_history').insert({
           from_customer: null,
           to_customer: customer.id,
@@ -488,7 +512,7 @@ Deno.serve(async (req) => {
           product_code: 'REFUND',
           description: `Refund poin - terjadi kesalahan`
         })
-        
+
         if (refundError) {
           console.error('CRITICAL: Failed to insert refund to point_history after error:', refundError)
         } else {
@@ -499,7 +523,7 @@ Deno.serve(async (req) => {
       // Update order status to failed
       await supabase
         .from('orders')
-        .update({ 
+        .update({
           status: 'failed',
           digiflazz_message: innerError.message || 'Processing error'
         })
