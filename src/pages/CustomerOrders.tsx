@@ -242,29 +242,17 @@ const CustomerOrders = () => {
                         <div className="flex items-start gap-2 p-2 bg-orange-50 dark:bg-orange-950/30 rounded text-xs text-orange-900 dark:text-orange-200">
                           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                           <span>
-                            Pesanan dialihkan ke admin untuk diproses manual. Silakan hubungi admin via WhatsApp.
+                            Pesanan dialihkan ke admin untuk diproses manual. Buka halaman konfirmasi.
                           </span>
                         </div>
-                        {adminWa ? (
-                          <Button
-                            asChild
-                            className="w-full bg-green-600 hover:bg-green-700 text-white"
-                            size="sm"
-                          >
-                            <a
-                              href={buildWaLink(order)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <MessageCircle className="h-4 w-4 mr-2" />
-                              Hubungi Admin via WhatsApp
-                            </a>
-                          </Button>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Nomor WhatsApp admin belum dikonfigurasi.
-                          </p>
-                        )}
+                        <Button
+                          className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                          size="sm"
+                          onClick={() => navigate(`/portal/orders/${order.id}/manual`)}
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Buka Halaman Konfirmasi WhatsApp
+                        </Button>
                       </div>
                     )}
                   </CardContent>
