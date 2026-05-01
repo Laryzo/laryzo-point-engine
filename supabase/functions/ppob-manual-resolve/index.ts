@@ -200,7 +200,15 @@ Deno.serve(async (req) => {
       )
     }
 
-    // action === 'fail' → refund poin
+    // action === 'fail' (admin) atau 'customer_cancel' (customer) → refund poin
+    const isCancelByCustomer = action === 'customer_cancel'
+    const refundDescription = isCancelByCustomer
+      ? `Refund poin - dibatalkan oleh customer`
+      : `Refund poin - manual ditandai gagal oleh admin`
+    const failMessage = isCancelByCustomer
+      ? 'Dibatalkan oleh customer (poin direfund)'
+      : 'Ditandai gagal manual oleh admin (poin direfund)'
+
     const { error: refundError } = await admin.from('point_history').insert({
       from_customer: null,
       to_customer: order.customer_id,
@@ -208,7 +216,7 @@ Deno.serve(async (req) => {
       level: 0,
       transaction_id: null,
       product_code: 'REFUND',
-      description: `Refund poin - manual ditandai gagal oleh admin`,
+      description: refundDescription,
     })
 
     if (refundError) {
@@ -224,11 +232,11 @@ Deno.serve(async (req) => {
       .update({
         status: 'failed',
         digiflazz_status: 'gagal',
-        digiflazz_message: 'Ditandai gagal manual oleh admin (poin direfund)',
+        digiflazz_message: failMessage,
       })
       .eq('id', order_id)
 
-    console.log(`Order ${order_id} ditandai GAGAL manual oleh ${userData.user.email}, poin direfund`)
+    console.log(`Order ${order_id} ditandai GAGAL (${action}) oleh ${userEmail}, poin direfund`)
 
     return new Response(
       JSON.stringify({ success: true, status: 'failed', refunded: order.points_used }),
