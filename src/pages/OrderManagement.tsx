@@ -522,7 +522,16 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
                         <TableCell>{order.products?.name || '-'}</TableCell>
                         <TableCell>{order.input_value || '-'}</TableCell>
                         <TableCell>{order.points_used.toLocaleString()}</TableCell>
-                        <TableCell>{getStatusBadge(order.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {getStatusBadge(order.status)}
+                            {order.customer_confirmed_at && order.status === 'manual_pending' && (
+                              <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-[10px]" title={`Customer konfirmasi diterima pada ${order.customer_confirmed_at}`}>
+                                ✓ Customer OK
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{getDigiflazzStatusBadge(order.digiflazz_status)}</TableCell>
                         <TableCell className="font-mono text-xs">{order.digiflazz_sn || '-'}</TableCell>
                         <TableCell>
