@@ -521,13 +521,29 @@ const CustomerShop = () => {
         }
       }
 
+      // If manual fallback triggered, redirect customer immediately to confirmation page
+      if (manualFallback) {
+        await refreshCustomer();
+        setSelectedProduct(null);
+        setInputValue('');
+        setShippingAddress('');
+        setDeliveryType('none');
+        setDeliveryAddress('');
+        setDeliveryNotes('');
+        setItemNotes('');
+        toast({
+          title: 'Dialihkan ke Admin',
+          description: 'Anda akan diarahkan ke halaman konfirmasi WhatsApp admin.',
+        });
+        navigate(`/portal/orders/${order.id}/manual`);
+        return;
+      }
+
       toast({
-        title: manualFallback ? 'Dialihkan ke Admin' : 'Pesanan Berhasil',
-        description: manualFallback
-          ? 'Pesanan PPOB Anda dialihkan ke admin. Silakan hubungi admin via WhatsApp di menu Pesanan.'
-          : selectedProduct.type === 'ppob'
-            ? 'Pesanan PPOB Anda sedang diproses'
-            : 'Pesanan Anda sedang diproses oleh admin',
+        title: 'Pesanan Berhasil',
+        description: selectedProduct.type === 'ppob'
+          ? 'Pesanan PPOB Anda sedang diproses'
+          : 'Pesanan Anda sedang diproses oleh admin',
       });
 
       await refreshCustomer();

@@ -21,6 +21,7 @@ const CustomerLogin = lazy(() => import("./pages/CustomerLogin"));
 const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard"));
 const CustomerShop = lazy(() => import("./pages/CustomerShop"));
 const CustomerOrders = lazy(() => import("./pages/CustomerOrders"));
+const CustomerOrderManual = lazy(() => import("./pages/CustomerOrderManual"));
 const CustomerPointHistory = lazy(() => import("./pages/CustomerPointHistory"));
 const CustomerProfile = lazy(() => import("./pages/CustomerProfile"));
 const MerchantLogin = lazy(() => import("./pages/MerchantLogin"));
@@ -73,6 +74,11 @@ const CustomerPortalRoutes = () => {
       <Route path="orders" element={
         <CustomerProtectedRoute>
           <CustomerOrders />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="orders/:orderId/manual" element={
+        <CustomerProtectedRoute>
+          <CustomerOrderManual />
         </CustomerProtectedRoute>
       } />
       <Route path="points" element={

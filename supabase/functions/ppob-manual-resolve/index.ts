@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
     const admin = createClient(supabaseUrl, serviceKey)
 
-    // Validate caller is admin via JWT
+    // Validate caller via JWT (could be admin or customer)
     const authHeader = req.headers.get('Authorization') || ''
     const token = authHeader.replace('Bearer ', '').trim()
     if (!token) {
@@ -85,25 +85,33 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { data: adminRow } = await admin
-      .from('admins')
-      .select('email, role')
-      .eq('email', userData.user.email)
-      .single()
+    const userEmail = userData.user.email
 
-    if (!adminRow) {
+    const { order_id, action, sn } = await req.json()
+    const validActions = ['success', 'fail', 'customer_cancel', 'customer_confirm']
+    if (!order_id || !validActions.includes(action)) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Forbidden — admin only' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: `order_id and action (${validActions.join('|')}) required` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const { order_id, action, sn } = await req.json()
-    if (!order_id || !['success', 'fail'].includes(action)) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'order_id and action (success|fail) required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    const isCustomerAction = action === 'customer_cancel' || action === 'customer_confirm'
+
+    // Authorization check
+    if (!isCustomerAction) {
+      // Admin actions
+      const { data: adminRow } = await admin
+        .from('admins')
+        .select('email, role')
+        .eq('email', userEmail)
+        .single()
+      if (!adminRow) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Forbidden — admin only' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
     const { data: order, error: orderError } = await admin
@@ -119,10 +127,38 @@ Deno.serve(async (req) => {
       )
     }
 
+    // For customer actions, verify ownership via customer_auth lookup
+    if (isCustomerAction) {
+      const { data: custAuth } = await admin
+        .from('customer_auth')
+        .select('customer_id')
+        .eq('email', userEmail)
+        .single()
+      if (!custAuth || custAuth.customer_id !== order.customer_id) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Forbidden — not your order' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     if (order.status !== 'manual_pending') {
       return new Response(
         JSON.stringify({ success: false, error: `Order status invalid: ${order.status}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Action: customer_confirm — non-destructive, just mark confirmed
+    if (action === 'customer_confirm') {
+      await admin
+        .from('orders')
+        .update({ customer_confirmed_at: new Date().toISOString() })
+        .eq('id', order_id)
+      console.log(`Order ${order_id} dikonfirmasi diterima oleh customer ${userEmail}`)
+      return new Response(
+        JSON.stringify({ success: true, status: 'confirmed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -156,7 +192,7 @@ Deno.serve(async (req) => {
         })
         .eq('id', order_id)
 
-      console.log(`Order ${order_id} ditandai SUKSES manual oleh ${userData.user.email}, distribusi ke ${distributed} penerima`)
+      console.log(`Order ${order_id} ditandai SUKSES manual oleh ${userEmail}, distribusi ke ${distributed} penerima`)
 
       return new Response(
         JSON.stringify({ success: true, status: 'completed', distributed }),
@@ -164,7 +200,15 @@ Deno.serve(async (req) => {
       )
     }
 
-    // action === 'fail' → refund poin
+    // action === 'fail' (admin) atau 'customer_cancel' (customer) → refund poin
+    const isCancelByCustomer = action === 'customer_cancel'
+    const refundDescription = isCancelByCustomer
+      ? `Refund poin - dibatalkan oleh customer`
+      : `Refund poin - manual ditandai gagal oleh admin`
+    const failMessage = isCancelByCustomer
+      ? 'Dibatalkan oleh customer (poin direfund)'
+      : 'Ditandai gagal manual oleh admin (poin direfund)'
+
     const { error: refundError } = await admin.from('point_history').insert({
       from_customer: null,
       to_customer: order.customer_id,
@@ -172,7 +216,7 @@ Deno.serve(async (req) => {
       level: 0,
       transaction_id: null,
       product_code: 'REFUND',
-      description: `Refund poin - manual ditandai gagal oleh admin`,
+      description: refundDescription,
     })
 
     if (refundError) {
@@ -188,11 +232,11 @@ Deno.serve(async (req) => {
       .update({
         status: 'failed',
         digiflazz_status: 'gagal',
-        digiflazz_message: 'Ditandai gagal manual oleh admin (poin direfund)',
+        digiflazz_message: failMessage,
       })
       .eq('id', order_id)
 
-    console.log(`Order ${order_id} ditandai GAGAL manual oleh ${userData.user.email}, poin direfund`)
+    console.log(`Order ${order_id} ditandai GAGAL (${action}) oleh ${userEmail}, poin direfund`)
 
     return new Response(
       JSON.stringify({ success: true, status: 'failed', refunded: order.points_used }),

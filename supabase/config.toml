@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.ppob-manual-resolve]
 verify_jwt = false
+
+[functions.notify-admin-manual-order]
+verify_jwt = false

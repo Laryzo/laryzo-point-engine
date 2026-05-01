@@ -477,6 +477,7 @@ export type Database = {
         Row: {
           admin_notes: string | null
           created_at: string
+          customer_confirmed_at: string | null
           customer_id: string
           delivery_address: string | null
           delivery_latitude: number | null
@@ -510,6 +511,7 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           created_at?: string
+          customer_confirmed_at?: string | null
           customer_id: string
           delivery_address?: string | null
           delivery_latitude?: number | null
@@ -543,6 +545,7 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           created_at?: string
+          customer_confirmed_at?: string | null
           customer_id?: string
           delivery_address?: string | null
           delivery_latitude?: number | null
@@ -934,9 +937,13 @@ export type Database = {
       orders_customer_view: {
         Row: {
           created_at: string | null
+          customer_confirmed_at: string | null
           customer_id: string | null
           delivery_address: string | null
+          delivery_latitude: number | null
+          delivery_longitude: number | null
           delivery_notes: string | null
+          delivery_status: string | null
           delivery_type: string | null
           digiflazz_message: string | null
           digiflazz_sn: string | null
@@ -948,6 +955,7 @@ export type Database = {
           item_notes: string | null
           merchant_id: string | null
           order_type: string | null
+          pickup_address: string | null
           points_earned: number | null
           points_used: number | null
           processed_at: string | null

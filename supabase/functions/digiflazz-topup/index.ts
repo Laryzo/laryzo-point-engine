@@ -142,6 +142,18 @@ async function tryWhatsAppFallback(
       .eq('id', orderId)
 
     console.log(`Order ${orderId} dialihkan ke fallback WA admin: ${adminWa}`)
+
+    // Fire-and-forget notifikasi ke admin (email)
+    try {
+      supabase.functions.invoke('notify-admin-manual-order', {
+        body: { order_id: orderId },
+      }).then(({ error }: any) => {
+        if (error) console.error('notify-admin-manual-order invoke error:', error)
+      })
+    } catch (notifyErr) {
+      console.error('Gagal trigger notifikasi admin:', notifyErr)
+    }
+
     return { applied: true, admin_wa: adminWa }
   } catch (err) {
     console.error('tryWhatsAppFallback error:', err)

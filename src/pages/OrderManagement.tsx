@@ -37,6 +37,7 @@ interface Order {
   admin_notes: string | null;
   processed_at: string | null;
   created_at: string;
+  customer_confirmed_at: string | null;
   customers?: { name: string; whatsapp: string | null };
   products?: { name: string; type: string; digiflazz_sku: string | null };
 }
@@ -82,6 +83,44 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
   useEffect(() => {
     fetchOrders();
   }, [currentPage]);
+
+  // Realtime: notify admin when manual_pending orders arrive or customer confirms
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-orders-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload: any) => {
+          const newRow = payload.new;
+          const oldRow = payload.old;
+          if (
+            newRow?.status === 'manual_pending' &&
+            oldRow?.status !== 'manual_pending'
+          ) {
+            toast({
+              title: '🔔 Order Manual Baru',
+              description: 'Ada order PPOB yang perlu diproses manual via WhatsApp.',
+            });
+          }
+          if (
+            newRow?.customer_confirmed_at &&
+            !oldRow?.customer_confirmed_at
+          ) {
+            toast({
+              title: '✅ Customer Konfirmasi',
+              description: 'Customer menandai sudah menerima produk PPOB.',
+            });
+          }
+          fetchOrders();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -432,7 +471,14 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="ppob">PPOB ({ppobOrders.length})</TabsTrigger>
+          <TabsTrigger value="ppob">
+            PPOB ({ppobOrders.length})
+            {ppobOrders.filter(o => o.status === 'manual_pending').length > 0 && (
+              <Badge className="ml-2 bg-orange-500 hover:bg-orange-600 text-white animate-pulse">
+                {ppobOrders.filter(o => o.status === 'manual_pending').length} manual
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="physical">Produk Fisik ({physicalOrders.length})</TabsTrigger>
         </TabsList>
 
@@ -476,7 +522,16 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
                         <TableCell>{order.products?.name || '-'}</TableCell>
                         <TableCell>{order.input_value || '-'}</TableCell>
                         <TableCell>{order.points_used.toLocaleString()}</TableCell>
-                        <TableCell>{getStatusBadge(order.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {getStatusBadge(order.status)}
+                            {order.customer_confirmed_at && order.status === 'manual_pending' && (
+                              <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-[10px]" title={`Customer konfirmasi diterima pada ${order.customer_confirmed_at}`}>
+                                ✓ Customer OK
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{getDigiflazzStatusBadge(order.digiflazz_status)}</TableCell>
                         <TableCell className="font-mono text-xs">{order.digiflazz_sn || '-'}</TableCell>
                         <TableCell>
