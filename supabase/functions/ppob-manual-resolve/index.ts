@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
         })
         .eq('id', order_id)
 
-      console.log(`Order ${order_id} ditandai SUKSES manual oleh ${userData.user.email}, distribusi ke ${distributed} penerima`)
+      console.log(`Order ${order_id} ditandai SUKSES manual oleh ${userEmail}, distribusi ke ${distributed} penerima`)
 
       return new Response(
         JSON.stringify({ success: true, status: 'completed', distributed }),
