@@ -37,6 +37,7 @@ interface Order {
   admin_notes: string | null;
   processed_at: string | null;
   created_at: string;
+  customer_confirmed_at: string | null;
   customers?: { name: string; whatsapp: string | null };
   products?: { name: string; type: string; digiflazz_sku: string | null };
 }
@@ -82,6 +83,44 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
   useEffect(() => {
     fetchOrders();
   }, [currentPage]);
+
+  // Realtime: notify admin when manual_pending orders arrive or customer confirms
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-orders-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload: any) => {
+          const newRow = payload.new;
+          const oldRow = payload.old;
+          if (
+            newRow?.status === 'manual_pending' &&
+            oldRow?.status !== 'manual_pending'
+          ) {
+            toast({
+              title: '🔔 Order Manual Baru',
+              description: 'Ada order PPOB yang perlu diproses manual via WhatsApp.',
+            });
+          }
+          if (
+            newRow?.customer_confirmed_at &&
+            !oldRow?.customer_confirmed_at
+          ) {
+            toast({
+              title: '✅ Customer Konfirmasi',
+              description: 'Customer menandai sudah menerima produk PPOB.',
+            });
+          }
+          fetchOrders();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
