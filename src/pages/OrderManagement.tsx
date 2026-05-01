@@ -471,7 +471,14 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="ppob">PPOB ({ppobOrders.length})</TabsTrigger>
+          <TabsTrigger value="ppob">
+            PPOB ({ppobOrders.length})
+            {ppobOrders.filter(o => o.status === 'manual_pending').length > 0 && (
+              <Badge className="ml-2 bg-orange-500 hover:bg-orange-600 text-white animate-pulse">
+                {ppobOrders.filter(o => o.status === 'manual_pending').length} manual
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="physical">Produk Fisik ({physicalOrders.length})</TabsTrigger>
         </TabsList>
 
