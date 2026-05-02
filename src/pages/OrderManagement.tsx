@@ -552,41 +552,39 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
                               </Button>
                             )}
                             {order.status === 'manual_pending' && (
-                              <>
+                              <div className="flex flex-wrap gap-2">
                                 <Button
-                                  variant="ghost"
                                   size="sm"
                                   disabled={processingOrder === order.id}
                                   onClick={() => resolveManualOrder(order.id, 'success')}
-                                  title="Tandai Sukses (sudah diproses manual)"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                                  className="bg-green-600 hover:bg-green-700 text-white"
                                 >
                                   {processingOrder === order.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                                   ) : (
-                                    <CheckCircle className="w-4 h-4" />
+                                    <CheckCircle className="w-4 h-4 mr-1" />
                                   )}
+                                  Tandai Sukses
                                 </Button>
                                 <Button
-                                  variant="ghost"
                                   size="sm"
+                                  variant="destructive"
                                   disabled={processingOrder === order.id}
                                   onClick={() => resolveManualOrder(order.id, 'fail')}
-                                  title="Tandai Gagal & Refund"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-100"
                                 >
-                                  <XCircle className="w-4 h-4" />
+                                  <XCircle className="w-4 h-4 mr-1" />
+                                  Tandai Gagal
                                 </Button>
                                 <Button
-                                  variant="ghost"
                                   size="sm"
+                                  variant="outline"
                                   onClick={() => openWaCustomer(order)}
-                                  title="Hubungi Customer via WhatsApp"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                                  className="border-green-600 text-green-700 hover:bg-green-50"
                                 >
-                                  <MessageCircle className="w-4 h-4" />
+                                  <MessageCircle className="w-4 h-4 mr-1" />
+                                  WA Customer
                                 </Button>
-                              </>
+                              </div>
                             )}
                             {order.status === 'failed' && !isOrderRefunded(order) && (
                               <Button 
