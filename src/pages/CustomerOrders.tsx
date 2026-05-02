@@ -236,22 +236,42 @@ const CustomerOrders = () => {
                       )}
                     </div>
 
-                    {/* WhatsApp fallback button for manual_pending PPOB orders */}
+                    {/* WhatsApp fallback for manual_pending PPOB orders */}
                     {order.status === 'manual_pending' && order.order_type === 'ppob' && (
                       <div className="mt-3 pt-3 border-t space-y-2">
                         <div className="flex items-start gap-2 p-2 bg-orange-50 dark:bg-orange-950/30 rounded text-xs text-orange-900 dark:text-orange-200">
                           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                           <span>
-                            Pesanan dialihkan ke admin untuk diproses manual. Buka halaman konfirmasi.
+                            Pesanan dialihkan ke admin untuk diproses manual. Hubungi admin via WhatsApp untuk konfirmasi.
                           </span>
                         </div>
+                        {adminWa ? (
+                          <a
+                            href={buildWaLink(order)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                          >
+                            <Button
+                              className="w-full bg-green-600 hover:bg-green-700 text-white"
+                              size="sm"
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" />
+                              Hubungi Admin via WhatsApp
+                            </Button>
+                          </a>
+                        ) : (
+                          <Button className="w-full" size="sm" disabled>
+                            Nomor admin belum tersedia
+                          </Button>
+                        )}
                         <Button
-                          className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                          variant="outline"
+                          className="w-full"
                           size="sm"
                           onClick={() => navigate(`/portal/orders/${order.id}/manual`)}
                         >
-                          <MessageCircle className="h-4 w-4 mr-2" />
-                          Buka Halaman Konfirmasi WhatsApp
+                          Buka Halaman Konfirmasi
                         </Button>
                       </div>
                     )}
