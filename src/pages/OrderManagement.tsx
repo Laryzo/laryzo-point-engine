@@ -455,6 +455,7 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
 
   const ppobOrders = orders.filter(o => o.products?.type === 'ppob');
   const physicalOrders = orders.filter(o => o.products?.type === 'physical');
+  const needsManualAction = (order: Order) => order.status === 'manual_pending' || order.status === 'pending';
 
   return (
     <div className="p-6 space-y-6">
@@ -473,9 +474,9 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
         <TabsList>
           <TabsTrigger value="ppob">
             PPOB ({ppobOrders.length})
-            {ppobOrders.filter(o => o.status === 'manual_pending').length > 0 && (
+            {ppobOrders.filter(needsManualAction).length > 0 && (
               <Badge className="ml-2 bg-orange-500 hover:bg-orange-600 text-white animate-pulse">
-                {ppobOrders.filter(o => o.status === 'manual_pending').length} manual
+                {ppobOrders.filter(needsManualAction).length} perlu aksi
               </Badge>
             )}
           </TabsTrigger>
@@ -551,7 +552,7 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
                                 )}
                               </Button>
                             )}
-                            {order.status === 'manual_pending' && (
+                            {needsManualAction(order) && (
                               <div className="flex flex-wrap gap-2">
                                 <Button
                                   size="sm"
