@@ -176,6 +176,19 @@ const OrderManagement = ({ isSuperAdmin = false }: OrderManagementProps) => {
   const resolveManualOrder = async (orderId: string, action: 'success' | 'fail') => {
     setProcessingOrder(orderId);
     try {
+      const currentOrder = orders.find((order) => order.id === orderId);
+      if (currentOrder?.status === 'pending') {
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({
+            status: 'manual_pending',
+            digiflazz_status: 'manual_fallback',
+            digiflazz_message: 'Diproses manual oleh admin',
+          })
+          .eq('id', orderId);
+        if (updateError) throw updateError;
+      }
+
       let sn: string | undefined;
       if (action === 'success') {
         const input = window.prompt('Masukkan SN/Token (opsional, boleh kosong):', '');
