@@ -141,6 +141,11 @@ const CustomerOrders = () => {
     return Number(order.points_used || 0);
   };
 
+  const canContactAdminForPpob = (order: Order) => {
+    const isPpob = order.order_type === 'ppob' || order.product_type === 'ppob';
+    return isPpob && (order.status === 'manual_pending' || order.status === 'pending');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
@@ -236,13 +241,13 @@ const CustomerOrders = () => {
                       )}
                     </div>
 
-                    {/* WhatsApp fallback for manual_pending PPOB orders */}
-                    {order.status === 'manual_pending' && order.order_type === 'ppob' && (
+                    {/* WhatsApp fallback for pending/manual PPOB orders */}
+                    {canContactAdminForPpob(order) && (
                       <div className="mt-3 pt-3 border-t space-y-2">
                         <div className="flex items-start gap-2 p-2 bg-orange-50 dark:bg-orange-950/30 rounded text-xs text-orange-900 dark:text-orange-200">
                           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                           <span>
-                            Pesanan dialihkan ke admin untuk diproses manual. Hubungi admin via WhatsApp untuk konfirmasi.
+                            Jika pesanan belum diproses otomatis, hubungi admin via WhatsApp untuk konfirmasi manual.
                           </span>
                         </div>
                         {adminWa ? (
