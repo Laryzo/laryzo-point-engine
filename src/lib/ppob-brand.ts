@@ -29,31 +29,13 @@ export function getPpobBrandFromProductName(productName: string): string {
   if (n.includes(' TRI ') || n.startsWith(' TRI ') || n.includes(' THREE ') || n.startsWith(' THREE ')) return 'TRI';
 
   // E-wallet providers (common variants)
-  // GoPay: split into Customer (penumpang/customer) vs Driver (driver/mitra)
-  const isGopay = n.includes(' GOPAY ') || n.includes(' GO PAY ');
-  if (isGopay) {
-    if (n.includes(' DRIVER ') || n.includes(' MITRA ')) return 'GOPAY DRIVER';
-    if (n.includes(' CUSTOMER ') || n.includes(' PENUMPANG ') || n.includes(' PELANGGAN ')) return 'GOPAY CUSTOMER';
-    return 'GOPAY CUSTOMER';
-  }
+  if (n.includes(' GOPAY ') || n.includes(' GO PAY ')) return 'GOPAY';
   if (n.includes(' OVO ') || n.startsWith(' OVO ')) return 'OVO';
   if (n.includes(' DANA ') || n.startsWith(' DANA ')) return 'DANA';
   if (n.includes(' LINKAJA ') || n.startsWith(' LINKAJA ')) return 'LINKAJA';
   if (n.includes(' SHOPEE ') || n.includes(' SHOPEEPAY ') || n.includes(' SHOPEE PAY ') || n.startsWith(' SHOPEE ')) return 'SHOPEEPAY';
-
-  // Grab: split into Customer (penumpang/customer) vs Driver
-  if (n.includes(' GRAB ') || n.startsWith(' GRAB ')) {
-    if (n.includes(' DRIVER ') || n.includes(' MITRA ')) return 'GRAB DRIVER';
-    if (n.includes(' CUSTOMER ') || n.includes(' PENUMPANG ') || n.includes(' PELANGGAN ')) return 'GRAB CUSTOMER';
-    return 'GRAB CUSTOMER';
-  }
-
-  // Maxim: split into Customer vs Driver
-  if (n.includes(' MAXIM ') || n.startsWith(' MAXIM ')) {
-    if (n.includes(' DRIVER ') || n.includes(' MITRA ')) return 'MAXIM DRIVER';
-    if (n.includes(' CUSTOMER ') || n.includes(' PENUMPANG ') || n.includes(' PELANGGAN ')) return 'MAXIM CUSTOMER';
-    return 'MAXIM CUSTOMER';
-  }
+  if (n.includes(' GRAB ') || n.startsWith(' GRAB ')) return 'GRAB';
+  if (n.includes(' MAXIM ') || n.startsWith(' MAXIM ')) return 'MAXIM';
 
   // PLN
   if (n.includes(' PLN ') || n.includes(' TOKEN ') || n.startsWith(' PLN ')) return 'PLN';
@@ -61,4 +43,27 @@ export function getPpobBrandFromProductName(productName: string): string {
   // Fallback: first word token
   const first = canonicalizePpobBrand(productName).split(' ')[0] || '';
   return first.length > 0 ? first : 'LAINNYA';
+}
+
+/**
+ * For brands that have customer/driver variants (GoPay, Grab, Maxim),
+ * returns 'CUSTOMER' or 'DRIVER'. Returns null for brands without sub-categories.
+ */
+export function getPpobSubBrandFromProductName(productName: string): 'CUSTOMER' | 'DRIVER' | null {
+  const brand = getPpobBrandFromProductName(productName);
+  if (brand !== 'GOPAY' && brand !== 'GRAB' && brand !== 'MAXIM') return null;
+
+  const n = ` ${canonicalizePpobBrand(productName)
+    .replace(/[_\-]+/g, ' ')
+    .replace(/[^A-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')} `;
+
+  if (n.includes(' DRIVER ') || n.includes(' MITRA ')) return 'DRIVER';
+  if (n.includes(' CUSTOMER ') || n.includes(' PENUMPANG ') || n.includes(' PELANGGAN ')) return 'CUSTOMER';
+  return 'CUSTOMER';
+}
+
+export function brandHasSubMenu(brand: string): boolean {
+  const b = canonicalizePpobBrand(brand);
+  return b === 'GOPAY' || b === 'GRAB' || b === 'MAXIM';
 }
