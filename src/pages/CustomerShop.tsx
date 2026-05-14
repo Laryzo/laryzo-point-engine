@@ -356,6 +356,16 @@ const CustomerShop = () => {
 
   const handleBrandSelect = (brand: string) => {
     setSelectedBrand(brand);
+    setSelectedSubBrand(null);
+    if (brandHasSubMenu(brand)) {
+      setMenuLevel('subbrand');
+    } else {
+      setMenuLevel('products');
+    }
+  };
+
+  const handleSubBrandSelect = (sub: 'CUSTOMER' | 'DRIVER') => {
+    setSelectedSubBrand(sub);
     setMenuLevel('products');
   };
 
@@ -365,10 +375,17 @@ const CustomerShop = () => {
         setMenuLevel('main');
         setSelectedCategory(null);
         setSelectedBrand(null);
+      } else if (selectedBrand && brandHasSubMenu(selectedBrand)) {
+        setMenuLevel('subbrand');
+        setSelectedSubBrand(null);
       } else {
         setMenuLevel('brand');
         setSelectedBrand(null);
       }
+    } else if (menuLevel === 'subbrand') {
+      setMenuLevel('brand');
+      setSelectedBrand(null);
+      setSelectedSubBrand(null);
     } else if (menuLevel === 'brand') {
       setMenuLevel('main');
       setSelectedCategory(null);
@@ -383,8 +400,12 @@ const CustomerShop = () => {
       const cat = ppobCategories.find(c => c.id === selectedCategory);
       return cat?.label || 'Pilih Provider';
     }
+    if (menuLevel === 'subbrand') {
+      return `${selectedBrand} - Pilih Tipe`;
+    }
     if (menuLevel === 'products') {
       if (selectedCategory === 'physical') return 'Produk Fisik';
+      if (selectedBrand && selectedSubBrand) return `${selectedBrand} ${selectedSubBrand}`;
       if (selectedBrand) return selectedBrand;
       return 'Produk';
     }
