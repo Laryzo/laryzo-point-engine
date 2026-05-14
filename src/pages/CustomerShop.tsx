@@ -114,6 +114,7 @@ const CustomerShop = () => {
   const [menuLevel, setMenuLevel] = useState<MenuLevel>('main');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [selectedSubBrand, setSelectedSubBrand] = useState<'CUSTOMER' | 'DRIVER' | null>(null);
   
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedMerchantCoords, setSelectedMerchantCoords] = useState<{lat: number, lng: number} | null>(null);
