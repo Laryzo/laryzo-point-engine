@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { canonicalizePpobBrand, getPpobBrandFromProductName } from '@/lib/ppob-brand';
+import { canonicalizePpobBrand, getPpobBrandFromProductName, getPpobSubBrandFromProductName, brandHasSubMenu } from '@/lib/ppob-brand';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import MapLocationPicker from '@/components/MapLocationPicker';
 import { 
@@ -79,7 +79,7 @@ interface Product {
 }
 
 // Menu structure types
-type MenuLevel = 'main' | 'category' | 'brand' | 'products';
+type MenuLevel = 'main' | 'category' | 'brand' | 'subbrand' | 'products';
 
 interface CategoryConfig {
   id: string;
@@ -114,6 +114,7 @@ const CustomerShop = () => {
   const [menuLevel, setMenuLevel] = useState<MenuLevel>('main');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [selectedSubBrand, setSelectedSubBrand] = useState<'CUSTOMER' | 'DRIVER' | null>(null);
   
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedMerchantCoords, setSelectedMerchantCoords] = useState<{lat: number, lng: number} | null>(null);
@@ -208,6 +209,21 @@ const CustomerShop = () => {
     return Array.from(brandSet).sort();
   }, [products, selectedCategory]);
 
+  // Sub-brands available for the currently selected brand
+  const subBrandsForBrand = useMemo(() => {
+    if (!selectedCategory || !selectedBrand) return [] as Array<'CUSTOMER' | 'DRIVER'>;
+    if (!brandHasSubMenu(selectedBrand)) return [];
+    const brand = canonicalizePpobBrand(selectedBrand);
+    const set = new Set<'CUSTOMER' | 'DRIVER'>();
+    products.forEach(p => {
+      if (p.type !== 'ppob' || p.ppob_type !== selectedCategory) return;
+      if (getPpobBrandFromProductName(p.name) !== brand) return;
+      const sub = getPpobSubBrandFromProductName(p.name);
+      if (sub) set.add(sub);
+    });
+    return Array.from(set).sort();
+  }, [products, selectedCategory, selectedBrand]);
+
   // Filter products based on current selection
   const filteredProducts = useMemo(() => {
     let filtered = [...products];
@@ -219,7 +235,11 @@ const CustomerShop = () => {
         const selected = canonicalizePpobBrand(selectedBrand);
         filtered = filtered.filter(p => {
           if (p.type !== 'ppob' || p.ppob_type !== selectedCategory) return false;
-          return getPpobBrandFromProductName(p.name) === selected;
+          if (getPpobBrandFromProductName(p.name) !== selected) return false;
+          if (selectedSubBrand) {
+            return getPpobSubBrandFromProductName(p.name) === selectedSubBrand;
+          }
+          return true;
         });
       }
     }
@@ -236,7 +256,7 @@ const CustomerShop = () => {
     filtered.sort((a, b) => a.point_price - b.point_price);
     
     return filtered;
-  }, [products, menuLevel, selectedCategory, selectedBrand, search]);
+  }, [products, menuLevel, selectedCategory, selectedBrand, selectedSubBrand, search]);
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('id-ID').format(num);
@@ -336,6 +356,16 @@ const CustomerShop = () => {
 
   const handleBrandSelect = (brand: string) => {
     setSelectedBrand(brand);
+    setSelectedSubBrand(null);
+    if (brandHasSubMenu(brand)) {
+      setMenuLevel('subbrand');
+    } else {
+      setMenuLevel('products');
+    }
+  };
+
+  const handleSubBrandSelect = (sub: 'CUSTOMER' | 'DRIVER') => {
+    setSelectedSubBrand(sub);
     setMenuLevel('products');
   };
 
@@ -345,10 +375,17 @@ const CustomerShop = () => {
         setMenuLevel('main');
         setSelectedCategory(null);
         setSelectedBrand(null);
+      } else if (selectedBrand && brandHasSubMenu(selectedBrand)) {
+        setMenuLevel('subbrand');
+        setSelectedSubBrand(null);
       } else {
         setMenuLevel('brand');
         setSelectedBrand(null);
       }
+    } else if (menuLevel === 'subbrand') {
+      setMenuLevel('brand');
+      setSelectedBrand(null);
+      setSelectedSubBrand(null);
     } else if (menuLevel === 'brand') {
       setMenuLevel('main');
       setSelectedCategory(null);
@@ -363,8 +400,12 @@ const CustomerShop = () => {
       const cat = ppobCategories.find(c => c.id === selectedCategory);
       return cat?.label || 'Pilih Provider';
     }
+    if (menuLevel === 'subbrand') {
+      return `${selectedBrand} - Pilih Tipe`;
+    }
     if (menuLevel === 'products') {
       if (selectedCategory === 'physical') return 'Produk Fisik';
+      if (selectedBrand && selectedSubBrand) return `${selectedBrand} ${selectedSubBrand}`;
       if (selectedBrand) return selectedBrand;
       return 'Produk';
     }
@@ -735,6 +776,33 @@ const CustomerShop = () => {
     </div>
   );
 
+  // Render sub-brand selection (CUSTOMER / DRIVER)
+  const renderSubBrandMenu = () => (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">Pilih tipe {selectedBrand}:</p>
+      <div className="grid grid-cols-2 gap-3">
+        {subBrandsForBrand.map((sub) => (
+          <Card
+            key={sub}
+            className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+            onClick={() => handleSubBrandSelect(sub)}
+          >
+            <CardContent className="p-4 flex flex-col items-center text-center">
+              {getBrandIcon(sub)}
+              <span className="font-medium mt-2">{selectedBrand} {sub}</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground mt-2" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      {subBrandsForBrand.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          Belum ada sub-kategori
+        </div>
+      )}
+    </div>
+  );
+
   // Render products list
   const renderProductsList = () => (
     <div className="space-y-4">
@@ -828,6 +896,7 @@ const CustomerShop = () => {
           <>
             {menuLevel === 'main' && renderMainMenu()}
             {menuLevel === 'brand' && renderBrandMenu()}
+            {menuLevel === 'subbrand' && renderSubBrandMenu()}
             {menuLevel === 'products' && renderProductsList()}
           </>
         )}
