@@ -896,6 +896,7 @@ const CustomerShop = () => {
           <>
             {menuLevel === 'main' && renderMainMenu()}
             {menuLevel === 'brand' && renderBrandMenu()}
+            {menuLevel === 'subbrand' && renderSubBrandMenu()}
             {menuLevel === 'products' && renderProductsList()}
           </>
         )}
