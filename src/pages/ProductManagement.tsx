@@ -655,6 +655,32 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                 </div>
               )}
 
+              {/* Sub-brand Selection (Customer/Driver) */}
+              {ppobMenuLevel === 'subbrand' && (
+                <div className="grid grid-cols-2 gap-3">
+                  {subBrandsForBrand.map((sub) => (
+                    <Card
+                      key={sub}
+                      className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+                      onClick={() => handlePpobSubBrandSelect(sub)}
+                    >
+                      <CardContent className="p-4 flex items-center gap-3">
+                        {getBrandIcon(sub)}
+                        <div className="flex-1">
+                          <span className="font-medium">{selectedPpobBrand} {sub}</span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {subBrandsForBrand.length === 0 && (
+                    <div className="col-span-2 text-center py-8 text-muted-foreground">
+                      Belum ada sub-kategori
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Products Table */}
               {ppobMenuLevel === 'products' && (
                 <Table>
