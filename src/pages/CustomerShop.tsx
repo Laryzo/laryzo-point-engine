@@ -776,6 +776,33 @@ const CustomerShop = () => {
     </div>
   );
 
+  // Render sub-brand selection (CUSTOMER / DRIVER)
+  const renderSubBrandMenu = () => (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">Pilih tipe {selectedBrand}:</p>
+      <div className="grid grid-cols-2 gap-3">
+        {subBrandsForBrand.map((sub) => (
+          <Card
+            key={sub}
+            className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+            onClick={() => handleSubBrandSelect(sub)}
+          >
+            <CardContent className="p-4 flex flex-col items-center text-center">
+              {getBrandIcon(sub)}
+              <span className="font-medium mt-2">{selectedBrand} {sub}</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground mt-2" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      {subBrandsForBrand.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          Belum ada sub-kategori
+        </div>
+      )}
+    </div>
+  );
+
   // Render products list
   const renderProductsList = () => (
     <div className="space-y-4">
