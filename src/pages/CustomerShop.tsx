@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { canonicalizePpobBrand, getPpobBrandFromProductName } from '@/lib/ppob-brand';
+import { canonicalizePpobBrand, getPpobBrandFromProductName, getPpobSubBrandFromProductName, brandHasSubMenu } from '@/lib/ppob-brand';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import MapLocationPicker from '@/components/MapLocationPicker';
 import { 
