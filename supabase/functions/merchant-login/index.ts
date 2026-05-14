@@ -85,8 +85,8 @@ Deno.serve(async (req) => {
         email: sanitizedEmail, ip_address: clientIp, success: false
       }).then(() => {})
       return new Response(
-        JSON.stringify({ error: 'Email atau password salah' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Email atau password salah' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -97,8 +97,8 @@ Deno.serve(async (req) => {
         email: sanitizedEmail, ip_address: clientIp, success: false
       }).then(() => {})
       return new Response(
-        JSON.stringify({ error: 'Email atau password salah' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Email atau password salah' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
