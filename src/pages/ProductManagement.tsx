@@ -47,7 +47,7 @@ interface ProductManagementProps {
 }
 
 // Menu navigation types
-type PPOBMenuLevel = 'category' | 'brand' | 'products';
+type PPOBMenuLevel = 'category' | 'brand' | 'subbrand' | 'products';
 
 interface CategoryConfig {
   id: string;
