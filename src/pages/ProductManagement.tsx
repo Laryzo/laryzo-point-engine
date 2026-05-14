@@ -69,6 +69,7 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
   const [ppobMenuLevel, setPpobMenuLevel] = useState<PPOBMenuLevel>('category');
   const [selectedPpobCategory, setSelectedPpobCategory] = useState<string | null>(null);
   const [selectedPpobBrand, setSelectedPpobBrand] = useState<string | null>(null);
+  const [selectedPpobSubBrand, setSelectedPpobSubBrand] = useState<'CUSTOMER' | 'DRIVER' | null>(null);
 
   // PPOB Categories config
   const ppobCategories: CategoryConfig[] = [
