@@ -440,6 +440,21 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
     return Array.from(brandSet).sort();
   }, [products, selectedPpobCategory]);
 
+  // Sub-brands (CUSTOMER/DRIVER) available for currently selected brand
+  const subBrandsForBrand = useMemo(() => {
+    if (!selectedPpobCategory || !selectedPpobBrand) return [] as Array<'CUSTOMER' | 'DRIVER'>;
+    if (!brandHasSubMenu(selectedPpobBrand)) return [];
+    const brand = canonicalizePpobBrand(selectedPpobBrand);
+    const set = new Set<'CUSTOMER' | 'DRIVER'>();
+    products.forEach(p => {
+      if (p.type !== 'ppob' || p.ppob_type !== selectedPpobCategory) return;
+      if (getPpobBrandFromProductName(p.name) !== brand) return;
+      const sub = getPpobSubBrandFromProductName(p.name);
+      if (sub) set.add(sub);
+    });
+    return Array.from(set).sort();
+  }, [products, selectedPpobCategory, selectedPpobBrand]);
+
   // Filtered products for PPOB based on hierarchy
   const filteredPpobProducts = useMemo(() => {
     if (ppobMenuLevel !== 'products') return [];
@@ -456,10 +471,14 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
         return getPpobBrandFromProductName(p.name) === selected;
       });
     }
+
+    if (selectedPpobSubBrand) {
+      filtered = filtered.filter(p => getPpobSubBrandFromProductName(p.name) === selectedPpobSubBrand);
+    }
     
     // Sort by point price ascending
     return filtered.sort((a, b) => a.point_price - b.point_price);
-  }, [products, ppobMenuLevel, selectedPpobCategory, selectedPpobBrand]);
+  }, [products, ppobMenuLevel, selectedPpobCategory, selectedPpobBrand, selectedPpobSubBrand]);
 
   const filteredPhysicalProducts = products.filter(p => p.type === 'physical')
     .sort((a, b) => a.point_price - b.point_price);
@@ -478,6 +497,16 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
 
   const handlePpobBrandSelect = (brand: string) => {
     setSelectedPpobBrand(brand);
+    setSelectedPpobSubBrand(null);
+    if (brandHasSubMenu(brand)) {
+      setPpobMenuLevel('subbrand');
+    } else {
+      setPpobMenuLevel('products');
+    }
+  };
+
+  const handlePpobSubBrandSelect = (sub: 'CUSTOMER' | 'DRIVER') => {
+    setSelectedPpobSubBrand(sub);
     setPpobMenuLevel('products');
   };
 
@@ -487,10 +516,17 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
         setPpobMenuLevel('category');
         setSelectedPpobCategory(null);
         setSelectedPpobBrand(null);
+      } else if (selectedPpobBrand && brandHasSubMenu(selectedPpobBrand)) {
+        setPpobMenuLevel('subbrand');
+        setSelectedPpobSubBrand(null);
       } else {
         setPpobMenuLevel('brand');
         setSelectedPpobBrand(null);
       }
+    } else if (ppobMenuLevel === 'subbrand') {
+      setPpobMenuLevel('brand');
+      setSelectedPpobBrand(null);
+      setSelectedPpobSubBrand(null);
     } else if (ppobMenuLevel === 'brand') {
       setPpobMenuLevel('category');
       setSelectedPpobCategory(null);
@@ -503,7 +539,11 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
       const cat = ppobCategories.find(c => c.id === selectedPpobCategory);
       return `Pilih Provider ${cat?.label || ''}`;
     }
+    if (ppobMenuLevel === 'subbrand') {
+      return `${selectedPpobBrand} - Pilih Tipe`;
+    }
     if (ppobMenuLevel === 'products') {
+      if (selectedPpobSubBrand) return `${selectedPpobBrand} ${selectedPpobSubBrand}`;
       return selectedPpobBrand || 'Produk';
     }
     return 'PPOB';
