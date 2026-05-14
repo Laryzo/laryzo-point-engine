@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, RefreshCw, Edit, Trash2, Loader2, Download, Search, Check, ChevronRight, ChevronLeft, Smartphone, CreditCard, Zap, Package } from 'lucide-react';
-import { canonicalizePpobBrand, getPpobBrandFromProductName } from '@/lib/ppob-brand';
+import { canonicalizePpobBrand, getPpobBrandFromProductName, getPpobSubBrandFromProductName, brandHasSubMenu } from '@/lib/ppob-brand';
 
 interface Product {
   id: string;
