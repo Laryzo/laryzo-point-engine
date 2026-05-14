@@ -209,6 +209,21 @@ const CustomerShop = () => {
     return Array.from(brandSet).sort();
   }, [products, selectedCategory]);
 
+  // Sub-brands available for the currently selected brand
+  const subBrandsForBrand = useMemo(() => {
+    if (!selectedCategory || !selectedBrand) return [] as Array<'CUSTOMER' | 'DRIVER'>;
+    if (!brandHasSubMenu(selectedBrand)) return [];
+    const brand = canonicalizePpobBrand(selectedBrand);
+    const set = new Set<'CUSTOMER' | 'DRIVER'>();
+    products.forEach(p => {
+      if (p.type !== 'ppob' || p.ppob_type !== selectedCategory) return;
+      if (getPpobBrandFromProductName(p.name) !== brand) return;
+      const sub = getPpobSubBrandFromProductName(p.name);
+      if (sub) set.add(sub);
+    });
+    return Array.from(set).sort();
+  }, [products, selectedCategory, selectedBrand]);
+
   // Filter products based on current selection
   const filteredProducts = useMemo(() => {
     let filtered = [...products];
@@ -220,7 +235,11 @@ const CustomerShop = () => {
         const selected = canonicalizePpobBrand(selectedBrand);
         filtered = filtered.filter(p => {
           if (p.type !== 'ppob' || p.ppob_type !== selectedCategory) return false;
-          return getPpobBrandFromProductName(p.name) === selected;
+          if (getPpobBrandFromProductName(p.name) !== selected) return false;
+          if (selectedSubBrand) {
+            return getPpobSubBrandFromProductName(p.name) === selectedSubBrand;
+          }
+          return true;
         });
       }
     }
@@ -237,7 +256,7 @@ const CustomerShop = () => {
     filtered.sort((a, b) => a.point_price - b.point_price);
     
     return filtered;
-  }, [products, menuLevel, selectedCategory, selectedBrand, search]);
+  }, [products, menuLevel, selectedCategory, selectedBrand, selectedSubBrand, search]);
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('id-ID').format(num);
