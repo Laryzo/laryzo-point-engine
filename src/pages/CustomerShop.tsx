@@ -79,7 +79,7 @@ interface Product {
 }
 
 // Menu structure types
-type MenuLevel = 'main' | 'category' | 'brand' | 'products';
+type MenuLevel = 'main' | 'category' | 'brand' | 'subbrand' | 'products';
 
 interface CategoryConfig {
   id: string;
