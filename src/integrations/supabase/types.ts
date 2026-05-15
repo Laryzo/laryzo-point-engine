@@ -44,6 +44,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_accounts: {
+        Row: {
+          account_holder: string
+          account_number: string
+          bank_name: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_holder: string
+          account_number: string
+          bank_name: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_holder?: string
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customer_auth: {
         Row: {
           created_at: string
@@ -371,6 +404,7 @@ export type Database = {
           qty: number
           total: number
           updated_at: string
+          wallet_used: number
         }
         Insert: {
           created_at?: string
@@ -387,6 +421,7 @@ export type Database = {
           qty?: number
           total?: number
           updated_at?: string
+          wallet_used?: number
         }
         Update: {
           created_at?: string
@@ -403,6 +438,7 @@ export type Database = {
           qty?: number
           total?: number
           updated_at?: string
+          wallet_used?: number
         }
         Relationships: [
           {
@@ -507,6 +543,7 @@ export type Database = {
           status: string
           tracking_number: string | null
           updated_at: string
+          wallet_used: number
         }
         Insert: {
           admin_notes?: string | null
@@ -541,6 +578,7 @@ export type Database = {
           status?: string
           tracking_number?: string | null
           updated_at?: string
+          wallet_used?: number
         }
         Update: {
           admin_notes?: string | null
@@ -575,6 +613,7 @@ export type Database = {
           status?: string
           tracking_number?: string | null
           updated_at?: string
+          wallet_used?: number
         }
         Relationships: [
           {
@@ -776,6 +815,57 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: string
+        }
+        Relationships: []
+      }
+      topup_requests: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          bank_account_id: string | null
+          bank_snapshot: Json | null
+          created_at: string
+          customer_confirmed_at: string | null
+          customer_id: string
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          status: string
+          transfer_amount: number
+          unique_code: number
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount: number
+          bank_account_id?: string | null
+          bank_snapshot?: Json | null
+          created_at?: string
+          customer_confirmed_at?: string | null
+          customer_id: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          transfer_amount: number
+          unique_code: number
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          bank_account_id?: string | null
+          bank_snapshot?: Json | null
+          created_at?: string
+          customer_confirmed_at?: string | null
+          customer_id?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          transfer_amount?: number
+          unique_code?: number
+          updated_at?: string
         }
         Relationships: []
       }
