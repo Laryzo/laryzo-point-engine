@@ -376,6 +376,15 @@ const Dashboard = () => {
                       <span>Orders</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('topup-requests')}
+                      className={activeView === 'topup-requests' ? 'bg-accent' : ''}
+                    >
+                      <Wallet className="h-4 w-4" />
+                      <span>Top Up Saldo</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
