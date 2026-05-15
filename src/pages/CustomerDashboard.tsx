@@ -5,7 +5,7 @@ import { useCustomerNotifications } from '@/hooks/useCustomerNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Coins, ShoppingBag, History, LogOut, Package, Clock, User } from 'lucide-react';
+import { Coins, ShoppingBag, History, LogOut, Package, Clock, User, Wallet } from 'lucide-react';
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
