@@ -94,6 +94,21 @@ const CustomerPortalRoutes = () => {
           <CustomerProfile />
         </CustomerProtectedRoute>
       } />
+      <Route path="wallet" element={
+        <CustomerProtectedRoute>
+          <CustomerWallet />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="wallet/topup" element={
+        <CustomerProtectedRoute>
+          <CustomerTopupForm />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="wallet/transfer/:id" element={
+        <CustomerProtectedRoute>
+          <CustomerTopupTransfer />
+        </CustomerProtectedRoute>
+      } />
     </Routes>
   );
 };
