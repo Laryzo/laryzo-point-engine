@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Loader2, AlertTriangle, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import BankAccountManagement from '@/components/BankAccountManagement';
 
 interface Setting {
   id: string;
