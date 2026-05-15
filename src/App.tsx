@@ -24,6 +24,9 @@ const CustomerOrders = lazy(() => import("./pages/CustomerOrders"));
 const CustomerOrderManual = lazy(() => import("./pages/CustomerOrderManual"));
 const CustomerPointHistory = lazy(() => import("./pages/CustomerPointHistory"));
 const CustomerProfile = lazy(() => import("./pages/CustomerProfile"));
+const CustomerWallet = lazy(() => import("./pages/CustomerWallet"));
+const CustomerTopupForm = lazy(() => import("./pages/CustomerTopupForm"));
+const CustomerTopupTransfer = lazy(() => import("./pages/CustomerTopupTransfer"));
 const MerchantLogin = lazy(() => import("./pages/MerchantLogin"));
 const MerchantDashboard = lazy(() => import("./pages/MerchantDashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -89,6 +92,21 @@ const CustomerPortalRoutes = () => {
       <Route path="profile" element={
         <CustomerProtectedRoute>
           <CustomerProfile />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="wallet" element={
+        <CustomerProtectedRoute>
+          <CustomerWallet />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="wallet/topup" element={
+        <CustomerProtectedRoute>
+          <CustomerTopupForm />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="wallet/transfer/:id" element={
+        <CustomerProtectedRoute>
+          <CustomerTopupTransfer />
         </CustomerProtectedRoute>
       } />
     </Routes>

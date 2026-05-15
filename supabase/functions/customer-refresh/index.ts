@@ -57,10 +57,18 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Fetch wallet balance
+    const { data: wallet } = await supabase
+      .from('wallet_balances')
+      .select('balance')
+      .eq('user_id', customer_id)
+      .eq('user_type', 'customer')
+      .maybeSingle()
+
     return new Response(
       JSON.stringify({
         success: true,
-        customer: customer
+        customer: { ...customer, balance: Number(wallet?.balance || 0) }
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins, Wallet } from 'lucide-react';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
@@ -19,6 +19,7 @@ import OrderManagement from '@/pages/OrderManagement';
 import SystemSettings from '@/pages/SystemSettings';
 import MerchantManagement from '@/components/MerchantManagement';
 import PointHistoryManagement from '@/components/PointHistoryManagement';
+import AdminTopupRequests from '@/pages/AdminTopupRequests';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -106,6 +107,8 @@ const Dashboard = () => {
         return <OrderManagement isSuperAdmin={isSuperAdmin} />;
       case 'point-history':
         return <PointHistoryManagement isSuperAdmin={isSuperAdmin} />;
+      case 'topup-requests':
+        return <div className="p-6"><AdminTopupRequests /></div>;
       case 'settings':
         return isSuperAdmin ? <SystemSettings /> : null;
       case 'tree':
@@ -371,6 +374,15 @@ const Dashboard = () => {
                     >
                       <ClipboardList className="h-4 w-4" />
                       <span>Orders</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setActiveView('topup-requests')}
+                      className={activeView === 'topup-requests' ? 'bg-accent' : ''}
+                    >
+                      <Wallet className="h-4 w-4" />
+                      <span>Top Up Saldo</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   {isSuperAdmin && (

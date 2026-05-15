@@ -5,7 +5,7 @@ import { useCustomerNotifications } from '@/hooks/useCustomerNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Coins, ShoppingBag, History, LogOut, Package, Clock, User } from 'lucide-react';
+import { Coins, ShoppingBag, History, LogOut, Package, Clock, User, Wallet } from 'lucide-react';
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
@@ -103,20 +103,42 @@ const CustomerDashboard = () => {
           <CardContent className="p-6">
             <p className="text-primary-foreground/80 mb-1">Selamat datang,</p>
             <h1 className="text-2xl font-bold mb-4">{customer?.name}</h1>
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary-foreground/20 rounded-full">
-                <Coins className="h-8 w-8" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-primary-foreground/20 rounded-full">
+                  <Coins className="h-7 w-7" />
+                </div>
+                <div>
+                  <p className="text-xs text-primary-foreground/80">Total Poin</p>
+                  <p className="text-2xl font-bold">{formatNumber(customer?.points || 0)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-primary-foreground/80">Total Poin Anda</p>
-                <p className="text-3xl font-bold">{formatNumber(customer?.points || 0)}</p>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-primary-foreground/20 rounded-full">
+                  <Wallet className="h-7 w-7" />
+                </div>
+                <div>
+                  <p className="text-xs text-primary-foreground/80">Saldo</p>
+                  <p className="text-2xl font-bold">Rp {formatNumber(Number(customer?.balance || 0))}</p>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/portal/wallet')}
+          >
+            <CardContent className="p-4 flex flex-col items-center text-center">
+              <div className="p-3 bg-primary/10 rounded-full mb-2">
+                <Wallet className="h-6 w-6 text-primary" />
+              </div>
+              <span className="text-sm font-medium">Saldo</span>
+            </CardContent>
+          </Card>
           <Card 
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => navigate('/portal/shop')}
@@ -147,7 +169,7 @@ const CustomerDashboard = () => {
               <div className="p-3 bg-primary/10 rounded-full mb-2">
                 <History className="h-6 w-6 text-primary" />
               </div>
-              <span className="text-sm font-medium">Riwayat Poin</span>
+              <span className="text-sm font-medium">Riwayat</span>
             </CardContent>
           </Card>
           <Card 

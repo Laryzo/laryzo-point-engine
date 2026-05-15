@@ -1,34 +1,99 @@
-## Masalah
+# Fitur Top Up Saldo Manual & Pembayaran Saldo/Poin
 
-Tombol-tombol yang dijanjikan secara teknis sudah ada di kode, tapi tidak terlihat oleh user karena:
+## Alur Utama
 
-1. **Admin (`OrderManagement.tsx`)**: tombol "Tandai Sukses / Tandai Gagal / Hubungi Customer" hanya berupa **ikon kecil** (`variant="ghost"`, `size="sm"`, tanpa label teks) di kolom aksi tabel. Admin yang tidak hover tooltip tidak tahu artinya.
-2. **Customer (`CustomerOrders.tsx`)**: dulu direncanakan tombol hijau "Hubungi Admin via WhatsApp" langsung dengan template otomatis di kartu pesanan. Implementasi terbaru malah menggantinya jadi "Buka Halaman Konfirmasi WhatsApp" yang mengarahkan ke route `/portal/orders/:id/manual`. User merasa tombol WA langsung yang dijanjikan hilang.
+### 1. Top Up Saldo Customer
 
-## Perubahan
+```
+[Wallet Page] → [Form Top Up] → [Halaman Transfer + Nominal Unik] → [Tombol Sudah Transfer] → [Email ke Admin + Halaman Approval Admin]
+```
 
-### 1. `src/pages/CustomerOrders.tsx`
-Pada blok `order.status === 'manual_pending' && order.order_type === 'ppob'`:
+1. Customer buka halaman **Saldo Saya** (`/portal/wallet`)
+2. Tekan **TOP UP SALDO** → form: jumlah top up + dropdown rekening tujuan (BCA/Mandiri/dll dari System Settings)
+3. Tekan **LANJUT TRANSFER** → sistem generate 3 angka unik random (100-999), tampilkan halaman transfer berisi:
+  - Nama bank, no rekening, atas nama
+  - Nominal final = `jumlah + 3 angka unik` (misal Rp 100.000 → Rp 100.347)
+  - Instruksi transfer + tombol salin no rekening / nominal
+4. Setelah transfer, customer tekan **SUDAH TRANSFER**
+  - Sistem kirim email ke admin (Resend) berisi: nama customer, WA, jumlah top up, nominal final, bank, waktu
+  - Status request = `pending`
+5. Admin buka **Permintaan Top Up** di dashboard → review → **Approve** (saldo masuk otomatis) atau **Reject** (dengan alasan)
 
-- Tambahkan **tombol hijau utama**: "Hubungi Admin via WhatsApp" — gunakan helper `buildWaLink(order)` yang **sudah ada** (template berisi produk, nomor tujuan, order ID, nama customer). `<a target="_blank">` ke `wa.me/...`. Disable kalau `adminWa` belum di-set.
-- Pertahankan tombol sekunder (outline) "Buka Halaman Konfirmasi" → tetap navigate ke `/portal/orders/:id/manual` untuk fitur konfirmasi terima / batalkan.
+### 2. Pembayaran Mixed (Poin + Saldo)
 
-### 2. `src/pages/OrderManagement.tsx`
-Untuk baris dengan `status === 'manual_pending'`:
+Saat checkout di CustomerShop / merchant:
 
-- Render tombol-tombol **dengan label teks**, bukan hanya ikon. Contoh:
-  - `<Button size="sm" className="bg-green-600 ...">✓ Tandai Sukses</Button>`
-  - `<Button size="sm" variant="destructive">✗ Tandai Gagal</Button>`
-  - `<Button size="sm" variant="outline" className="text-green-700 border-green-600">WhatsApp Customer</Button>`
-- Bungkus dalam `flex flex-wrap gap-2` agar rapi di mobile.
-- Tambahkan banner kecil di atas baris (atau badge mencolok di kolom status): "Perlu tindakan manual" agar admin langsung sadar saat melihat tabel.
+- Tampilkan opsi pembayaran: **Saldo Saja** / **Poin Saja** / **Campuran (Poin dulu, sisanya Saldo)**
+- **Logika "Poin dulu, sisanya saldo"**:
+  - Jika poin ≥ harga → potong poin saja
+  - Jika poin < harga → potong semua poin + sisanya dari saldo
+  - Jika poin + saldo masih < harga → tombol **TOP UP SALDO** muncul, redirect ke `/portal/wallet/topup`
+- 1 poin = Rp 1
 
-### 3. Tidak ada perubahan database / edge function
-Logika back-end (`ppob-manual-resolve`, distribusi poin, refund) sudah benar — hanya UI yang perlu dipertegas.
+## Database (Migration)
 
-## File yang diubah
-- `src/pages/CustomerOrders.tsx`
-- `src/pages/OrderManagement.tsx`
+**Tabel baru: `topup_requests**`
 
-## Yang TIDAK berubah
-- Edge functions, database schema, halaman `CustomerOrderManual.tsx`, alur notifikasi email admin, realtime channel — semua tetap.
+- `customer_id`, `amount` (jumlah top up), `unique_code` (3 digit), `transfer_amount` (= amount + unique_code)
+- `bank_account_id` (FK ke bank_accounts), `status` (pending/approved/rejected/cancelled)
+- `customer_confirmed_at`, `processed_by`, `processed_at`, `admin_notes`
+
+**Tabel baru: `bank_accounts**` (dikelola Super Admin via System Settings)
+
+- `bank_name`, `account_number`, `account_holder`, `is_active`, `display_order`
+
+**Trigger `apply_topup_approval**`: saat status berubah ke `approved`, tambahkan saldo ke `wallet_balances` + insert `wallet_transactions` (type='credit', desc='Top up #ref').
+
+**Kolom baru di `orders` & `merchant_transactions**`: `wallet_used` (numeric default 0). Kolom `points_used` sudah ada di `orders`.
+
+**RLS**: 
+
+- Customer: insert/select own topup_requests
+- Admin: select all + update status
+
+## Edge Functions
+
+**Baru:**
+
+- `wallet-topup-create` — validasi jumlah min, generate unique code, insert request
+- `wallet-topup-confirm` — customer tekan "sudah transfer" → trigger email ke admin via Resend
+- `wallet-topup-resolve` — admin approve/reject (auth admin only)
+
+**Dimodifikasi:**
+
+- `digiflazz-topup` & `merchant-product-purchase`: validasi `wallet_used + points_used ≥ harga`, debit saldo & poin, refund jika gagal
+
+## Frontend
+
+**Halaman baru:**
+
+- `src/pages/CustomerWallet.tsx` — dashboard saldo, riwayat transaksi wallet, tombol Top Up
+- `src/pages/CustomerTopupForm.tsx` — form jumlah + dropdown rekening
+- `src/pages/CustomerTopupTransfer.tsx` — halaman transfer dengan nominal unik + tombol "Sudah Transfer"
+- `src/pages/AdminTopupRequests.tsx` — tabel approval untuk admin
+- `src/components/BankAccountManagement.tsx` — CRUD rekening (di SystemSettings, super admin only)
+
+**Komponen baru:**
+
+- `src/components/PaymentMethodSelector.tsx` — radio: saldo / poin / campuran, kalkulasi otomatis kekurangan, tombol "Top Up Saldo" jika kurang
+
+**Dimodifikasi:**
+
+- `App.tsx` — route `/portal/wallet`, `/portal/wallet/topup`, `/portal/wallet/transfer/:id`, `/dashboard/topup-requests`
+- `CustomerDashboard.tsx` — card saldo + link
+- `CustomerShop.tsx` — integrasi `PaymentMethodSelector`, kirim `wallet_used` & `points_used`
+- `useCustomerAuth.tsx` + `customer-refresh` — sertakan `balance` dalam state customer
+- `Dashboard.tsx` (admin) — menu "Permintaan Top Up"
+
+## Setup yang Diperlukan
+
+- Min top up default: Rp 10.000 (di system_settings, bisa diubah admin)
+- Email admin penerima notifikasi: ambil dari `system_settings.admin_topup_email` (default: email super admin pertama)
+- Domain email Resend `no-reply@laryzo.biz.id` sudah aktif
+
+## Catatan Teknis
+
+- Unique code: random 100-999, di-retry jika sudah ada request `pending` dengan transfer_amount sama
+- Auto-cancel: top up `pending` > 24 jam otomatis di-cancel via cron (opsional, bisa fase 2)
+- Email template: HTML sederhana berisi detail customer + nominal + tombol "Buka Halaman Approval"
+- Tambahkan info di halaman transfer + 3 angka unik bahwa: saldo akan terisi beserta 3 angka unik yang ditransfer customer

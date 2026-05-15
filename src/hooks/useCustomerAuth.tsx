@@ -7,6 +7,7 @@ interface Customer {
   email: string;
   whatsapp: string;
   points: number;
+  balance?: number;
   created_at: string;
   latitude?: number | null;
   longitude?: number | null;

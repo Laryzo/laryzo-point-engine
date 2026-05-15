@@ -80,3 +80,12 @@ verify_jwt = false
 
 [functions.notify-admin-manual-order]
 verify_jwt = false
+
+[functions.wallet-topup-create]
+verify_jwt = false
+
+[functions.wallet-topup-confirm]
+verify_jwt = false
+
+[functions.wallet-topup-resolve]
+verify_jwt = false
