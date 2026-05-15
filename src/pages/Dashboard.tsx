@@ -19,6 +19,7 @@ import OrderManagement from '@/pages/OrderManagement';
 import SystemSettings from '@/pages/SystemSettings';
 import MerchantManagement from '@/components/MerchantManagement';
 import PointHistoryManagement from '@/components/PointHistoryManagement';
+import AdminTopupRequests from '@/pages/AdminTopupRequests';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
