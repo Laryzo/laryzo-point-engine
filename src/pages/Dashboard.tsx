@@ -107,6 +107,8 @@ const Dashboard = () => {
         return <OrderManagement isSuperAdmin={isSuperAdmin} />;
       case 'point-history':
         return <PointHistoryManagement isSuperAdmin={isSuperAdmin} />;
+      case 'topup-requests':
+        return <div className="p-6"><AdminTopupRequests /></div>;
       case 'settings':
         return isSuperAdmin ? <SystemSettings /> : null;
       case 'tree':
