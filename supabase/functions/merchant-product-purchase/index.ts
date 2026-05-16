@@ -97,8 +97,6 @@ Deno.serve(async (req) => {
     const pickupAddr = merchant?.business_address || null;
 
     // No shipping cost charged to customer - ongkir handled by ojol app
-    // Total points to deduct = product price only
-    const totalPointsDeducted = pointPrice;
 
     // Determine payment split: default to all points if not provided
     const totalPrice = pointPrice;
