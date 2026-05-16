@@ -323,7 +323,8 @@ Deno.serve(async (req) => {
         success: true,
         message: "Pembelian berhasil",
         order_id: order.id,
-        total_points_used: totalPointsDeducted,
+        total_points_used: pointsToDeduct,
+        wallet_used: walletToDebit,
         product_price: pointPrice,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
