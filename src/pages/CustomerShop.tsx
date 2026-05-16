@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { canonicalizePpobBrand, getPpobBrandFromProductName, getPpobSubBrandFromProductName, brandHasSubMenu } from '@/lib/ppob-brand';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import MapLocationPicker from '@/components/MapLocationPicker';
+import PaymentMethodSelector, { calculatePayment, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { 
   ArrowLeft, 
   Coins, 
@@ -127,6 +128,7 @@ const CustomerShop = () => {
   const [deliveryLat, setDeliveryLat] = useState(customer?.latitude?.toString() || '');
   const [deliveryLng, setDeliveryLng] = useState(customer?.longitude?.toString() || '');
   const [orderLoading, setOrderLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('points');
 
   // Category configurations
   const ppobCategories: CategoryConfig[] = [
@@ -444,11 +446,14 @@ const CustomerShop = () => {
 
     // No shipping cost - ongkir handled by ojol app
     const totalPointsNeeded = selectedProduct.point_price;
+    const walletBalance = Number(customer.balance || 0);
+    const pointsBalance = Number(customer.points || 0);
+    const calc = calculatePayment(paymentMethod, totalPointsNeeded, walletBalance, pointsBalance);
 
-    if (customer.points < totalPointsNeeded) {
+    if (!calc.canPay) {
       toast({
-        title: 'Poin Tidak Cukup',
-        description: `Anda membutuhkan ${formatNumber(totalPointsNeeded)} poin`,
+        title: 'Pembayaran Tidak Cukup',
+        description: `Kurang Rp ${formatNumber(calc.shortage)}. Silakan top up saldo.`,
         variant: 'destructive',
       });
       return;
@@ -465,6 +470,8 @@ const CustomerShop = () => {
         const { data: result, error: fnError } = await supabase.functions.invoke('merchant-product-purchase', {
           body: { 
             product_id: selectedProduct.id,
+            wallet_used: calc.walletUsed,
+            points_used: calc.pointsUsed,
             delivery_type: deliveryType,
             delivery_address: deliveryType === 'external_ojol' ? deliveryAddress : null,
             delivery_notes: deliveryNotes || null,
@@ -500,7 +507,8 @@ const CustomerShop = () => {
         .insert([{
           customer_id: customer.id,
           product_id: selectedProduct.id,
-          points_used: selectedProduct.point_price,
+          points_used: calc.pointsUsed,
+          wallet_used: calc.walletUsed,
           input_value: inputValue || null,
           shipping_address: shippingAddress || null,
           status: 'pending',
@@ -546,19 +554,34 @@ const CustomerShop = () => {
           throw new Error(topupResult.error || 'Gagal memproses pesanan PPOB');
         }
       } else {
-        const { data: pointsSuccess, error: pointsError } = await supabase.rpc(
-          'increment_customer_points',
-          {
-            customer_uuid: customer.id,
-            points_to_add: -selectedProduct.point_price
+        // Physical/product order: deduct points and/or wallet directly
+        if (calc.pointsUsed > 0) {
+          const { data: pointsSuccess, error: pointsError } = await supabase.rpc(
+            'increment_customer_points',
+            {
+              customer_uuid: customer.id,
+              points_to_add: -calc.pointsUsed
+            }
+          );
+          if (pointsError) throw pointsError;
+          if (!pointsSuccess) {
+            await supabase.from('orders').delete().eq('id', order.id);
+            throw new Error('Gagal mengurangi poin - akun mungkin diblokir');
           }
-        );
-
-        if (pointsError) throw pointsError;
-        
-        if (!pointsSuccess) {
-          await supabase.from('orders').delete().eq('id', order.id);
-          throw new Error('Gagal mengurangi poin - akun mungkin diblokir atau saldo tidak cukup');
+        }
+        if (calc.walletUsed > 0) {
+          // Debit wallet via edge function (server-side enforced)
+          const { data: wRes, error: wErr } = await supabase.functions.invoke('wallet-debit', {
+            body: { customer_id: customer.id, amount: calc.walletUsed, order_id: order.id, description: `Pembelian ${selectedProduct.name}` }
+          });
+          if (wErr || !wRes?.success) {
+            // refund points if already deducted
+            if (calc.pointsUsed > 0) {
+              await supabase.rpc('increment_customer_points', { customer_uuid: customer.id, points_to_add: calc.pointsUsed });
+            }
+            await supabase.from('orders').delete().eq('id', order.id);
+            throw new Error(wRes?.error || wErr?.message || 'Gagal mendebit saldo');
+          }
         }
       }
 
@@ -1096,10 +1119,15 @@ const CustomerShop = () => {
               </div>
             )}
 
-            {customer && selectedProduct && customer.points < selectedProduct.point_price && (
-                <p className="text-sm text-destructive">
-                  Poin Anda tidak cukup. Anda membutuhkan {formatNumber(selectedProduct.point_price - customer.points)} poin lagi.
-                </p>
+            {customer && selectedProduct && (
+              <PaymentMethodSelector
+                totalPrice={selectedProduct.point_price}
+                walletBalance={Number(customer.balance || 0)}
+                pointsBalance={Number(customer.points || 0)}
+                method={paymentMethod}
+                onChange={setPaymentMethod}
+                onCalculated={() => {}}
+              />
             )}
           </div>
           </div>
@@ -1110,7 +1138,7 @@ const CustomerShop = () => {
             </Button>
             <Button 
               onClick={handleOrder} 
-              disabled={orderLoading || (customer && selectedProduct && customer.points < selectedProduct.point_price)}
+              disabled={orderLoading || !customer || !selectedProduct || !calculatePayment(paymentMethod, selectedProduct.point_price, Number(customer.balance || 0), Number(customer.points || 0)).canPay}
             >
               {orderLoading ? 'Memproses...' : 'Beli Sekarang'}
             </Button>

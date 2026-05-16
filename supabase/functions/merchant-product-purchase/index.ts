@@ -49,7 +49,10 @@ Deno.serve(async (req) => {
     }
 
     const customerId = custAuth.customer_id;
-    const { product_id, delivery_type, delivery_address, delivery_notes, delivery_latitude, delivery_longitude, item_notes } = await req.json();
+    const body = await req.json();
+    const { product_id, delivery_type, delivery_address, delivery_notes, delivery_latitude, delivery_longitude, item_notes } = body;
+    const walletUsed = Number(body.wallet_used || 0);
+    const pointsUsedInput = Number(body.points_used || 0);
 
     if (!product_id) {
       return new Response(JSON.stringify({ error: "product_id required" }), {
@@ -94,8 +97,18 @@ Deno.serve(async (req) => {
     const pickupAddr = merchant?.business_address || null;
 
     // No shipping cost charged to customer - ongkir handled by ojol app
-    // Total points to deduct = product price only
-    const totalPointsDeducted = pointPrice;
+
+    // Determine payment split: default to all points if not provided
+    const totalPrice = pointPrice;
+    const pointsToDeduct = (walletUsed > 0 || pointsUsedInput > 0)
+      ? pointsUsedInput
+      : totalPrice;
+    const walletToDebit = walletUsed;
+    if (pointsToDeduct + walletToDebit < totalPrice) {
+      return new Response(JSON.stringify({ error: "Pembayaran tidak cukup" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Check customer points
     const { data: customer } = await supabase
@@ -111,18 +124,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (customer.points_blocked) {
+    if (customer.points_blocked && pointsToDeduct > 0) {
       return new Response(JSON.stringify({ error: "Akun poin Anda diblokir" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if ((customer.points || 0) < totalPointsDeducted) {
+    if ((customer.points || 0) < pointsToDeduct) {
       return new Response(JSON.stringify({ error: "Poin tidak cukup" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Check wallet
+    let walletId: string | null = null;
+    if (walletToDebit > 0) {
+      const { data: wb } = await supabase.from("wallet_balances")
+        .select("id, balance").eq("user_id", customerId).eq("user_type", "customer").maybeSingle();
+      if (!wb || Number(wb.balance) < walletToDebit) {
+        return new Response(JSON.stringify({ error: "Saldo tidak cukup" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      walletId = wb.id;
     }
 
     // Check stock
@@ -138,7 +164,8 @@ Deno.serve(async (req) => {
       .from("orders")
       .insert({
         customer_id: customerId,
-        points_used: totalPointsDeducted,
+        points_used: pointsToDeduct,
+        wallet_used: walletToDebit,
         points_earned: 0,
         status: "processing",
         order_type: "food",
@@ -164,23 +191,48 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Deduct total points (product + shipping) via point_history
+    // Deduct points via point_history (if any)
     const merchantName = merchant?.business_name || 'Merchant';
-    const { error: histErr } = await supabase.from("point_history").insert({
-      to_customer: customerId,
-      from_customer: customerId,
-      points: -totalPointsDeducted,
-      product_code: `Beli: ${product.name}`,
-      level: 0,
-      description: `Pembelian ${product.name} di ${merchantName}`,
-    });
+    if (pointsToDeduct > 0) {
+      const { error: histErr } = await supabase.from("point_history").insert({
+        to_customer: customerId,
+        from_customer: customerId,
+        points: -pointsToDeduct,
+        product_code: `Beli: ${product.name}`,
+        level: 0,
+        description: `Pembelian ${product.name} di ${merchantName}`,
+      });
+      if (histErr) {
+        console.error("point_history insert error:", histErr);
+        await supabase.from("orders").delete().eq("id", order.id);
+        return new Response(JSON.stringify({ error: "Gagal mengurangi poin" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
-    if (histErr) {
-      console.error("point_history insert error:", histErr);
-      await supabase.from("orders").delete().eq("id", order.id);
-      return new Response(JSON.stringify({ error: "Gagal mengurangi poin" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Debit wallet (if any)
+    if (walletToDebit > 0 && walletId) {
+      const cur = await supabase.from("wallet_balances").select("balance").eq("id", walletId).single();
+      const { error: wErr } = await supabase.from("wallet_balances")
+        .update({ balance: Number(cur.data?.balance || 0) - walletToDebit, updated_at: new Date().toISOString() })
+        .eq("id", walletId);
+      if (wErr) {
+        // refund points
+        if (pointsToDeduct > 0) {
+          await supabase.from("point_history").insert({
+            to_customer: customerId, from_customer: null, points: pointsToDeduct,
+            product_code: 'REFUND', level: 0, description: `Refund: gagal debit saldo`,
+          });
+        }
+        await supabase.from("orders").delete().eq("id", order.id);
+        return new Response(JSON.stringify({ error: "Gagal mendebit saldo" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      await supabase.from("wallet_transactions").insert({
+        wallet_id: walletId, amount: -walletToDebit, type: 'debit',
+        reference_order_id: order.id, description: `Pembelian ${product.name}`,
       });
     }
 
@@ -271,7 +323,8 @@ Deno.serve(async (req) => {
         success: true,
         message: "Pembelian berhasil",
         order_id: order.id,
-        total_points_used: totalPointsDeducted,
+        total_points_used: pointsToDeduct,
+        wallet_used: walletToDebit,
         product_price: pointPrice,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
