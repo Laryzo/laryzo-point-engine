@@ -554,19 +554,34 @@ const CustomerShop = () => {
           throw new Error(topupResult.error || 'Gagal memproses pesanan PPOB');
         }
       } else {
-        const { data: pointsSuccess, error: pointsError } = await supabase.rpc(
-          'increment_customer_points',
-          {
-            customer_uuid: customer.id,
-            points_to_add: -selectedProduct.point_price
+        // Physical/product order: deduct points and/or wallet directly
+        if (calc.pointsUsed > 0) {
+          const { data: pointsSuccess, error: pointsError } = await supabase.rpc(
+            'increment_customer_points',
+            {
+              customer_uuid: customer.id,
+              points_to_add: -calc.pointsUsed
+            }
+          );
+          if (pointsError) throw pointsError;
+          if (!pointsSuccess) {
+            await supabase.from('orders').delete().eq('id', order.id);
+            throw new Error('Gagal mengurangi poin - akun mungkin diblokir');
           }
-        );
-
-        if (pointsError) throw pointsError;
-        
-        if (!pointsSuccess) {
-          await supabase.from('orders').delete().eq('id', order.id);
-          throw new Error('Gagal mengurangi poin - akun mungkin diblokir atau saldo tidak cukup');
+        }
+        if (calc.walletUsed > 0) {
+          // Debit wallet via edge function (server-side enforced)
+          const { data: wRes, error: wErr } = await supabase.functions.invoke('wallet-debit', {
+            body: { customer_id: customer.id, amount: calc.walletUsed, order_id: order.id, description: `Pembelian ${selectedProduct.name}` }
+          });
+          if (wErr || !wRes?.success) {
+            // refund points if already deducted
+            if (calc.pointsUsed > 0) {
+              await supabase.rpc('increment_customer_points', { customer_uuid: customer.id, points_to_add: calc.pointsUsed });
+            }
+            await supabase.from('orders').delete().eq('id', order.id);
+            throw new Error(wRes?.error || wErr?.message || 'Gagal mendebit saldo');
+          }
         }
       }
 
