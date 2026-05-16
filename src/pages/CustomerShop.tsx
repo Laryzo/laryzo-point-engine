@@ -470,6 +470,8 @@ const CustomerShop = () => {
         const { data: result, error: fnError } = await supabase.functions.invoke('merchant-product-purchase', {
           body: { 
             product_id: selectedProduct.id,
+            wallet_used: calc.walletUsed,
+            points_used: calc.pointsUsed,
             delivery_type: deliveryType,
             delivery_address: deliveryType === 'external_ojol' ? deliveryAddress : null,
             delivery_notes: deliveryNotes || null,
