@@ -504,22 +504,8 @@ Deno.serve(async (req) => {
 
         // No fallback — refund as usual
         updateData.status = 'failed'
-        const { error: refundError } = await supabase.from('point_history').insert({
-          from_customer: null,
-          to_customer: customer.id,
-          points: order.points_used,
-          level: 0,
-          transaction_id: null,
-          product_code: 'REFUND',
-          description: `Refund poin - transaksi gagal`
-        })
-        
-        if (refundError) {
-          console.error('Failed to insert refund to point_history:', refundError)
-        } else {
-          console.log('Refunded points via point_history due to failed transaction')
-          pointsDeducted = false
-        }
+        await refundAll('transaksi gagal')
+        pointsDeducted = false
       }
 
       const { error: updateOrderError } = await supabase
