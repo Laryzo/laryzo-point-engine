@@ -128,6 +128,7 @@ const CustomerShop = () => {
   const [deliveryLat, setDeliveryLat] = useState(customer?.latitude?.toString() || '');
   const [deliveryLng, setDeliveryLng] = useState(customer?.longitude?.toString() || '');
   const [orderLoading, setOrderLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('points');
 
   // Category configurations
   const ppobCategories: CategoryConfig[] = [
