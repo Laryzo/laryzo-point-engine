@@ -266,10 +266,39 @@ Deno.serve(async (req) => {
       )
     }
 
+    const walletUsed = Number(order.wallet_used || 0)
+    const pointsUsed = Number(order.points_used || 0)
+
     // Verify customer has enough points
-    if (customer.points < order.points_used) {
+    if (customer.points < pointsUsed) {
       return new Response(
         JSON.stringify({ success: false, error: 'Insufficient points' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Verify wallet balance if walletUsed > 0
+    let walletId: string | null = null
+    if (walletUsed > 0) {
+      const { data: wb } = await supabase
+        .from('wallet_balances')
+        .select('id, balance')
+        .eq('user_id', customer.id)
+        .eq('user_type', 'customer')
+        .maybeSingle()
+      if (!wb || Number(wb.balance) < walletUsed) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Saldo tidak cukup' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      walletId = wb.id
+    }
+
+    // Verify total covers product price
+    if (walletUsed + pointsUsed < Number(product.point_price)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Pembayaran tidak cukup' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -277,29 +306,55 @@ Deno.serve(async (req) => {
     // Generate unique ref_id
     const refId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-    // Deduct points from customer first using atomic RPC to prevent race conditions
-    const { data: deductSuccess, error: deductError } = await supabase.rpc(
-      'increment_customer_points',
-      {
-        customer_uuid: customer.id,
-        points_to_add: -order.points_used
-      }
-    )
-
-    if (deductError) {
-      console.error('Failed to deduct points:', deductError)
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to deduct points' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    // Deduct points (if any)
+    if (pointsUsed > 0) {
+      const { data: deductSuccess, error: deductError } = await supabase.rpc(
+        'increment_customer_points',
+        { customer_uuid: customer.id, points_to_add: -pointsUsed }
       )
+      if (deductError || !deductSuccess) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Gagal mengurangi poin' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
-    if (!deductSuccess) {
-      console.error('Point deduction failed - customer may be blocked or has insufficient balance')
-      return new Response(
-        JSON.stringify({ success: false, error: 'Insufficient points or account blocked' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    // Debit wallet (if any)
+    if (walletUsed > 0 && walletId) {
+      const { error: wErr } = await supabase
+        .from('wallet_balances')
+        .update({ balance: (await supabase.from('wallet_balances').select('balance').eq('id', walletId).single()).data!.balance - walletUsed, updated_at: new Date().toISOString() })
+        .eq('id', walletId)
+      if (wErr) {
+        // refund points
+        if (pointsUsed > 0) await supabase.rpc('increment_customer_points', { customer_uuid: customer.id, points_to_add: pointsUsed })
+        return new Response(JSON.stringify({ success: false, error: 'Gagal mendebit saldo' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      await supabase.from('wallet_transactions').insert({
+        wallet_id: walletId, amount: -walletUsed, type: 'debit',
+        reference_order_id: order_id, description: `Pembayaran ${product.name}`,
+      })
+    }
+
+    // Points have been deducted - from here, any error should trigger a refund
+    let pointsDeducted = true
+    const refundAll = async (reason: string) => {
+      if (pointsUsed > 0) {
+        await supabase.from('point_history').insert({
+          from_customer: null, to_customer: customer.id, points: pointsUsed,
+          level: 0, transaction_id: null, product_code: 'REFUND',
+          description: `Refund poin - ${reason}`,
+        })
+      }
+      if (walletUsed > 0 && walletId) {
+        const cur = await supabase.from('wallet_balances').select('balance').eq('id', walletId).single()
+        await supabase.from('wallet_balances').update({ balance: Number(cur.data?.balance || 0) + walletUsed, updated_at: new Date().toISOString() }).eq('id', walletId)
+        await supabase.from('wallet_transactions').insert({
+          wallet_id: walletId, amount: walletUsed, type: 'credit',
+          reference_order_id: order_id, description: `Refund saldo - ${reason}`,
+        })
+      }
     }
 
     // Points have been deducted - from here, any error should trigger a refund
