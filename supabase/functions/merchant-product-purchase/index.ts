@@ -191,23 +191,48 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Deduct total points (product + shipping) via point_history
+    // Deduct points via point_history (if any)
     const merchantName = merchant?.business_name || 'Merchant';
-    const { error: histErr } = await supabase.from("point_history").insert({
-      to_customer: customerId,
-      from_customer: customerId,
-      points: -totalPointsDeducted,
-      product_code: `Beli: ${product.name}`,
-      level: 0,
-      description: `Pembelian ${product.name} di ${merchantName}`,
-    });
+    if (pointsToDeduct > 0) {
+      const { error: histErr } = await supabase.from("point_history").insert({
+        to_customer: customerId,
+        from_customer: customerId,
+        points: -pointsToDeduct,
+        product_code: `Beli: ${product.name}`,
+        level: 0,
+        description: `Pembelian ${product.name} di ${merchantName}`,
+      });
+      if (histErr) {
+        console.error("point_history insert error:", histErr);
+        await supabase.from("orders").delete().eq("id", order.id);
+        return new Response(JSON.stringify({ error: "Gagal mengurangi poin" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
-    if (histErr) {
-      console.error("point_history insert error:", histErr);
-      await supabase.from("orders").delete().eq("id", order.id);
-      return new Response(JSON.stringify({ error: "Gagal mengurangi poin" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Debit wallet (if any)
+    if (walletToDebit > 0 && walletId) {
+      const cur = await supabase.from("wallet_balances").select("balance").eq("id", walletId).single();
+      const { error: wErr } = await supabase.from("wallet_balances")
+        .update({ balance: Number(cur.data?.balance || 0) - walletToDebit, updated_at: new Date().toISOString() })
+        .eq("id", walletId);
+      if (wErr) {
+        // refund points
+        if (pointsToDeduct > 0) {
+          await supabase.from("point_history").insert({
+            to_customer: customerId, from_customer: null, points: pointsToDeduct,
+            product_code: 'REFUND', level: 0, description: `Refund: gagal debit saldo`,
+          });
+        }
+        await supabase.from("orders").delete().eq("id", order.id);
+        return new Response(JSON.stringify({ error: "Gagal mendebit saldo" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      await supabase.from("wallet_transactions").insert({
+        wallet_id: walletId, amount: -walletToDebit, type: 'debit',
+        reference_order_id: order.id, description: `Pembelian ${product.name}`,
       });
     }
 
