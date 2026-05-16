@@ -446,11 +446,14 @@ const CustomerShop = () => {
 
     // No shipping cost - ongkir handled by ojol app
     const totalPointsNeeded = selectedProduct.point_price;
+    const walletBalance = Number(customer.balance || 0);
+    const pointsBalance = Number(customer.points || 0);
+    const calc = calculatePayment(paymentMethod, totalPointsNeeded, walletBalance, pointsBalance);
 
-    if (customer.points < totalPointsNeeded) {
+    if (!calc.canPay) {
       toast({
-        title: 'Poin Tidak Cukup',
-        description: `Anda membutuhkan ${formatNumber(totalPointsNeeded)} poin`,
+        title: 'Pembayaran Tidak Cukup',
+        description: `Kurang Rp ${formatNumber(calc.shortage)}. Silakan top up saldo.`,
         variant: 'destructive',
       });
       return;
