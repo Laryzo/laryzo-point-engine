@@ -49,7 +49,10 @@ Deno.serve(async (req) => {
     }
 
     const customerId = custAuth.customer_id;
-    const { product_id, delivery_type, delivery_address, delivery_notes, delivery_latitude, delivery_longitude, item_notes } = await req.json();
+    const body = await req.json();
+    const { product_id, delivery_type, delivery_address, delivery_notes, delivery_latitude, delivery_longitude, item_notes } = body;
+    const walletUsed = Number(body.wallet_used || 0);
+    const pointsUsedInput = Number(body.points_used || 0);
 
     if (!product_id) {
       return new Response(JSON.stringify({ error: "product_id required" }), {
