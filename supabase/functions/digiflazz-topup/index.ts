@@ -11,6 +11,7 @@ interface Order {
   customer_id: string
   product_id: string
   points_used: number
+  wallet_used: number
   input_value: string
   status: string
   ref_id: string | null
