@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.wallet-topup-resolve]
 verify_jwt = false
+
+[functions.wallet-debit]
+verify_jwt = false
