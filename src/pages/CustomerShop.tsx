@@ -507,7 +507,8 @@ const CustomerShop = () => {
         .insert([{
           customer_id: customer.id,
           product_id: selectedProduct.id,
-          points_used: selectedProduct.point_price,
+          points_used: calc.pointsUsed,
+          wallet_used: calc.walletUsed,
           input_value: inputValue || null,
           shipping_address: shippingAddress || null,
           status: 'pending',
