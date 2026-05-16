@@ -100,6 +100,18 @@ Deno.serve(async (req) => {
     // Total points to deduct = product price only
     const totalPointsDeducted = pointPrice;
 
+    // Determine payment split: default to all points if not provided
+    const totalPrice = pointPrice;
+    const pointsToDeduct = (walletUsed > 0 || pointsUsedInput > 0)
+      ? pointsUsedInput
+      : totalPrice;
+    const walletToDebit = walletUsed;
+    if (pointsToDeduct + walletToDebit < totalPrice) {
+      return new Response(JSON.stringify({ error: "Pembayaran tidak cukup" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Check customer points
     const { data: customer } = await supabase
       .from("customers")
@@ -114,18 +126,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (customer.points_blocked) {
+    if (customer.points_blocked && pointsToDeduct > 0) {
       return new Response(JSON.stringify({ error: "Akun poin Anda diblokir" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if ((customer.points || 0) < totalPointsDeducted) {
+    if ((customer.points || 0) < pointsToDeduct) {
       return new Response(JSON.stringify({ error: "Poin tidak cukup" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Check wallet
+    let walletId: string | null = null;
+    if (walletToDebit > 0) {
+      const { data: wb } = await supabase.from("wallet_balances")
+        .select("id, balance").eq("user_id", customerId).eq("user_type", "customer").maybeSingle();
+      if (!wb || Number(wb.balance) < walletToDebit) {
+        return new Response(JSON.stringify({ error: "Saldo tidak cukup" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      walletId = wb.id;
     }
 
     // Check stock
@@ -141,7 +166,8 @@ Deno.serve(async (req) => {
       .from("orders")
       .insert({
         customer_id: customerId,
-        points_used: totalPointsDeducted,
+        points_used: pointsToDeduct,
+        wallet_used: walletToDebit,
         points_earned: 0,
         status: "processing",
         order_type: "food",
