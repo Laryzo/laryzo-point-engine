@@ -1119,10 +1119,15 @@ const CustomerShop = () => {
               </div>
             )}
 
-            {customer && selectedProduct && customer.points < selectedProduct.point_price && (
-                <p className="text-sm text-destructive">
-                  Poin Anda tidak cukup. Anda membutuhkan {formatNumber(selectedProduct.point_price - customer.points)} poin lagi.
-                </p>
+            {customer && selectedProduct && (
+              <PaymentMethodSelector
+                totalPrice={selectedProduct.point_price}
+                walletBalance={Number(customer.balance || 0)}
+                pointsBalance={Number(customer.points || 0)}
+                method={paymentMethod}
+                onChange={setPaymentMethod}
+                onCalculated={() => {}}
+              />
             )}
           </div>
           </div>
@@ -1133,7 +1138,7 @@ const CustomerShop = () => {
             </Button>
             <Button 
               onClick={handleOrder} 
-              disabled={orderLoading || (customer && selectedProduct && customer.points < selectedProduct.point_price)}
+              disabled={orderLoading || !customer || !selectedProduct || !calculatePayment(paymentMethod, selectedProduct.point_price, Number(customer.balance || 0), Number(customer.points || 0)).canPay}
             >
               {orderLoading ? 'Memproses...' : 'Beli Sekarang'}
             </Button>
