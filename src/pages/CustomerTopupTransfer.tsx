@@ -45,7 +45,33 @@ const CustomerTopupTransfer = () => {
         toast.error(data?.error || error?.message || 'Gagal konfirmasi');
         return;
       }
-      toast.success('Konfirmasi terkirim. Tunggu admin verifikasi.');
+      toast.success('Konfirmasi terkirim. Membuka WhatsApp admin...');
+
+      // Open WhatsApp admin with pre-filled message
+      try {
+        const { data: setting } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'admin_ppob_wa_number')
+          .maybeSingle();
+        const raw = (setting?.value || '').replace(/\D/g, '');
+        const waNumber = raw.startsWith('0') ? '62' + raw.slice(1) : raw.startsWith('62') ? raw : raw ? '62' + raw : '';
+        if (waNumber) {
+          const bk = req.bank_snapshot || {};
+          const msg =
+            `*KONFIRMASI TOP UP SALDO*%0A` +
+            `Nama: ${customer.name || '-'}%0A` +
+            `WhatsApp: ${customer.whatsapp || '-'}%0A` +
+            `%0A*Jumlah Top Up:* Rp ${fmt(req.amount)}%0A` +
+            `*Kode Unik:* ${req.unique_code}%0A` +
+            `*Total Transfer:* Rp ${fmt(req.transfer_amount)}%0A` +
+            `*Bank:* ${bk.bank_name} - ${bk.account_number} a.n. ${bk.account_holder}%0A` +
+            `*Waktu:* ${new Date().toLocaleString('id-ID')}%0A%0A` +
+            `Mohon segera diverifikasi. Terima kasih.`;
+          window.open(`https://wa.me/${waNumber}?text=${msg}`, '_blank');
+        }
+      } catch (e) { console.error('WA open error', e); }
+
       navigate('/portal/wallet');
     } finally {
       setSubmitting(false);
