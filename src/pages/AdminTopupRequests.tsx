@@ -127,13 +127,24 @@ const AdminTopupRequests = () => {
                     </div>
                     {r.admin_notes && <div className="col-span-2 text-xs italic">Catatan: {r.admin_notes}</div>}
                   </div>
-                  {r.status === 'pending' && (
-                    <div className="flex gap-2 pt-2 border-t">
+                  {r.status === 'pending' ? (
+                    <div className="flex gap-2 pt-2 border-t flex-wrap">
                       <Button size="sm" className="flex-1" onClick={() => { setSelected(r); setAction('approve'); }}>
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
                       </Button>
                       <Button size="sm" variant="destructive" className="flex-1" onClick={() => { setSelected(r); setAction('reject'); }}>
                         <XCircle className="h-4 w-4 mr-1" /> Reject
+                      </Button>
+                      {isSuperAdmin && (
+                        <Button size="sm" variant="outline" onClick={() => handleDelete(r)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ) : isSuperAdmin && (
+                    <div className="flex pt-2 border-t">
+                      <Button size="sm" variant="outline" className="ml-auto" onClick={() => handleDelete(r)}>
+                        <Trash2 className="h-4 w-4 mr-1" /> Hapus Riwayat
                       </Button>
                     </div>
                   )}
