@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const statusMap: Record<string, { label: string; color: string }> = {
@@ -62,6 +62,17 @@ const AdminTopupRequests = () => {
       setProcessing(false);
     }
   };
+  const isSuperAdmin = admin?.role === 'super_admin';
+
+  const handleDelete = async (r: any) => {
+    if (!isSuperAdmin) return;
+    if (!confirm(`Hapus riwayat top up ${r.customers?.name || ''} (Rp ${fmt(r.amount)})? Tindakan ini tidak dapat dibatalkan.`)) return;
+    const { error } = await supabase.from('topup_requests').delete().eq('id', r.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Riwayat top up dihapus');
+    setRequests((prev) => prev.filter((x) => x.id !== r.id));
+  };
+
 
   return (
     <div className="space-y-4">
@@ -116,13 +127,24 @@ const AdminTopupRequests = () => {
                     </div>
                     {r.admin_notes && <div className="col-span-2 text-xs italic">Catatan: {r.admin_notes}</div>}
                   </div>
-                  {r.status === 'pending' && (
-                    <div className="flex gap-2 pt-2 border-t">
+                  {r.status === 'pending' ? (
+                    <div className="flex gap-2 pt-2 border-t flex-wrap">
                       <Button size="sm" className="flex-1" onClick={() => { setSelected(r); setAction('approve'); }}>
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
                       </Button>
                       <Button size="sm" variant="destructive" className="flex-1" onClick={() => { setSelected(r); setAction('reject'); }}>
                         <XCircle className="h-4 w-4 mr-1" /> Reject
+                      </Button>
+                      {isSuperAdmin && (
+                        <Button size="sm" variant="outline" onClick={() => handleDelete(r)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ) : isSuperAdmin && (
+                    <div className="flex pt-2 border-t">
+                      <Button size="sm" variant="outline" className="ml-auto" onClick={() => handleDelete(r)}>
+                        <Trash2 className="h-4 w-4 mr-1" /> Hapus Riwayat
                       </Button>
                     </div>
                   )}

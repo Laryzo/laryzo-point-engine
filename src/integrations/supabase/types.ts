@@ -867,7 +867,15 @@ export type Database = {
           unique_code?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "topup_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {
