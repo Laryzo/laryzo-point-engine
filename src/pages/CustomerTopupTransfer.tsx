@@ -101,7 +101,7 @@ const CustomerTopupTransfer = () => {
               </div>
               <p className="text-xs text-yellow-700">
                 Termasuk 3 angka unik <b>{req.unique_code}</b> agar admin mudah verifikasi.
-                Saldo yang diterima: <b>Rp {fmt(req.amount)}</b>.
+                Semua uang yang ditransfer akan masuk menjadi Saldo, termasuk 3 angka unik dibelakang.
               </p>
             </div>
 
