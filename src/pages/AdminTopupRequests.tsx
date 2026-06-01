@@ -62,6 +62,17 @@ const AdminTopupRequests = () => {
       setProcessing(false);
     }
   };
+  const isSuperAdmin = admin?.role === 'super_admin';
+
+  const handleDelete = async (r: any) => {
+    if (!isSuperAdmin) return;
+    if (!confirm(`Hapus riwayat top up ${r.customers?.name || ''} (Rp ${fmt(r.amount)})? Tindakan ini tidak dapat dibatalkan.`)) return;
+    const { error } = await supabase.from('topup_requests').delete().eq('id', r.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Riwayat top up dihapus');
+    setRequests((prev) => prev.filter((x) => x.id !== r.id));
+  };
+
 
   return (
     <div className="space-y-4">
