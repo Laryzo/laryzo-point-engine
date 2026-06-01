@@ -109,10 +109,6 @@ const AdminTopupRequests = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <p className="text-muted-foreground">Jumlah Saldo</p>
-                      <p className="font-semibold">Rp {fmt(r.amount)}</p>
-                    </div>
-                    <div>
                       <p className="text-muted-foreground">Total Transfer</p>
                       <p className="font-bold text-primary">Rp {fmt(r.transfer_amount)} <span className="text-xs">(unik {r.unique_code})</span></p>
                     </div>
