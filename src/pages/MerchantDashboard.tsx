@@ -549,27 +549,40 @@ const MerchantDashboard = () => {
   };
 
   const addToCart = (product: any) => {
-    const existing = cart.find(c => c.product.id === product.id);
-    if (existing) {
-      setCart(cart.map(c => c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c));
+    const isService = product.item_type === 'service' || product.allow_qty_decimal;
+    if (isService) {
+      // Open qty modal for services; pre-fill with min_qty or 1
+      const defaultQty = product.min_qty ? String(product.min_qty) : '1';
+      setCart([...cart, { product, qty: Number(defaultQty) || 1 }]);
+      setQtyModalIndex(cart.length);
+      setQtyModalQty(defaultQty);
+      setQtyModalPrice(String(product.price));
+      return;
+    }
+    const existing = cart.findIndex(c => c.product.id === product.id && !c.product.__adhoc);
+    if (existing >= 0) {
+      setCart(cart.map((c, i) => i === existing ? { ...c, qty: c.qty + 1 } : c));
     } else {
       setCart([...cart, { product, qty: 1 }]);
     }
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(cart.filter(c => c.product.id !== productId));
+  const removeFromCart = (index: number) => {
+    setCart(cart.filter((_, i) => i !== index));
   };
 
-  const updateCartQty = (productId: string, qty: number) => {
+  const updateCartQty = (index: number, qty: number) => {
     if (qty <= 0) {
-      removeFromCart(productId);
+      removeFromCart(index);
       return;
     }
-    setCart(cart.map(c => c.product.id === productId ? { ...c, qty } : c));
+    setCart(cart.map((c, i) => i === index ? { ...c, qty } : c));
   };
 
-  const cartTotal = cart.reduce((sum, c) => sum + c.product.price * c.qty, 0);
+  const getLinePrice = (item: { product: any; priceOverride?: number }) =>
+    item.priceOverride != null ? item.priceOverride : Number(item.product.price || 0);
+
+  const cartTotal = cart.reduce((sum, c) => sum + getLinePrice(c) * c.qty, 0);
   const pendingDeliveryCount = deliveryOrders.filter(o => o.delivery_status !== 'delivered' && o.status !== 'completed').length;
   const laryzoFee = Math.round(cartTotal * 0.1);
   const customerPointsEarned = Math.round(laryzoFee * 0.01);
