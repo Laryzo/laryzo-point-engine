@@ -1,99 +1,105 @@
-# Fitur Top Up Saldo Manual & Pembayaran Saldo/Poin
+## Tujuan
 
-## Alur Utama
+Memperluas akun Mitra agar bisa dipakai usaha jasa (laundry, bengkel, jahit, dll) dengan harga dinamis berdasarkan satuan (kg, jam, meter, pcs) — bukan hanya produk fisik dengan harga tetap. Sistem tetap **hybrid POS**: katalog tersedia sebagai shortcut, tapi kasir bisa edit qty (desimal) saat checkout.
 
-### 1. Top Up Saldo Customer
+Margin Laryzo 5% tetap berjalan sesuai pola yang sudah ada — mitra input harga yang ingin diterima, sistem otomatis up harga jual ke customer agar mitra tetap menerima penuh setelah dipotong 5%.
 
+---
+
+## Perubahan Database
+
+### `merchant_products` — tambah kolom:
+- `item_type` text — `'product'` (default) | `'service'`
+- `unit` text — `'pcs'` (default), `'kg'`, `'gram'`, `'jam'`, `'menit'`, `'meter'`, `'liter'`, dll
+- `unit_price` numeric — tarif per satuan (untuk jasa). Untuk produk tetap pakai `price`.
+- `allow_qty_decimal` boolean — default `false` untuk produk, `true` untuk jasa
+- `min_qty` numeric nullable — minimum qty (mis. laundry min 1 kg)
+
+### `merchant_transactions` — tambah kolom:
+- `unit` text nullable — satuan saat transaksi (snapshot)
+- `qty_decimal` numeric nullable — qty asli sebagai desimal (kolom `qty` lama tetap dipertahankan, di-round untuk kompatibilitas laporan lama)
+
+### `orders` — tambah kolom:
+- `qty_decimal` numeric nullable
+- `unit` text nullable
+
+(Diperlukan agar pembelian jasa lewat customer portal juga akurat)
+
+---
+
+## Perubahan Form Produk Mitra
+
+`src/components/MerchantProductForm.tsx`:
+- Toggle **"Jenis Item: Produk / Jasa"**
+- Jika **Jasa**:
+  - Field "Satuan" (dropdown: kg, gram, jam, menit, meter, liter, pcs, custom)
+  - Field "Tarif per [satuan]" (mengganti label "Harga")
+  - Field "Min. qty" (opsional)
+  - Stok disembunyikan/auto-set `-1` (jasa unlimited)
+- Jika **Produk**: form tetap seperti sekarang
+- Preview harga jual otomatis (harga mitra ÷ 0.95, dibulatkan) ditampilkan agar mitra paham yang dilihat customer
+
+---
+
+## Perubahan POS Kasir Mitra
+
+`src/pages/MerchantDashboard.tsx` (atau halaman POS terkait):
+- Saat klik item bertipe **jasa**, popup input qty desimal (mis. `3.75`) dengan satuan terlihat ("3.75 kg")
+- Total per baris = `unit_price × qty_decimal`, mendukung 2 desimal
+- Tetap bisa **override harga manual** untuk kasus khusus (sesuai pilihan hybrid)
+- Tombol **"Item Cepat"** untuk tambah baris ad-hoc (nama + harga + qty) tanpa harus ada di katalog — berguna untuk jasa baru/satu kali
+
+---
+
+## Perubahan Edge Functions
+
+### `merchant-checkout`:
+- Terima `qty` sebagai number (desimal diperbolehkan)
+- Hitung `total = price × qty` dengan presisi desimal
+- Margin Laryzo 5%, distribusi poin 1% ke customer + 10 upline tetap sama
+- Simpan `qty_decimal` dan `unit` ke `merchant_transactions`
+
+### `merchant-product-purchase` (pembelian customer dari customer shop):
+- Dukung produk bertipe jasa dengan qty desimal dari payload
+- Validasi `min_qty`
+- Hitung `pointPrice × qty_decimal` untuk total
+
+---
+
+## Perubahan UI Customer Shop
+
+`src/pages/CustomerShop.tsx`:
+- Item jasa tampilkan "Rp X.XXX / kg" alih-alih "Rp X.XXX"
+- Tombol "Beli" buka modal input qty desimal untuk jasa
+- Total dihitung live sebelum checkout
+
+---
+
+## Detail Teknis
+
+**Formula harga jual untuk customer** (tetap, sudah ada):
 ```
-[Wallet Page] → [Form Top Up] → [Halaman Transfer + Nominal Unik] → [Tombol Sudah Transfer] → [Email ke Admin + Halaman Approval Admin]
+selling_price = Math.ceil((mitra_price / 0.95) / 500) * 500
+laryzo_fee = selling_price - mitra_price
 ```
 
-1. Customer buka halaman **Saldo Saya** (`/portal/wallet`)
-2. Tekan **TOP UP SALDO** → form: jumlah top up + dropdown rekening tujuan (BCA/Mandiri/dll dari System Settings)
-3. Tekan **LANJUT TRANSFER** → sistem generate 3 angka unik random (100-999), tampilkan halaman transfer berisi:
-  - Nama bank, no rekening, atas nama
-  - Nominal final = `jumlah + 3 angka unik` (misal Rp 100.000 → Rp 100.347)
-  - Instruksi transfer + tombol salin no rekening / nominal
-4. Setelah transfer, customer tekan **SUDAH TRANSFER**
-  - Sistem kirim email ke admin (Resend) berisi: nama customer, WA, jumlah top up, nominal final, bank, waktu
-  - Status request = `pending`
-5. Admin buka **Permintaan Top Up** di dashboard → review → **Approve** (saldo masuk otomatis) atau **Reject** (dengan alasan)
+**Untuk jasa**: formula diterapkan pada `unit_price`, bukan total. Total = `selling_unit_price × qty_decimal`.
 
-### 2. Pembayaran Mixed (Poin + Saldo)
+**Distribusi poin** (tetap):
+- 1% × `laryzo_fee_total` ke customer (level 0)
+- 1% × `laryzo_fee_total` ke setiap upline (1–10)
+- Skip jika `points_blocked`
 
-Saat checkout di CustomerShop / merchant:
+**Kompatibilitas mundur**: produk lama (tanpa `item_type`) diperlakukan sebagai `'product'` default — tidak ada perubahan perilaku.
 
-- Tampilkan opsi pembayaran: **Saldo Saja** / **Poin Saja** / **Campuran (Poin dulu, sisanya Saldo)**
-- **Logika "Poin dulu, sisanya saldo"**:
-  - Jika poin ≥ harga → potong poin saja
-  - Jika poin < harga → potong semua poin + sisanya dari saldo
-  - Jika poin + saldo masih < harga → tombol **TOP UP SALDO** muncul, redirect ke `/portal/wallet/topup`
-- 1 poin = Rp 1
+---
 
-## Database (Migration)
+## File yang Diubah
 
-**Tabel baru: `topup_requests**`
-
-- `customer_id`, `amount` (jumlah top up), `unique_code` (3 digit), `transfer_amount` (= amount + unique_code)
-- `bank_account_id` (FK ke bank_accounts), `status` (pending/approved/rejected/cancelled)
-- `customer_confirmed_at`, `processed_by`, `processed_at`, `admin_notes`
-
-**Tabel baru: `bank_accounts**` (dikelola Super Admin via System Settings)
-
-- `bank_name`, `account_number`, `account_holder`, `is_active`, `display_order`
-
-**Trigger `apply_topup_approval**`: saat status berubah ke `approved`, tambahkan saldo ke `wallet_balances` + insert `wallet_transactions` (type='credit', desc='Top up #ref').
-
-**Kolom baru di `orders` & `merchant_transactions**`: `wallet_used` (numeric default 0). Kolom `points_used` sudah ada di `orders`.
-
-**RLS**: 
-
-- Customer: insert/select own topup_requests
-- Admin: select all + update status
-
-## Edge Functions
-
-**Baru:**
-
-- `wallet-topup-create` — validasi jumlah min, generate unique code, insert request
-- `wallet-topup-confirm` — customer tekan "sudah transfer" → trigger email ke admin via Resend
-- `wallet-topup-resolve` — admin approve/reject (auth admin only)
-
-**Dimodifikasi:**
-
-- `digiflazz-topup` & `merchant-product-purchase`: validasi `wallet_used + points_used ≥ harga`, debit saldo & poin, refund jika gagal
-
-## Frontend
-
-**Halaman baru:**
-
-- `src/pages/CustomerWallet.tsx` — dashboard saldo, riwayat transaksi wallet, tombol Top Up
-- `src/pages/CustomerTopupForm.tsx` — form jumlah + dropdown rekening
-- `src/pages/CustomerTopupTransfer.tsx` — halaman transfer dengan nominal unik + tombol "Sudah Transfer"
-- `src/pages/AdminTopupRequests.tsx` — tabel approval untuk admin
-- `src/components/BankAccountManagement.tsx` — CRUD rekening (di SystemSettings, super admin only)
-
-**Komponen baru:**
-
-- `src/components/PaymentMethodSelector.tsx` — radio: saldo / poin / campuran, kalkulasi otomatis kekurangan, tombol "Top Up Saldo" jika kurang
-
-**Dimodifikasi:**
-
-- `App.tsx` — route `/portal/wallet`, `/portal/wallet/topup`, `/portal/wallet/transfer/:id`, `/dashboard/topup-requests`
-- `CustomerDashboard.tsx` — card saldo + link
-- `CustomerShop.tsx` — integrasi `PaymentMethodSelector`, kirim `wallet_used` & `points_used`
-- `useCustomerAuth.tsx` + `customer-refresh` — sertakan `balance` dalam state customer
-- `Dashboard.tsx` (admin) — menu "Permintaan Top Up"
-
-## Setup yang Diperlukan
-
-- Min top up default: Rp 10.000 (di system_settings, bisa diubah admin)
-- Email admin penerima notifikasi: ambil dari `system_settings.admin_topup_email` (default: email super admin pertama)
-- Domain email Resend `no-reply@laryzo.biz.id` sudah aktif
-
-## Catatan Teknis
-
-- Unique code: random 100-999, di-retry jika sudah ada request `pending` dengan transfer_amount sama
-- Auto-cancel: top up `pending` > 24 jam otomatis di-cancel via cron (opsional, bisa fase 2)
-- Email template: HTML sederhana berisi detail customer + nominal + tombol "Buka Halaman Approval"
-- Tambahkan info di halaman transfer + 3 angka unik bahwa: saldo akan terisi beserta 3 angka unik yang ditransfer customer
+- Migration baru: tambah kolom di `merchant_products`, `merchant_transactions`, `orders`
+- `src/components/MerchantProductForm.tsx` — toggle produk/jasa + field satuan/tarif
+- `src/pages/MerchantDashboard.tsx` (atau komponen POS) — qty desimal + item cepat
+- `src/pages/CustomerShop.tsx` — tampilan & input qty untuk jasa
+- `supabase/functions/merchant-checkout/index.ts` — dukungan qty desimal
+- `supabase/functions/merchant-product-purchase/index.ts` — dukungan qty desimal
+- Update memory: tambah catatan jenis item produk/jasa untuk Mitra
