@@ -952,6 +952,114 @@ const MerchantDashboard = () => {
         </Card>
       </div>
       </div>
+
+      {/* Qty / Price edit modal */}
+      <Dialog open={qtyModalIndex !== null} onOpenChange={(o) => { if (!o) setQtyModalIndex(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ubah Qty & Harga</DialogTitle>
+          </DialogHeader>
+          {qtyModalIndex !== null && cart[qtyModalIndex] && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">{cart[qtyModalIndex].nameOverride || cart[qtyModalIndex].product.name}</p>
+              <div className="space-y-2">
+                <Label>Qty {cart[qtyModalIndex].product.unit ? `(${cart[qtyModalIndex].product.unit})` : ''}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={qtyModalQty}
+                  onChange={e => setQtyModalQty(e.target.value)}
+                  inputMode="decimal"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Harga satuan (Rp)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={qtyModalPrice}
+                  onChange={e => setQtyModalPrice(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Total: Rp {Math.round((Number(qtyModalQty) || 0) * (Number(qtyModalPrice) || 0)).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQtyModalIndex(null)}>Batal</Button>
+            <Button onClick={() => {
+              if (qtyModalIndex === null) return;
+              const q = Number(qtyModalQty) || 0;
+              const p = Number(qtyModalPrice) || 0;
+              const minQ = Number(cart[qtyModalIndex].product.min_qty || 0);
+              if (q <= 0) { toast({ title: 'Qty harus > 0', variant: 'destructive' }); return; }
+              if (minQ && q < minQ) { toast({ title: `Min ${minQ} ${cart[qtyModalIndex].product.unit || ''}`, variant: 'destructive' }); return; }
+              setCart(cart.map((c, i) => i === qtyModalIndex ? { ...c, qty: q, priceOverride: p } : c));
+              setQtyModalIndex(null);
+            }}>Simpan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick ad-hoc item modal */}
+      <Dialog open={quickItemOpen} onOpenChange={setQuickItemOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Item Cepat (ad-hoc)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant={!quickItem.isService ? 'default' : 'outline'} onClick={() => setQuickItem({ ...quickItem, isService: false, unit: 'pcs' })}>Produk</Button>
+              <Button type="button" variant={quickItem.isService ? 'default' : 'outline'} onClick={() => setQuickItem({ ...quickItem, isService: true, unit: quickItem.unit === 'pcs' ? 'kg' : quickItem.unit })}>Jasa</Button>
+            </div>
+            <div className="space-y-2">
+              <Label>Nama Item</Label>
+              <Input value={quickItem.name} onChange={e => setQuickItem({ ...quickItem, name: e.target.value })} />
+            </div>
+            {quickItem.isService && (
+              <div className="space-y-2">
+                <Label>Satuan</Label>
+                <Input value={quickItem.unit} onChange={e => setQuickItem({ ...quickItem, unit: e.target.value })} placeholder="kg, jam, meter..." />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label>Harga satuan (Rp)</Label>
+                <Input type="number" min="0" value={quickItem.price} onChange={e => setQuickItem({ ...quickItem, price: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Qty</Label>
+                <Input type="number" step={quickItem.isService ? '0.01' : '1'} min="0" value={quickItem.qty} onChange={e => setQuickItem({ ...quickItem, qty: e.target.value })} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Catatan: harga yang Anda input adalah harga tampil ke customer. Biaya aplikasi 5% otomatis dipotong dari margin.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuickItemOpen(false)}>Batal</Button>
+            <Button onClick={() => {
+              const p = Number(quickItem.price) || 0;
+              const q = Number(quickItem.qty) || 0;
+              if (!quickItem.name.trim() || p <= 0 || q <= 0) { toast({ title: 'Lengkapi nama, harga, qty', variant: 'destructive' }); return; }
+              const adhocProduct = {
+                id: `adhoc-${Date.now()}`,
+                __adhoc: true,
+                name: quickItem.name.trim(),
+                price: p,
+                cost_price: Math.round(p * 0.95),
+                stock: -1,
+                item_type: quickItem.isService ? 'service' : 'product',
+                unit: quickItem.unit,
+                allow_qty_decimal: quickItem.isService,
+              };
+              setCart([...cart, { product: adhocProduct, qty: q }]);
+              setQuickItemOpen(false);
+            }}>Tambah</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
