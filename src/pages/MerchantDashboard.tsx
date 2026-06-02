@@ -725,31 +725,44 @@ const MerchantDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Product Grid */}
       <div className="lg:col-span-2 space-y-4">
-        <h2 className="text-xl font-bold">Pilih Produk</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold">Pilih Produk / Jasa</h2>
+          <Button size="sm" variant="outline" onClick={() => { setQuickItem({ name: '', price: '', qty: '1', unit: 'pcs', isService: false }); setQuickItemOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Item Cepat
+          </Button>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {products.filter(p => p.is_active).map(product => (
-            <Card
-              key={product.id}
-              className="cursor-pointer hover:border-primary transition-colors"
-              onClick={() => addToCart(product)}
-            >
-              <CardContent className="p-3 text-center">
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="h-16 w-16 mx-auto mb-2 rounded object-cover" />
-                ) : (
-                  <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                )}
-                <p className="font-medium text-sm truncate">{product.name}</p>
-                <p className="text-sm text-primary font-bold">Rp {Number(product.price).toLocaleString()}</p>
-                {product.stock >= 0 && (
-                  <Badge variant="outline" className="text-xs mt-1">Stok: {product.stock}</Badge>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+          {products.filter(p => p.is_active).map(product => {
+            const isService = product.item_type === 'service' || product.allow_qty_decimal;
+            return (
+              <Card
+                key={product.id}
+                className="cursor-pointer hover:border-primary transition-colors"
+                onClick={() => addToCart(product)}
+              >
+                <CardContent className="p-3 text-center">
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} className="h-16 w-16 mx-auto mb-2 rounded object-cover" />
+                  ) : (
+                    <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  )}
+                  <p className="font-medium text-sm truncate">{product.name}</p>
+                  <p className="text-sm text-primary font-bold">
+                    Rp {Number(product.price).toLocaleString()}{isService ? ` / ${product.unit || 'unit'}` : ''}
+                  </p>
+                  {isService && (
+                    <Badge variant="secondary" className="text-[10px] mt-1">Jasa</Badge>
+                  )}
+                  {!isService && product.stock >= 0 && (
+                    <Badge variant="outline" className="text-xs mt-1">Stok: {product.stock}</Badge>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
           {products.filter(p => p.is_active).length === 0 && (
             <p className="col-span-full text-muted-foreground text-center py-8">
-              Belum ada produk. Tambahkan produk terlebih dahulu.
+              Belum ada produk. Tambahkan produk/jasa terlebih dahulu.
             </p>
           )}
         </div>
@@ -769,21 +782,54 @@ const MerchantDashboard = () => {
               <p className="text-muted-foreground text-sm text-center py-4">Keranjang kosong</p>
             ) : (
               <>
-                {cart.map(item => (
-                  <div key={item.product.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate flex-1">{item.product.name}</span>
-                    <div className="flex items-center gap-1">
-                      <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(item.product.id, item.qty - 1)}>
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-6 text-center">{item.qty}</span>
-                      <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(item.product.id, item.qty + 1)}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
+                {cart.map((item, idx) => {
+                  const isService = item.product.item_type === 'service' || item.product.allow_qty_decimal;
+                  const linePrice = getLinePrice(item);
+                  const unit = item.product.unit || '';
+                  return (
+                    <div key={idx} className="space-y-1 text-sm border-b pb-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          className="truncate flex-1 text-left hover:underline"
+                          onClick={() => { setQtyModalIndex(idx); setQtyModalQty(String(item.qty)); setQtyModalPrice(String(linePrice)); }}
+                          title="Klik untuk ubah qty / harga"
+                        >
+                          {item.nameOverride || item.product.name}
+                          {isService && <span className="text-xs text-muted-foreground"> ({unit})</span>}
+                        </button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFromCart(idx)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1">
+                          {!isService && (
+                            <>
+                              <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(idx, item.qty - 1)}>
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-10 text-center">{item.qty}</span>
+                              <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(idx, item.qty + 1)}>
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                          {isService && (
+                            <button
+                              type="button"
+                              className="text-xs text-primary underline"
+                              onClick={() => { setQtyModalIndex(idx); setQtyModalQty(String(item.qty)); setQtyModalPrice(String(linePrice)); }}
+                            >
+                              {item.qty} {unit} × Rp {linePrice.toLocaleString()}
+                            </button>
+                          )}
+                        </div>
+                        <span className="font-medium w-24 text-right">Rp {Math.round(linePrice * item.qty).toLocaleString()}</span>
+                      </div>
                     </div>
-                    <span className="font-medium w-24 text-right">Rp {(item.product.price * item.qty).toLocaleString()}</span>
-                  </div>
-                ))}
+                  );
+                })}
                 <div className="border-t pt-3 space-y-1 text-sm">
                   <div className="flex justify-between"><span>Subtotal</span><span className="font-bold">Rp {cartTotal.toLocaleString()}</span></div>
                   
