@@ -24,7 +24,14 @@ const MerchantDashboard = () => {
   const [activeView, setActiveView] = useState('pos');
   const [products, setProducts] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [cart, setCart] = useState<{ product: any; qty: number }[]>([]);
+  const [cart, setCart] = useState<{ product: any; qty: number; priceOverride?: number; nameOverride?: string }[]>([]);
+  // Qty input modal (services + manual override)
+  const [qtyModalIndex, setQtyModalIndex] = useState<number | null>(null);
+  const [qtyModalQty, setQtyModalQty] = useState('1');
+  const [qtyModalPrice, setQtyModalPrice] = useState('');
+  // Quick ad-hoc item modal
+  const [quickItemOpen, setQuickItemOpen] = useState(false);
+  const [quickItem, setQuickItem] = useState({ name: '', price: '', qty: '1', unit: 'pcs', isService: false });
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerResults, setCustomerResults] = useState<any[]>([]);
@@ -542,27 +549,40 @@ const MerchantDashboard = () => {
   };
 
   const addToCart = (product: any) => {
-    const existing = cart.find(c => c.product.id === product.id);
-    if (existing) {
-      setCart(cart.map(c => c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c));
+    const isService = product.item_type === 'service' || product.allow_qty_decimal;
+    if (isService) {
+      // Open qty modal for services; pre-fill with min_qty or 1
+      const defaultQty = product.min_qty ? String(product.min_qty) : '1';
+      setCart([...cart, { product, qty: Number(defaultQty) || 1 }]);
+      setQtyModalIndex(cart.length);
+      setQtyModalQty(defaultQty);
+      setQtyModalPrice(String(product.price));
+      return;
+    }
+    const existing = cart.findIndex(c => c.product.id === product.id && !c.product.__adhoc);
+    if (existing >= 0) {
+      setCart(cart.map((c, i) => i === existing ? { ...c, qty: c.qty + 1 } : c));
     } else {
       setCart([...cart, { product, qty: 1 }]);
     }
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(cart.filter(c => c.product.id !== productId));
+  const removeFromCart = (index: number) => {
+    setCart(cart.filter((_, i) => i !== index));
   };
 
-  const updateCartQty = (productId: string, qty: number) => {
+  const updateCartQty = (index: number, qty: number) => {
     if (qty <= 0) {
-      removeFromCart(productId);
+      removeFromCart(index);
       return;
     }
-    setCart(cart.map(c => c.product.id === productId ? { ...c, qty } : c));
+    setCart(cart.map((c, i) => i === index ? { ...c, qty } : c));
   };
 
-  const cartTotal = cart.reduce((sum, c) => sum + c.product.price * c.qty, 0);
+  const getLinePrice = (item: { product: any; priceOverride?: number }) =>
+    item.priceOverride != null ? item.priceOverride : Number(item.product.price || 0);
+
+  const cartTotal = cart.reduce((sum, c) => sum + getLinePrice(c) * c.qty, 0);
   const pendingDeliveryCount = deliveryOrders.filter(o => o.delivery_status !== 'delivered' && o.status !== 'completed').length;
   const laryzoFee = Math.round(cartTotal * 0.1);
   const customerPointsEarned = Math.round(laryzoFee * 0.01);
@@ -584,14 +604,23 @@ const MerchantDashboard = () => {
 
     setCheckoutLoading(true);
     try {
-      const items = cart.map(item => ({
-        product_id: item.product.id,
-        product_name: item.product.name,
-        price: item.product.price,
-        qty: item.qty,
-        stock: item.product.stock,
-        cost_price: item.product.cost_price || 0,
-      }));
+      const items = cart.map(item => {
+        const price = getLinePrice(item);
+        const isAdhoc = !!item.product.__adhoc;
+        // For adhoc/override items, recompute cost_price so margin = 5% of selling
+        const baseCost = isAdhoc || item.priceOverride != null
+          ? Math.round(price * 0.95)
+          : (item.product.cost_price || 0);
+        return {
+          product_id: isAdhoc ? null : item.product.id,
+          product_name: item.nameOverride || item.product.name,
+          price,
+          qty: item.qty,
+          stock: isAdhoc ? -1 : item.product.stock,
+          cost_price: baseCost,
+          unit: item.product.unit || null,
+        };
+      });
 
       const { data, error } = await supabase.functions.invoke('merchant-checkout', {
         body: { items, customer_id: selectedCustomer?.id || null, notes }
@@ -696,31 +725,44 @@ const MerchantDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Product Grid */}
       <div className="lg:col-span-2 space-y-4">
-        <h2 className="text-xl font-bold">Pilih Produk</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold">Pilih Produk / Jasa</h2>
+          <Button size="sm" variant="outline" onClick={() => { setQuickItem({ name: '', price: '', qty: '1', unit: 'pcs', isService: false }); setQuickItemOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Item Cepat
+          </Button>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {products.filter(p => p.is_active).map(product => (
-            <Card
-              key={product.id}
-              className="cursor-pointer hover:border-primary transition-colors"
-              onClick={() => addToCart(product)}
-            >
-              <CardContent className="p-3 text-center">
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="h-16 w-16 mx-auto mb-2 rounded object-cover" />
-                ) : (
-                  <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                )}
-                <p className="font-medium text-sm truncate">{product.name}</p>
-                <p className="text-sm text-primary font-bold">Rp {Number(product.price).toLocaleString()}</p>
-                {product.stock >= 0 && (
-                  <Badge variant="outline" className="text-xs mt-1">Stok: {product.stock}</Badge>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+          {products.filter(p => p.is_active).map(product => {
+            const isService = product.item_type === 'service' || product.allow_qty_decimal;
+            return (
+              <Card
+                key={product.id}
+                className="cursor-pointer hover:border-primary transition-colors"
+                onClick={() => addToCart(product)}
+              >
+                <CardContent className="p-3 text-center">
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} className="h-16 w-16 mx-auto mb-2 rounded object-cover" />
+                  ) : (
+                    <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  )}
+                  <p className="font-medium text-sm truncate">{product.name}</p>
+                  <p className="text-sm text-primary font-bold">
+                    Rp {Number(product.price).toLocaleString()}{isService ? ` / ${product.unit || 'unit'}` : ''}
+                  </p>
+                  {isService && (
+                    <Badge variant="secondary" className="text-[10px] mt-1">Jasa</Badge>
+                  )}
+                  {!isService && product.stock >= 0 && (
+                    <Badge variant="outline" className="text-xs mt-1">Stok: {product.stock}</Badge>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
           {products.filter(p => p.is_active).length === 0 && (
             <p className="col-span-full text-muted-foreground text-center py-8">
-              Belum ada produk. Tambahkan produk terlebih dahulu.
+              Belum ada produk. Tambahkan produk/jasa terlebih dahulu.
             </p>
           )}
         </div>
@@ -740,21 +782,54 @@ const MerchantDashboard = () => {
               <p className="text-muted-foreground text-sm text-center py-4">Keranjang kosong</p>
             ) : (
               <>
-                {cart.map(item => (
-                  <div key={item.product.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate flex-1">{item.product.name}</span>
-                    <div className="flex items-center gap-1">
-                      <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(item.product.id, item.qty - 1)}>
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-6 text-center">{item.qty}</span>
-                      <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(item.product.id, item.qty + 1)}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
+                {cart.map((item, idx) => {
+                  const isService = item.product.item_type === 'service' || item.product.allow_qty_decimal;
+                  const linePrice = getLinePrice(item);
+                  const unit = item.product.unit || '';
+                  return (
+                    <div key={idx} className="space-y-1 text-sm border-b pb-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          className="truncate flex-1 text-left hover:underline"
+                          onClick={() => { setQtyModalIndex(idx); setQtyModalQty(String(item.qty)); setQtyModalPrice(String(linePrice)); }}
+                          title="Klik untuk ubah qty / harga"
+                        >
+                          {item.nameOverride || item.product.name}
+                          {isService && <span className="text-xs text-muted-foreground"> ({unit})</span>}
+                        </button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFromCart(idx)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1">
+                          {!isService && (
+                            <>
+                              <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(idx, item.qty - 1)}>
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-10 text-center">{item.qty}</span>
+                              <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateCartQty(idx, item.qty + 1)}>
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                          {isService && (
+                            <button
+                              type="button"
+                              className="text-xs text-primary underline"
+                              onClick={() => { setQtyModalIndex(idx); setQtyModalQty(String(item.qty)); setQtyModalPrice(String(linePrice)); }}
+                            >
+                              {item.qty} {unit} × Rp {linePrice.toLocaleString()}
+                            </button>
+                          )}
+                        </div>
+                        <span className="font-medium w-24 text-right">Rp {Math.round(linePrice * item.qty).toLocaleString()}</span>
+                      </div>
                     </div>
-                    <span className="font-medium w-24 text-right">Rp {(item.product.price * item.qty).toLocaleString()}</span>
-                  </div>
-                ))}
+                  );
+                })}
                 <div className="border-t pt-3 space-y-1 text-sm">
                   <div className="flex justify-between"><span>Subtotal</span><span className="font-bold">Rp {cartTotal.toLocaleString()}</span></div>
                   
@@ -877,6 +952,114 @@ const MerchantDashboard = () => {
         </Card>
       </div>
       </div>
+
+      {/* Qty / Price edit modal */}
+      <Dialog open={qtyModalIndex !== null} onOpenChange={(o) => { if (!o) setQtyModalIndex(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ubah Qty & Harga</DialogTitle>
+          </DialogHeader>
+          {qtyModalIndex !== null && cart[qtyModalIndex] && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">{cart[qtyModalIndex].nameOverride || cart[qtyModalIndex].product.name}</p>
+              <div className="space-y-2">
+                <Label>Qty {cart[qtyModalIndex].product.unit ? `(${cart[qtyModalIndex].product.unit})` : ''}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={qtyModalQty}
+                  onChange={e => setQtyModalQty(e.target.value)}
+                  inputMode="decimal"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Harga satuan (Rp)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={qtyModalPrice}
+                  onChange={e => setQtyModalPrice(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Total: Rp {Math.round((Number(qtyModalQty) || 0) * (Number(qtyModalPrice) || 0)).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQtyModalIndex(null)}>Batal</Button>
+            <Button onClick={() => {
+              if (qtyModalIndex === null) return;
+              const q = Number(qtyModalQty) || 0;
+              const p = Number(qtyModalPrice) || 0;
+              const minQ = Number(cart[qtyModalIndex].product.min_qty || 0);
+              if (q <= 0) { toast({ title: 'Qty harus > 0', variant: 'destructive' }); return; }
+              if (minQ && q < minQ) { toast({ title: `Min ${minQ} ${cart[qtyModalIndex].product.unit || ''}`, variant: 'destructive' }); return; }
+              setCart(cart.map((c, i) => i === qtyModalIndex ? { ...c, qty: q, priceOverride: p } : c));
+              setQtyModalIndex(null);
+            }}>Simpan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick ad-hoc item modal */}
+      <Dialog open={quickItemOpen} onOpenChange={setQuickItemOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Item Cepat (ad-hoc)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant={!quickItem.isService ? 'default' : 'outline'} onClick={() => setQuickItem({ ...quickItem, isService: false, unit: 'pcs' })}>Produk</Button>
+              <Button type="button" variant={quickItem.isService ? 'default' : 'outline'} onClick={() => setQuickItem({ ...quickItem, isService: true, unit: quickItem.unit === 'pcs' ? 'kg' : quickItem.unit })}>Jasa</Button>
+            </div>
+            <div className="space-y-2">
+              <Label>Nama Item</Label>
+              <Input value={quickItem.name} onChange={e => setQuickItem({ ...quickItem, name: e.target.value })} />
+            </div>
+            {quickItem.isService && (
+              <div className="space-y-2">
+                <Label>Satuan</Label>
+                <Input value={quickItem.unit} onChange={e => setQuickItem({ ...quickItem, unit: e.target.value })} placeholder="kg, jam, meter..." />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label>Harga satuan (Rp)</Label>
+                <Input type="number" min="0" value={quickItem.price} onChange={e => setQuickItem({ ...quickItem, price: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Qty</Label>
+                <Input type="number" step={quickItem.isService ? '0.01' : '1'} min="0" value={quickItem.qty} onChange={e => setQuickItem({ ...quickItem, qty: e.target.value })} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Catatan: harga yang Anda input adalah harga tampil ke customer. Biaya aplikasi 5% otomatis dipotong dari margin.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuickItemOpen(false)}>Batal</Button>
+            <Button onClick={() => {
+              const p = Number(quickItem.price) || 0;
+              const q = Number(quickItem.qty) || 0;
+              if (!quickItem.name.trim() || p <= 0 || q <= 0) { toast({ title: 'Lengkapi nama, harga, qty', variant: 'destructive' }); return; }
+              const adhocProduct = {
+                id: `adhoc-${Date.now()}`,
+                __adhoc: true,
+                name: quickItem.name.trim(),
+                price: p,
+                cost_price: Math.round(p * 0.95),
+                stock: -1,
+                item_type: quickItem.isService ? 'service' : 'product',
+                unit: quickItem.unit,
+                allow_qty_decimal: quickItem.isService,
+              };
+              setCart([...cart, { product: adhocProduct, qty: q }]);
+              setQuickItemOpen(false);
+            }}>Tambah</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 

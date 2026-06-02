@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ImagePlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MerchantProductFormProps {
   open: boolean;
@@ -16,14 +17,25 @@ interface MerchantProductFormProps {
   onSuccess: () => void;
 }
 
+const UNIT_OPTIONS = ['pcs', 'kg', 'gram', 'jam', 'menit', 'meter', 'cm', 'liter', 'porsi', 'paket'];
+
 const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSuccess }: MerchantProductFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', costPrice: '', stock: '-1' });
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    costPrice: '',
+    stock: '-1',
+    itemType: 'product' as 'product' | 'service',
+    unit: 'pcs',
+    minQty: '',
+  });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const isEdit = !!product;
+  const isService = form.itemType === 'service';
 
   const costNum = Number(form.costPrice) || 0;
   const sellingPrice = Math.ceil((costNum / 0.95) / 500) * 500;
@@ -35,11 +47,14 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         description: product.description || '',
         costPrice: String(product.cost_price ?? Math.round(Number(product.price ?? 0) * 0.95)),
         stock: String(product.stock ?? '-1'),
+        itemType: (product.item_type === 'service' ? 'service' : 'product'),
+        unit: product.unit || 'pcs',
+        minQty: product.min_qty != null ? String(product.min_qty) : '',
       });
       setImagePreview(product.image_url || null);
       setImageFile(null);
     } else if (open && !product) {
-      setForm({ name: '', description: '', costPrice: '', stock: '-1' });
+      setForm({ name: '', description: '', costPrice: '', stock: '-1', itemType: 'product', unit: 'pcs', minQty: '' });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -75,38 +90,34 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         imageUrl = urlData.publicUrl;
       }
 
-      const pointPriceNum = 0;
+      const payload: any = {
+        name: form.name,
+        description: form.description || null,
+        price: sellingPrice,
+        cost_price: costNum,
+        stock: isService ? -1 : Number(form.stock),
+        point_price: 0,
+        item_type: form.itemType,
+        unit: form.unit,
+        allow_qty_decimal: isService,
+        min_qty: form.minQty ? Number(form.minQty) : null,
+      };
 
       if (isEdit) {
-        const updateData: any = {
-          name: form.name,
-          description: form.description || null,
-          price: sellingPrice,
-          cost_price: costNum,
-          stock: Number(form.stock),
-          point_price: pointPriceNum,
-        };
-        if (imageUrl !== undefined) {
-          updateData.image_url = imageUrl;
-        }
+        if (imageUrl !== undefined) payload.image_url = imageUrl;
         const { error } = await supabase.from('merchant_products')
-          .update(updateData)
+          .update(payload)
           .eq('id', product.id);
         if (error) throw error;
-        toast({ title: 'Produk diperbarui!' });
+        toast({ title: isService ? 'Jasa diperbarui!' : 'Produk diperbarui!' });
       } else {
         const { error } = await supabase.from('merchant_products').insert({
           merchant_id: merchantId,
-          name: form.name,
-          description: form.description || null,
-          price: sellingPrice,
-          cost_price: costNum,
-          stock: Number(form.stock),
+          ...payload,
           image_url: imageUrl ?? null,
-          point_price: pointPriceNum,
         });
         if (error) throw error;
-        toast({ title: 'Produk ditambahkan!' });
+        toast({ title: isService ? 'Jasa ditambahkan!' : 'Produk ditambahkan!' });
       }
 
       onOpenChange(false);
@@ -121,11 +132,37 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Produk' : 'Tambah Produk'}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit ${isService ? 'Jasa' : 'Produk'}` : `Tambah ${isService ? 'Jasa' : 'Produk'}`}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Type toggle */}
           <div className="space-y-2">
-            <Label>Foto Produk</Label>
+            <Label>Jenis Item</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={form.itemType === 'product' ? 'default' : 'outline'}
+                onClick={() => setForm({ ...form, itemType: 'product', unit: 'pcs' })}
+              >
+                Produk
+              </Button>
+              <Button
+                type="button"
+                variant={form.itemType === 'service' ? 'default' : 'outline'}
+                onClick={() => setForm({ ...form, itemType: 'service', unit: form.unit === 'pcs' ? 'kg' : form.unit, stock: '-1' })}
+              >
+                Jasa
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {isService
+                ? 'Jasa: harga dihitung per satuan (qty bisa desimal, mis. 3.75 kg).'
+                : 'Produk: harga tetap per item, qty bilangan bulat.'}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Foto {isService ? 'Jasa' : 'Produk'}</Label>
             <div className="flex items-center gap-4">
               {imagePreview ? (
                 <label className="relative w-20 h-20 rounded-lg overflow-hidden border cursor-pointer group">
@@ -145,26 +182,61 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
               <p className="text-xs text-muted-foreground">Maks 2MB (JPG, PNG)</p>
             </div>
           </div>
+
           <div className="space-y-2">
-            <Label>Nama Produk</Label>
+            <Label>Nama {isService ? 'Jasa' : 'Produk'}</Label>
             <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
           </div>
+
           <div className="space-y-2">
             <Label>Deskripsi</Label>
             <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
           </div>
+
+          {isService && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Satuan</Label>
+                <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {UNIT_OPTIONS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Min. Qty (opsional)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.minQty}
+                  placeholder={`mis. 1 ${form.unit}`}
+                  onChange={e => setForm({ ...form, minQty: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
-            <Label>Harga Asli (Rp)</Label>
+            <Label>{isService ? `Tarif per ${form.unit} (yang Anda terima)` : 'Harga Asli / yang Anda terima (Rp)'}</Label>
             <Input type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} required min="0" />
+            <p className="text-xs text-muted-foreground">Ini jumlah bersih yang masuk ke Anda setelah biaya aplikasi 5%.</p>
           </div>
+
           <div className="space-y-2">
-            <Label>Harga Jual (Rp)</Label>
+            <Label>{isService ? `Harga Tampil ke Customer / ${form.unit}` : 'Harga Jual ke Customer (Rp)'}</Label>
             <Input type="number" value={sellingPrice || ''} readOnly className="bg-muted" />
+            <p className="text-xs text-muted-foreground">Otomatis (sudah include biaya aplikasi 5%).</p>
           </div>
-          <div className="space-y-2">
-            <Label>Stok (-1 = unlimited)</Label>
-            <Input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} required />
-          </div>
+
+          {!isService && (
+            <div className="space-y-2">
+              <Label>Stok (-1 = unlimited)</Label>
+              <Input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} required />
+            </div>
+          )}
+
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan'}
           </Button>

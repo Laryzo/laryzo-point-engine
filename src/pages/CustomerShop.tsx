@@ -190,6 +190,8 @@ const CustomerShop = () => {
       .from('merchant_products')
       .select('*, merchants(business_name, name, latitude, longitude)')
       .eq('is_active', true)
+      // Hide service items from online shop — services require physical measurement at the merchant POS
+      .or('item_type.is.null,item_type.eq.product')
       .order('created_at', { ascending: false });
     setMerchantProducts(data || []);
   };

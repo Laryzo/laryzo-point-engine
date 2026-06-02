@@ -337,45 +337,57 @@ export type Database = {
       }
       merchant_products: {
         Row: {
+          allow_qty_decimal: boolean
           cost_price: number | null
           created_at: string
           description: string | null
           id: string
           image_url: string | null
           is_active: boolean
+          item_type: string
           merchant_id: string
+          min_qty: number | null
           name: string
           point_price: number | null
           price: number
           stock: number
+          unit: string
           updated_at: string
         }
         Insert: {
+          allow_qty_decimal?: boolean
           cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
+          item_type?: string
           merchant_id: string
+          min_qty?: number | null
           name: string
           point_price?: number | null
           price?: number
           stock?: number
+          unit?: string
           updated_at?: string
         }
         Update: {
+          allow_qty_decimal?: boolean
           cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
+          item_type?: string
           merchant_id?: string
+          min_qty?: number | null
           name?: string
           point_price?: number | null
           price?: number
           stock?: number
+          unit?: string
           updated_at?: string
         }
         Relationships: [
@@ -402,7 +414,9 @@ export type Database = {
           product_id: string | null
           product_name: string
           qty: number
+          qty_decimal: number | null
           total: number
+          unit: string | null
           updated_at: string
           wallet_used: number
         }
@@ -419,7 +433,9 @@ export type Database = {
           product_id?: string | null
           product_name: string
           qty?: number
+          qty_decimal?: number | null
           total?: number
+          unit?: string | null
           updated_at?: string
           wallet_used?: number
         }
@@ -436,7 +452,9 @@ export type Database = {
           product_id?: string | null
           product_name?: string
           qty?: number
+          qty_decimal?: number | null
           total?: number
+          unit?: string | null
           updated_at?: string
           wallet_used?: number
         }
@@ -537,11 +555,13 @@ export type Database = {
           processed_at: string | null
           product_id: string | null
           product_name: string | null
+          qty_decimal: number | null
           ref_id: string | null
           shipping_address: string | null
           shipping_status: string | null
           status: string
           tracking_number: string | null
+          unit: string | null
           updated_at: string
           wallet_used: number
         }
@@ -572,11 +592,13 @@ export type Database = {
           processed_at?: string | null
           product_id?: string | null
           product_name?: string | null
+          qty_decimal?: number | null
           ref_id?: string | null
           shipping_address?: string | null
           shipping_status?: string | null
           status?: string
           tracking_number?: string | null
+          unit?: string | null
           updated_at?: string
           wallet_used?: number
         }
@@ -607,11 +629,13 @@ export type Database = {
           processed_at?: string | null
           product_id?: string | null
           product_name?: string | null
+          qty_decimal?: number | null
           ref_id?: string | null
           shipping_address?: string | null
           shipping_status?: string | null
           status?: string
           tracking_number?: string | null
+          unit?: string | null
           updated_at?: string
           wallet_used?: number
         }
