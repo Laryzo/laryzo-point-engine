@@ -84,17 +84,17 @@ Deno.serve(async (req) => {
       if (mtError) throw mtError
 
       // 2. Insert into main transactions table (so it shows in admin panel)
-      const marginPerUnit = fee / qty
+      const marginPerUnit = qtyNum > 0 ? fee / qtyNum : 0
 
       const { data: txData, error: txError } = await supabase.from('transactions').insert({
         product_code: `MITRA-${product_name.substring(0, 20)}`,
         product_name: product_name,
         product_type: 'Mitra',
-        qty,
+        qty: Math.max(1, Math.round(qtyNum)),
         margin: marginPerUnit,
         customer_id: customer_id || null,
-        harga_konsumen: price,
-        harga_pokok: price - marginPerUnit,
+        harga_konsumen: priceNum,
+        harga_pokok: priceNum - marginPerUnit,
       }).select('id').single()
       if (txError) throw txError
 
@@ -142,10 +142,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 4. Update stock
-      if (stock >= 0) {
+      // 4. Update stock (only for catalog products with finite stock, skip ad-hoc & services)
+      if (product_id && typeof stock === 'number' && stock >= 0) {
         await supabase.from('merchant_products')
-          .update({ stock: stock - qty })
+          .update({ stock: Math.max(0, stock - Math.ceil(qtyNum)) })
           .eq('id', product_id)
       }
 
