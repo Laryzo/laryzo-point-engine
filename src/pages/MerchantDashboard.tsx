@@ -604,14 +604,23 @@ const MerchantDashboard = () => {
 
     setCheckoutLoading(true);
     try {
-      const items = cart.map(item => ({
-        product_id: item.product.id,
-        product_name: item.product.name,
-        price: item.product.price,
-        qty: item.qty,
-        stock: item.product.stock,
-        cost_price: item.product.cost_price || 0,
-      }));
+      const items = cart.map(item => {
+        const price = getLinePrice(item);
+        const isAdhoc = !!item.product.__adhoc;
+        // For adhoc/override items, recompute cost_price so margin = 5% of selling
+        const baseCost = isAdhoc || item.priceOverride != null
+          ? Math.round(price * 0.95)
+          : (item.product.cost_price || 0);
+        return {
+          product_id: isAdhoc ? null : item.product.id,
+          product_name: item.nameOverride || item.product.name,
+          price,
+          qty: item.qty,
+          stock: isAdhoc ? -1 : item.product.stock,
+          cost_price: baseCost,
+          unit: item.product.unit || null,
+        };
+      });
 
       const { data, error } = await supabase.functions.invoke('merchant-checkout', {
         body: { items, customer_id: selectedCustomer?.id || null, notes }
