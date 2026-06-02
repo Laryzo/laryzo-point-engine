@@ -24,7 +24,14 @@ const MerchantDashboard = () => {
   const [activeView, setActiveView] = useState('pos');
   const [products, setProducts] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [cart, setCart] = useState<{ product: any; qty: number }[]>([]);
+  const [cart, setCart] = useState<{ product: any; qty: number; priceOverride?: number; nameOverride?: string }[]>([]);
+  // Qty input modal (services + manual override)
+  const [qtyModalIndex, setQtyModalIndex] = useState<number | null>(null);
+  const [qtyModalQty, setQtyModalQty] = useState('1');
+  const [qtyModalPrice, setQtyModalPrice] = useState('');
+  // Quick ad-hoc item modal
+  const [quickItemOpen, setQuickItemOpen] = useState(false);
+  const [quickItem, setQuickItem] = useState({ name: '', price: '', qty: '1', unit: 'pcs', isService: false });
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerResults, setCustomerResults] = useState<any[]>([]);
