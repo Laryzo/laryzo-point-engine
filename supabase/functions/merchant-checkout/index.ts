@@ -57,21 +57,25 @@ Deno.serve(async (req) => {
     const results = []
 
     for (const item of items) {
-      const { product_id, product_name, price, qty, stock, cost_price } = item
-      const total = price * qty
-      const fee = (price - (cost_price || 0)) * qty // Margin Laryzo = selisih harga jual - harga asli
-      const pointsPerCustomer = fee * POINT_PERCENTAGE // 1% of fee per eligible customer
+      const { product_id, product_name, price, qty, stock, cost_price, unit } = item
+      const qtyNum = Number(qty) || 0
+      const priceNum = Number(price) || 0
+      const total = Math.round(priceNum * qtyNum)
+      const fee = Math.round((priceNum - (Number(cost_price) || 0)) * qtyNum) // Margin Laryzo
+      const pointsPerCustomer = fee * POINT_PERCENTAGE
       const customerPoints = customer_id ? pointsPerCustomer : 0
 
-      // 1. Insert merchant_transactions
+      // 1. Insert merchant_transactions (qty column now numeric, qty_decimal stored as snapshot)
       const { error: mtError } = await supabase.from('merchant_transactions').insert({
         merchant_id: merchantId,
-        product_id,
+        product_id: product_id || null,
         customer_id: customer_id || null,
         customer_name: customerName,
         product_name,
-        price,
-        qty,
+        price: priceNum,
+        qty: qtyNum,
+        qty_decimal: qtyNum,
+        unit: unit || null,
         total,
         laryzo_fee: fee,
         customer_points_earned: customerPoints,
