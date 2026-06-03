@@ -336,6 +336,45 @@ const SystemSettings = () => {
           </CardContent>
         </Card>
 
+        {/* Merchant App Fee */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Biaya Aplikasi Mitra</CardTitle>
+            <CardDescription>
+              Persentase biaya yang dipotong dari setiap transaksi mitra. Sistem otomatis menaikkan harga jual ke customer agar mitra tetap menerima harga aslinya setelah dipotong biaya ini.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Persentase Biaya Aplikasi (%)</Label>
+              <Input
+                type="number"
+                min="0"
+                max="50"
+                step="0.1"
+                value={formData.merchant_app_fee_percent}
+                onChange={(e) => setFormData({ ...formData, merchant_app_fee_percent: e.target.value })}
+              />
+              <p className="text-sm text-muted-foreground">
+                Default: 5%. Berlaku untuk semua transaksi mitra (POS, ad-hoc, dan pembelian customer dari toko mitra).
+              </p>
+            </div>
+            {(() => {
+              const fp = Number(formData.merchant_app_fee_percent) || 0;
+              const example = 10000;
+              const sell = fp > 0 && fp < 100 ? Math.ceil((example / ((100 - fp) / 100)) / 500) * 500 : example;
+              return (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Contoh:</strong> Jika mitra ingin menerima Rp {example.toLocaleString('id-ID')}, harga tampil ke customer otomatis menjadi Rp {sell.toLocaleString('id-ID')} (dibulatkan ke 500 terdekat).
+                  </AlertDescription>
+                </Alert>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
         {/* Point Distribution Info */}
         <Card className="md:col-span-2">
           <CardHeader>
