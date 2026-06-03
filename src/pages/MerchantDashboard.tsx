@@ -587,7 +587,17 @@ const MerchantDashboard = () => {
 
   const cartTotal = cart.reduce((sum, c) => sum + getLinePrice(c) * c.qty, 0);
   const pendingDeliveryCount = deliveryOrders.filter(o => o.delivery_status !== 'delivered' && o.status !== 'completed').length;
-  const laryzoFee = Math.round(cartTotal * 0.1);
+  
+  const merchantRevenueTotal = cart.reduce((sum, item) => {
+    const price = getLinePrice(item);
+    const isAdhoc = !!item.product.__adhoc;
+    const baseCost = isAdhoc || item.priceOverride != null
+      ? estimateCostFromPrice(price, feePercent)
+      : (item.product.cost_price || 0);
+    return sum + (baseCost * item.qty);
+  }, 0);
+
+  const laryzoFee = Math.round(cartTotal - merchantRevenueTotal);
   const customerPointsEarned = Math.round(laryzoFee * 0.01);
 
   // Transaction edit state
@@ -660,7 +670,6 @@ const MerchantDashboard = () => {
     setSavingTxEdit(true);
     try {
       const newTotal = editTxPrice * editTxQty;
-      const newFee = Math.round(newTotal * 0.1);
       
       // Update merchant_price per unit if it was already set, to maintain the margin ratio
       const updatePayload: any = {
@@ -668,7 +677,6 @@ const MerchantDashboard = () => {
         qty: editTxQty,
         price: editTxPrice,
         total: newTotal,
-        laryzo_fee: newFee,
         notes: editTxNotes,
       };
 
@@ -677,6 +685,10 @@ const MerchantDashboard = () => {
         const ratio = editingTx.merchant_price / oldPrice;
         updatePayload.merchant_price = editTxPrice * ratio;
       }
+
+      // Calculate fee based on new logic: Total - (Merchant Price * Qty)
+      const merchantRevenue = Math.round(Number(updatePayload.merchant_price || editingTx.merchant_price || 0) * editTxQty);
+      updatePayload.laryzo_fee = newTotal - merchantRevenue;
 
       const { error } = await supabase.from('merchant_transactions').update(updatePayload).eq('id', editingTx.id);
       if (error) throw error;
@@ -1230,8 +1242,7 @@ const MerchantDashboard = () => {
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
               {(() => {
-                const merchantPricePerUnit = t.merchant_price || (Number(t.total) - Number(t.laryzo_fee)) / (Number(t.qty) || 1);
-                const merchantRevenue = Math.round(merchantPricePerUnit * (t.qty || 0));
+                const merchantRevenue = Math.round(Number(t.merchant_price || 0) * (t.qty || 0));
                 const appFee = Number(t.total) - merchantRevenue;
                 return (
                   <>
