@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ImagePlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getAppFeePercent, computeSellingPrice, estimateCostFromPrice } from '@/lib/app-fee';
 
 interface MerchantProductFormProps {
   open: boolean;
@@ -37,15 +38,20 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
   const isEdit = !!product;
   const isService = form.itemType === 'service';
 
+  const [feePercent, setFeePercent] = useState<number>(5);
+  useEffect(() => {
+    getAppFeePercent().then(setFeePercent);
+  }, []);
+
   const costNum = Number(form.costPrice) || 0;
-  const sellingPrice = Math.ceil((costNum / 0.95) / 500) * 500;
+  const sellingPrice = computeSellingPrice(costNum, feePercent);
 
   useEffect(() => {
     if (open && product) {
       setForm({
         name: product.name || '',
         description: product.description || '',
-        costPrice: String(product.cost_price ?? Math.round(Number(product.price ?? 0) * 0.95)),
+        costPrice: String(product.cost_price ?? estimateCostFromPrice(Number(product.price ?? 0), feePercent)),
         stock: String(product.stock ?? '-1'),
         itemType: (product.item_type === 'service' ? 'service' : 'product'),
         unit: product.unit || 'pcs',
@@ -58,7 +64,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
       setImagePreview(null);
       setImageFile(null);
     }
-  }, [open, product]);
+  }, [open, product, feePercent]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -221,13 +227,13 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
           <div className="space-y-2">
             <Label>{isService ? `Tarif per ${form.unit} (yang Anda terima)` : 'Harga Asli / yang Anda terima (Rp)'}</Label>
             <Input type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} required min="0" />
-            <p className="text-xs text-muted-foreground">Ini jumlah bersih yang masuk ke Anda setelah biaya aplikasi 5%.</p>
+            <p className="text-xs text-muted-foreground">Ini jumlah bersih yang masuk ke Anda setelah biaya aplikasi {feePercent}%.</p>
           </div>
 
           <div className="space-y-2">
             <Label>{isService ? `Harga Tampil ke Customer / ${form.unit}` : 'Harga Jual ke Customer (Rp)'}</Label>
             <Input type="number" value={sellingPrice || ''} readOnly className="bg-muted" />
-            <p className="text-xs text-muted-foreground">Otomatis (sudah include biaya aplikasi 5%).</p>
+            <p className="text-xs text-muted-foreground">Otomatis (sudah include biaya aplikasi {feePercent}%).</p>
           </div>
 
           {!isService && (

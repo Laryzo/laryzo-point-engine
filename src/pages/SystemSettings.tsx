@@ -31,6 +31,7 @@ const SystemSettings = () => {
     digiflazz_api_key: '',
     ppob_fallback_enabled: 'false',
     admin_ppob_wa_number: '',
+    merchant_app_fee_percent: '5',
   });
 
   useEffect(() => {
@@ -62,6 +63,7 @@ const SystemSettings = () => {
         digiflazz_api_key: settingsMap.digiflazz_api_key || '',
         ppob_fallback_enabled: settingsMap.ppob_fallback_enabled || 'false',
         admin_ppob_wa_number: settingsMap.admin_ppob_wa_number || '',
+        merchant_app_fee_percent: settingsMap.merchant_app_fee_percent || '5',
       });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -331,6 +333,45 @@ const SystemSettings = () => {
                 Setelah memproses manual, admin wajib menandai order sebagai "Sukses" atau "Gagal" di menu Pesanan agar poin terdistribusi atau direfund.
               </AlertDescription>
             </Alert>
+          </CardContent>
+        </Card>
+
+        {/* Merchant App Fee */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Biaya Aplikasi Mitra</CardTitle>
+            <CardDescription>
+              Persentase biaya yang dipotong dari setiap transaksi mitra. Sistem otomatis menaikkan harga jual ke customer agar mitra tetap menerima harga aslinya setelah dipotong biaya ini.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Persentase Biaya Aplikasi (%)</Label>
+              <Input
+                type="number"
+                min="0"
+                max="50"
+                step="0.1"
+                value={formData.merchant_app_fee_percent}
+                onChange={(e) => setFormData({ ...formData, merchant_app_fee_percent: e.target.value })}
+              />
+              <p className="text-sm text-muted-foreground">
+                Default: 5%. Berlaku untuk semua transaksi mitra (POS, ad-hoc, dan pembelian customer dari toko mitra).
+              </p>
+            </div>
+            {(() => {
+              const fp = Number(formData.merchant_app_fee_percent) || 0;
+              const example = 10000;
+              const sell = fp > 0 && fp < 100 ? Math.ceil((example / ((100 - fp) / 100)) / 500) * 500 : example;
+              return (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Contoh:</strong> Jika mitra ingin menerima Rp {example.toLocaleString('id-ID')}, harga tampil ke customer otomatis menjadi Rp {sell.toLocaleString('id-ID')} (dibulatkan ke 500 terdekat).
+                  </AlertDescription>
+                </Alert>
+              );
+            })()}
           </CardContent>
         </Card>
 
