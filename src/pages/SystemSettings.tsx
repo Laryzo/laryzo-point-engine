@@ -31,6 +31,7 @@ const SystemSettings = () => {
     digiflazz_api_key: '',
     ppob_fallback_enabled: 'false',
     admin_ppob_wa_number: '',
+    merchant_app_fee_percent: '5',
   });
 
   useEffect(() => {
