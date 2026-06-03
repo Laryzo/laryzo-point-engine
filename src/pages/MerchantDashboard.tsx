@@ -256,7 +256,7 @@ const MerchantDashboard = () => {
   const fetchTransactions = async () => {
     const { data } = await supabase
       .from('merchant_transactions')
-      .select('*')
+      .select('*, merchant_products(cost_price)')
       .order('created_at', { ascending: false })
       .limit(50);
     setTransactions(data || []);
@@ -1242,11 +1242,17 @@ const MerchantDashboard = () => {
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
 	              {(() => {
-	                // Fallback for legacy data where merchant_price might be 0 or null
-	                // If merchant_price is 0, we try to derive it from total and laryzo_fee
+	                // Fallback logic for Pendapatan Mitra:
+	                // 1. Use t.merchant_price if it's already set (> 0)
+	                // 2. Otherwise, use cost_price from the joined merchant_products table
+	                // 3. Last resort: derive from total and laryzo_fee (legacy logic)
+	                const productCostPrice = t.merchant_products?.cost_price;
+	                
 	                const effectiveMerchantPrice = t.merchant_price > 0 
 	                  ? t.merchant_price 
-	                  : (Number(t.total) - Number(t.laryzo_fee || 0)) / (Number(t.qty) || 1);
+	                  : productCostPrice > 0
+	                    ? productCostPrice
+	                    : (Number(t.total) - Number(t.laryzo_fee || 0)) / (Number(t.qty) || 1);
 	                
 	                const merchantRevenue = Math.round(Number(effectiveMerchantPrice) * (t.qty || 0));
 	                const appFee = Number(t.total) - merchantRevenue;
