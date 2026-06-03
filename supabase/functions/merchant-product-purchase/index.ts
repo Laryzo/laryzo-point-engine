@@ -304,6 +304,7 @@ Deno.serve(async (req) => {
       total: pointPrice,
       laryzo_fee: laryzoFee,
       customer_points_earned: 0,
+      merchant_price: Number(product.cost_price || 0),
       notes: item_notes || null,
     });
     if (mtxErr) {

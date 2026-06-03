@@ -258,7 +258,7 @@ const MerchantDashboard = () => {
       .from('merchant_transactions')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(50);
     setTransactions(data || []);
   };
 
@@ -661,14 +661,24 @@ const MerchantDashboard = () => {
     try {
       const newTotal = editTxPrice * editTxQty;
       const newFee = Math.round(newTotal * 0.1);
-      const { error } = await supabase.from('merchant_transactions').update({
+      
+      // Update merchant_price per unit if it was already set, to maintain the margin ratio
+      const updatePayload: any = {
         product_name: editTxProductName,
         qty: editTxQty,
         price: editTxPrice,
         total: newTotal,
         laryzo_fee: newFee,
         notes: editTxNotes,
-      }).eq('id', editingTx.id);
+      };
+
+      if (editingTx.merchant_price > 0) {
+        const oldPrice = editingTx.price || 1;
+        const ratio = editingTx.merchant_price / oldPrice;
+        updatePayload.merchant_price = editTxPrice * ratio;
+      }
+
+      const { error } = await supabase.from('merchant_transactions').update(updatePayload).eq('id', editingTx.id);
       if (error) throw error;
       toast({ title: 'Transaksi berhasil diperbarui' });
       setEditingTx(null);
@@ -1219,8 +1229,12 @@ const MerchantDashboard = () => {
               <TableCell className="text-sm">{t.customer_name || '-'}</TableCell>
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
-              <TableCell className="text-primary font-medium">Rp {Number(Math.round((t.merchant_price || 0) * (t.qty || 0))).toLocaleString()}</TableCell>
-              <TableCell className="text-orange-600 font-medium">Rp {Number(Number(t.total) - Math.round((t.merchant_price || 0) * (t.qty || 0))).toLocaleString()}</TableCell>
+              <TableCell className="text-primary font-medium">
+                Rp {Number(Math.round((t.merchant_price || (Number(t.total) - Number(t.laryzo_fee)) / (Number(t.qty) || 1)) * (t.qty || 0))).toLocaleString()}
+              </TableCell>
+              <TableCell className="text-orange-600 font-medium">
+                Rp {Number(Number(t.total) - Math.round((t.merchant_price || (Number(t.total) - Number(t.laryzo_fee)) / (Number(t.qty) || 1)) * (t.qty || 0))).toLocaleString()}
+              </TableCell>
               {isSuperAdmin && (
                 <TableCell>
                   <div className="flex items-center gap-1">
