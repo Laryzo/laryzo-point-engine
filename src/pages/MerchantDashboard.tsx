@@ -15,6 +15,7 @@ import MerchantProductForm from '@/components/MerchantProductForm';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { getAppFeePercent, computeSellingPrice, estimateCostFromPrice } from '@/lib/app-fee';
 
 const formatShippingCost = (cost: number) => `Rp ${cost.toLocaleString('id-ID')}`;
 
