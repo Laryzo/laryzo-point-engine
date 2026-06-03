@@ -1207,6 +1207,7 @@ const MerchantDashboard = () => {
             <TableHead>Qty</TableHead>
             <TableHead>Total</TableHead>
             <TableHead>Pendapatan Mitra</TableHead>
+            <TableHead>Biaya Aplikasi</TableHead>
             {isSuperAdmin && <TableHead>Aksi</TableHead>}
           </TableRow>
         </TableHeader>
@@ -1219,6 +1220,7 @@ const MerchantDashboard = () => {
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
               <TableCell className="text-primary font-medium">Rp {Number((t.merchant_price || 0) * (t.qty || 0)).toLocaleString()}</TableCell>
+              <TableCell className="text-orange-600 font-medium">Rp {Number(Number(t.total) - ((t.merchant_price || 0) * (t.qty || 0))).toLocaleString()}</TableCell>
               {isSuperAdmin && (
                 <TableCell>
                   <div className="flex items-center gap-1">
@@ -1261,7 +1263,7 @@ const MerchantDashboard = () => {
           ))}
           {transactions.length === 0 && (
             <TableRow>
-              <TableCell colSpan={isSuperAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">Belum ada transaksi</TableCell>
+              <TableCell colSpan={isSuperAdmin ? 9 : 8} className="text-center text-muted-foreground py-8">Belum ada transaksi</TableCell>
             </TableRow>
           )}
         </TableBody>
