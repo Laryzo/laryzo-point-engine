@@ -1229,12 +1229,21 @@ const MerchantDashboard = () => {
               <TableCell className="text-sm">{t.customer_name || '-'}</TableCell>
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
-              <TableCell className="text-primary font-medium">
-                Rp {Number(Math.round((t.merchant_price || (Number(t.total) - Number(t.laryzo_fee)) / (Number(t.qty) || 1)) * (t.qty || 0))).toLocaleString()}
-              </TableCell>
-              <TableCell className="text-orange-600 font-medium">
-                Rp {Number(Number(t.total) - Math.round((t.merchant_price || (Number(t.total) - Number(t.laryzo_fee)) / (Number(t.qty) || 1)) * (t.qty || 0))).toLocaleString()}
-              </TableCell>
+              {(() => {
+                const merchantPricePerUnit = t.merchant_price || (Number(t.total) - Number(t.laryzo_fee)) / (Number(t.qty) || 1);
+                const merchantRevenue = Math.round(merchantPricePerUnit * (t.qty || 0));
+                const appFee = Number(t.total) - merchantRevenue;
+                return (
+                  <>
+                    <TableCell className="text-primary font-medium">
+                      Rp {Number(merchantRevenue).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-orange-600 font-medium">
+                      Rp {Number(appFee).toLocaleString()}
+                    </TableCell>
+                  </>
+                );
+              })()}
               {isSuperAdmin && (
                 <TableCell>
                   <div className="flex items-center gap-1">
