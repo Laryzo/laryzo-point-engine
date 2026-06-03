@@ -39,6 +39,8 @@ const MerchantDashboard = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [notes, setNotes] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [feePercent, setFeePercent] = useState<number>(5);
+  useEffect(() => { getAppFeePercent().then(setFeePercent); }, []);
 
   // New customer registration state
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
