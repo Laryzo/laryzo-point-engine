@@ -227,13 +227,13 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
           <div className="space-y-2">
             <Label>{isService ? `Tarif per ${form.unit} (yang Anda terima)` : 'Harga Asli / yang Anda terima (Rp)'}</Label>
             <Input type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} required min="0" />
-            <p className="text-xs text-muted-foreground">Ini jumlah bersih yang masuk ke Anda setelah biaya aplikasi 5%.</p>
+            <p className="text-xs text-muted-foreground">Ini jumlah bersih yang masuk ke Anda setelah biaya aplikasi {feePercent}%.</p>
           </div>
 
           <div className="space-y-2">
             <Label>{isService ? `Harga Tampil ke Customer / ${form.unit}` : 'Harga Jual ke Customer (Rp)'}</Label>
             <Input type="number" value={sellingPrice || ''} readOnly className="bg-muted" />
-            <p className="text-xs text-muted-foreground">Otomatis (sudah include biaya aplikasi 5%).</p>
+            <p className="text-xs text-muted-foreground">Otomatis (sudah include biaya aplikasi {feePercent}%).</p>
           </div>
 
           {!isService && (
