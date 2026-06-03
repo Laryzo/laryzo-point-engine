@@ -1027,28 +1027,39 @@ const MerchantDashboard = () => {
             )}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
-                <Label>Harga satuan (Rp)</Label>
-                <Input type="number" min="0" value={quickItem.price} onChange={e => setQuickItem({ ...quickItem, price: e.target.value })} />
+                <Label>Harga mitra (Rp)</Label>
+                <Input type="number" min="0" value={quickItem.price} onChange={e => setQuickItem({ ...quickItem, price: e.target.value })} placeholder="Harga asli yang Anda inginkan" />
               </div>
               <div className="space-y-2">
                 <Label>Qty</Label>
                 <Input type="number" step={quickItem.isService ? '0.01' : '1'} min="0" value={quickItem.qty} onChange={e => setQuickItem({ ...quickItem, qty: e.target.value })} />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Catatan: harga yang Anda input adalah harga tampil ke customer. Biaya aplikasi 5% otomatis dipotong dari margin.</p>
+            {(() => {
+              const cost = Number(quickItem.price) || 0;
+              const sell = cost > 0 ? Math.ceil((cost / 0.95) / 500) * 500 : 0;
+              return (
+                <div className="rounded-md bg-muted p-3 text-sm space-y-1">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Harga mitra (Anda terima):</span><span className="font-medium">Rp {cost.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Harga tampil ke customer:</span><span className="font-semibold text-primary">Rp {sell.toLocaleString('id-ID')}</span></div>
+                  <p className="text-xs text-muted-foreground pt-1">Markup otomatis ~5% sebagai biaya aplikasi. Customer & upline tetap dapat poin 1%.</p>
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setQuickItemOpen(false)}>Batal</Button>
             <Button onClick={() => {
-              const p = Number(quickItem.price) || 0;
+              const cost = Number(quickItem.price) || 0;
               const q = Number(quickItem.qty) || 0;
-              if (!quickItem.name.trim() || p <= 0 || q <= 0) { toast({ title: 'Lengkapi nama, harga, qty', variant: 'destructive' }); return; }
+              if (!quickItem.name.trim() || cost <= 0 || q <= 0) { toast({ title: 'Lengkapi nama, harga, qty', variant: 'destructive' }); return; }
+              const sellingPrice = Math.ceil((cost / 0.95) / 500) * 500;
               const adhocProduct = {
                 id: `adhoc-${Date.now()}`,
                 __adhoc: true,
                 name: quickItem.name.trim(),
-                price: p,
-                cost_price: Math.round(p * 0.95),
+                price: sellingPrice,
+                cost_price: cost,
                 stock: -1,
                 item_type: quickItem.isService ? 'service' : 'product',
                 unit: quickItem.unit,
@@ -1057,6 +1068,7 @@ const MerchantDashboard = () => {
               setCart([...cart, { product: adhocProduct, qty: q }]);
               setQuickItemOpen(false);
             }}>Tambah</Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>
