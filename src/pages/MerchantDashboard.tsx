@@ -1040,12 +1040,12 @@ const MerchantDashboard = () => {
             </div>
             {(() => {
               const cost = Number(quickItem.price) || 0;
-              const sell = cost > 0 ? Math.ceil((cost / 0.95) / 500) * 500 : 0;
+              const sell = computeSellingPrice(cost, feePercent);
               return (
                 <div className="rounded-md bg-muted p-3 text-sm space-y-1">
                   <div className="flex justify-between"><span className="text-muted-foreground">Harga mitra (Anda terima):</span><span className="font-medium">Rp {cost.toLocaleString('id-ID')}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Harga tampil ke customer:</span><span className="font-semibold text-primary">Rp {sell.toLocaleString('id-ID')}</span></div>
-                  <p className="text-xs text-muted-foreground pt-1">Markup otomatis ~5% sebagai biaya aplikasi. Customer & upline tetap dapat poin 1%.</p>
+                  <p className="text-xs text-muted-foreground pt-1">Markup otomatis ~{feePercent}% sebagai biaya aplikasi.</p>
                 </div>
               );
             })()}
@@ -1056,7 +1056,7 @@ const MerchantDashboard = () => {
               const cost = Number(quickItem.price) || 0;
               const q = Number(quickItem.qty) || 0;
               if (!quickItem.name.trim() || cost <= 0 || q <= 0) { toast({ title: 'Lengkapi nama, harga, qty', variant: 'destructive' }); return; }
-              const sellingPrice = Math.ceil((cost / 0.95) / 500) * 500;
+              const sellingPrice = computeSellingPrice(cost, feePercent);
               const adhocProduct = {
                 id: `adhoc-${Date.now()}`,
                 __adhoc: true,
