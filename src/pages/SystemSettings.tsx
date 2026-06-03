@@ -63,6 +63,7 @@ const SystemSettings = () => {
         digiflazz_api_key: settingsMap.digiflazz_api_key || '',
         ppob_fallback_enabled: settingsMap.ppob_fallback_enabled || 'false',
         admin_ppob_wa_number: settingsMap.admin_ppob_wa_number || '',
+        merchant_app_fee_percent: settingsMap.merchant_app_fee_percent || '5',
       });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
