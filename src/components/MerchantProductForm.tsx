@@ -38,15 +38,20 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
   const isEdit = !!product;
   const isService = form.itemType === 'service';
 
+  const [feePercent, setFeePercent] = useState<number>(5);
+  useEffect(() => {
+    getAppFeePercent().then(setFeePercent);
+  }, []);
+
   const costNum = Number(form.costPrice) || 0;
-  const sellingPrice = Math.ceil((costNum / 0.95) / 500) * 500;
+  const sellingPrice = computeSellingPrice(costNum, feePercent);
 
   useEffect(() => {
     if (open && product) {
       setForm({
         name: product.name || '',
         description: product.description || '',
-        costPrice: String(product.cost_price ?? Math.round(Number(product.price ?? 0) * 0.95)),
+        costPrice: String(product.cost_price ?? estimateCostFromPrice(Number(product.price ?? 0), feePercent)),
         stock: String(product.stock ?? '-1'),
         itemType: (product.item_type === 'service' ? 'service' : 'product'),
         unit: product.unit || 'pcs',
@@ -59,7 +64,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
       setImagePreview(null);
       setImageFile(null);
     }
-  }, [open, product]);
+  }, [open, product, feePercent]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
