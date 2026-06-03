@@ -610,9 +610,9 @@ const MerchantDashboard = () => {
       const items = cart.map(item => {
         const price = getLinePrice(item);
         const isAdhoc = !!item.product.__adhoc;
-        // For adhoc/override items, recompute cost_price so margin = 5% of selling
+        // For adhoc/override items, recompute cost_price using configured app fee
         const baseCost = isAdhoc || item.priceOverride != null
-          ? Math.round(price * 0.95)
+          ? estimateCostFromPrice(price, feePercent)
           : (item.product.cost_price || 0);
         return {
           product_id: isAdhoc ? null : item.product.id,
