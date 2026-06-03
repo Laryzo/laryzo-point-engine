@@ -1218,7 +1218,7 @@ const MerchantDashboard = () => {
               <TableCell className="text-sm">{t.customer_name || '-'}</TableCell>
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
-              <TableCell className="text-primary font-medium">Rp {Number(t.total - (t.laryzo_fee || 0)).toLocaleString()}</TableCell>
+              <TableCell className="text-primary font-medium">Rp {Number((t.merchant_price || 0) * (t.qty || 0)).toLocaleString()}</TableCell>
               {isSuperAdmin && (
                 <TableCell>
                   <div className="flex items-center gap-1">

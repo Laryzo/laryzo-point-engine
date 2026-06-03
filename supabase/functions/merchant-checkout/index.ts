@@ -66,6 +66,9 @@ Deno.serve(async (req) => {
       const customerPoints = customer_id ? pointsPerCustomer : 0
 
       // 1. Insert merchant_transactions (qty column now numeric, qty_decimal stored as snapshot)
+      const merchantPricePerUnit = Number(cost_price) || 0
+      const merchantTotal = Math.round(merchantPricePerUnit * qtyNum)
+      
       const { error: mtError } = await supabase.from('merchant_transactions').insert({
         merchant_id: merchantId,
         product_id: product_id || null,
@@ -79,6 +82,7 @@ Deno.serve(async (req) => {
         total,
         laryzo_fee: fee,
         customer_points_earned: customerPoints,
+        merchant_price: merchantPricePerUnit,
         notes: notes || null,
       })
       if (mtError) throw mtError
