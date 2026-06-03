@@ -1241,20 +1241,27 @@ const MerchantDashboard = () => {
               <TableCell className="text-sm">{t.customer_name || '-'}</TableCell>
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
-              {(() => {
-                const merchantRevenue = Math.round(Number(t.merchant_price || 0) * (t.qty || 0));
-                const appFee = Number(t.total) - merchantRevenue;
-                return (
-                  <>
-                    <TableCell className="text-primary font-medium">
-                      Rp {Number(merchantRevenue).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-orange-600 font-medium">
-                      Rp {Number(appFee).toLocaleString()}
-                    </TableCell>
-                  </>
-                );
-              })()}
+	              {(() => {
+	                // Fallback for legacy data where merchant_price might be 0 or null
+	                // If merchant_price is 0, we try to derive it from total and laryzo_fee
+	                const effectiveMerchantPrice = t.merchant_price > 0 
+	                  ? t.merchant_price 
+	                  : (Number(t.total) - Number(t.laryzo_fee || 0)) / (Number(t.qty) || 1);
+	                
+	                const merchantRevenue = Math.round(Number(effectiveMerchantPrice) * (t.qty || 0));
+	                const appFee = Number(t.total) - merchantRevenue;
+	                
+	                return (
+	                  <>
+	                    <TableCell className="text-primary font-medium">
+	                      Rp {Number(merchantRevenue).toLocaleString()}
+	                    </TableCell>
+	                    <TableCell className="text-orange-600 font-medium">
+	                      Rp {Number(appFee).toLocaleString()}
+	                    </TableCell>
+	                  </>
+	                );
+	              })()}
               {isSuperAdmin && (
                 <TableCell>
                   <div className="flex items-center gap-1">
