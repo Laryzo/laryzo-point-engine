@@ -1206,8 +1206,7 @@ const MerchantDashboard = () => {
             <TableHead>Customer</TableHead>
             <TableHead>Qty</TableHead>
             <TableHead>Total</TableHead>
-            <TableHead>Fee Laryzo</TableHead>
-            <TableHead>Poin Customer</TableHead>
+            <TableHead>Pendapatan Mitra</TableHead>
             {isSuperAdmin && <TableHead>Aksi</TableHead>}
           </TableRow>
         </TableHeader>
@@ -1219,8 +1218,7 @@ const MerchantDashboard = () => {
               <TableCell className="text-sm">{t.customer_name || '-'}</TableCell>
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
-              <TableCell className="text-muted-foreground">Rp {Number(t.laryzo_fee).toLocaleString()}</TableCell>
-              <TableCell className="text-green-600">{Number(t.customer_points_earned) > 0 ? `+${t.customer_points_earned}` : '-'}</TableCell>
+              <TableCell className="text-primary font-medium">Rp {Number(t.total - (t.laryzo_fee || 0)).toLocaleString()}</TableCell>
               {isSuperAdmin && (
                 <TableCell>
                   <div className="flex items-center gap-1">

@@ -95,43 +95,50 @@ Deno.serve(async (req) => {
         customer_id: customer_id || null,
         harga_konsumen: priceNum,
         harga_pokok: priceNum - marginPerUnit,
-      }).select('id').single()
-      if (txError) throw txError
+      }).select('id')
+      
+      const insertedTx = txData && txData.length > 0 ? txData[0] : null;
+      if (txError || !insertedTx) {
+        console.error('Transaction insert error:', txError);
+        // Continue even if main transactions table fails, but log it
+      }
 
       // 3. Distribute points if customer is selected
       if (customer_id && fee > 0) {
         const pointsPerLevel = fee * POINT_PERCENTAGE
         const pointRecords: any[] = []
 
-        const selfCustomer = customerMap.get(customer_id)
-        if (selfCustomer && !selfCustomer.points_blocked) {
-          pointRecords.push({
-            transaction_id: txData.id,
-            from_customer: customer_id,
-            to_customer: customer_id,
-            level: 0,
-            points: pointsPerLevel,
-            product_code: `MITRA-${product_name.substring(0, 20)}`,
-          })
-        }
-
-        let currentCustomerId = customer_id
-        for (let level = 1; level <= MAX_UPLINE_LEVELS; level++) {
-          const current = customerMap.get(currentCustomerId)
-          if (!current || !current.parent_id) break
-
-          const parent = customerMap.get(current.parent_id)
-          if (parent && !parent.points_blocked) {
+        if (insertedTx) {
+          const selfCustomer = customerMap.get(customer_id)
+          if (selfCustomer && !selfCustomer.points_blocked) {
             pointRecords.push({
-              transaction_id: txData.id,
+              transaction_id: insertedTx.id,
               from_customer: customer_id,
-              to_customer: current.parent_id,
-              level,
+              to_customer: customer_id,
+              level: 0,
               points: pointsPerLevel,
               product_code: `MITRA-${product_name.substring(0, 20)}`,
             })
           }
-          currentCustomerId = current.parent_id
+
+          let currentCustomerId = customer_id
+          for (let level = 1; level <= MAX_UPLINE_LEVELS; level++) {
+            const current = customerMap.get(currentCustomerId)
+            if (!current || !current.parent_id) break
+
+            const parent = customerMap.get(current.parent_id)
+            if (parent && !parent.points_blocked) {
+              pointRecords.push({
+                transaction_id: insertedTx.id,
+                from_customer: customer_id,
+                to_customer: current.parent_id,
+                level,
+                points: pointsPerLevel,
+                product_code: `MITRA-${product_name.substring(0, 20)}`,
+              })
+            }
+            currentCustomerId = current.parent_id
+          }
         }
 
         if (pointRecords.length > 0) {
