@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
         product_code: `MITRA-${product_name.substring(0, 20)}`,
         product_name: product_name,
         product_type: 'Mitra',
-        qty: Math.max(1, Math.round(qtyNum)),
+        qty: qtyNum,
         margin: marginPerUnit,
         customer_id: customer_id || null,
         harga_konsumen: hargaKonsumen,

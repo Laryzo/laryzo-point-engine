@@ -1,0 +1,1 @@
+ALTER TABLE public.transactions ALTER COLUMN qty TYPE numeric USING qty::numeric;
