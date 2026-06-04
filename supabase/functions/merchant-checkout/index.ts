@@ -62,8 +62,9 @@ Deno.serve(async (req) => {
       const priceNum = Number(price) || 0
       const total = priceNum * qtyNum
       // Logic: Total Profit = laryzo_fee
-      // Based on instruction: points are calculated from Total Profit
-      const fee = (priceNum - (Number(cost_price) || 0)) * qtyNum // Total Profit received by Laryzo
+      // For Mitra transactions (like Laundry), Total Profit is (Harga Konsumen - Harga Pokok) * Qty
+      // This is the value shown in "Total Profit" column in Admin Panel
+      const fee = Math.round((priceNum - (Number(cost_price) || 0)) * qtyNum)
       const pointsPerLevel = fee * POINT_PERCENTAGE
       const customerPoints = customer_id ? pointsPerLevel : 0
 
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
         qty_decimal: qtyNum,
         unit: unit || null,
         total,
-        laryzo_fee: fee, // This is the "Total Profit" basis
+        laryzo_fee: fee, // Explicitly use the calculated Total Profit
         customer_points_earned: customerPoints,
         merchant_price: merchantPricePerUnit,
         notes: notes || null,

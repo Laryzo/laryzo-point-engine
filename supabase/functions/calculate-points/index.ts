@@ -114,10 +114,11 @@ Deno.serve(async (req) => {
     const MAX_UPLINE_LEVELS = 10;
 
     for (const transaction of transactions || []) {
-      // Logic: Total Profit basis for point calculation
-      // For "Mitra" transactions, harga_konsumen - harga_pokok is the profit Laryzo receives
+      // Logic: Total Profit basis for point calculation (1% of Total Profit)
+      // Total Profit = (Harga Konsumen - Harga Pokok) * Qty
+      // This matches the "Total Profit" column shown in the Admin Panel
       const profitPerUnit = (Number(transaction.harga_konsumen) || 0) - (Number(transaction.harga_pokok) || 0);
-      const totalProfit = profitPerUnit * (Number(transaction.qty) || 1);
+      const totalProfit = Math.round(profitPerUnit * (Number(transaction.qty) || 1));
       
       // Basis calculation: 1% from Total Profit
       const pointsFromProfit = totalProfit * POINT_PERCENTAGE;
