@@ -299,13 +299,17 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
     },
     {
       key: 'qty',
-      label: 'Qty'
+      label: 'Qty',
+      render: (value: number) => {
+        const n = Number(value) || 0;
+        return Number.isInteger(n) ? n : n.toLocaleString('id-ID', { maximumFractionDigits: 3 });
+      }
     },
     {
       key: 'total',
       label: 'Total Profit',
       render: (value: any, row: Transaction) => {
-        const total = (row.margin || 0) * (row.qty || 0);
+        const total = Math.round((Number(row.margin) || 0) * (Number(row.qty) || 0));
         return (
           <span className="font-medium text-green-600">
             Rp {total.toLocaleString()}
