@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     const { data: merchantAuth } = await supabase
       .from('merchant_auth')
       .select('merchant_id')
-      .eq('email', user.email)
+      .eq('email', user.email.toLowerCase())
       .single()
     if (!merchantAuth) throw new Error('Not a merchant')
 
@@ -64,13 +64,14 @@ Deno.serve(async (req) => {
       // Logic: Total Profit = laryzo_fee
       // For Mitra transactions (like Laundry), Total Profit is (Harga Konsumen - Harga Pokok) * Qty
       // This is the value shown in "Total Profit" column in Admin Panel
-      const fee = Math.round((priceNum - (Number(cost_price) || 0)) * qtyNum)
+      const merchantPricePerUnit = Number(cost_price) || 0
+      const merchantRevenue = Math.round(merchantPricePerUnit * qtyNum)
+      const fee = total - merchantRevenue
+      
       const pointsPerLevel = fee * POINT_PERCENTAGE
       const customerPoints = customer_id ? pointsPerLevel : 0
 
       // 1. Insert merchant_transactions
-      const merchantPricePerUnit = Number(cost_price) || 0
-      
       const { error: mtError } = await supabase.from('merchant_transactions').insert({
         merchant_id: merchantId,
         product_id: product_id || null,
