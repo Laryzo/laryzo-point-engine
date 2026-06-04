@@ -87,7 +87,28 @@ Deno.serve(async (req) => {
         merchant_price: merchantPricePerUnit,
         notes: notes || null,
       })
-      if (mtError) throw mtError
+      
+      if (mtError) {
+        console.error('Merchant transactions insert error:', mtError);
+        // If it's a schema error (column doesn't exist yet), try without the new columns
+        if (mtError.code === '42703') {
+          const { error: mtErrorRetry } = await supabase.from('merchant_transactions').insert({
+            merchant_id: merchantId,
+            product_id: product_id || null,
+            customer_id: customer_id || null,
+            product_name,
+            price: priceNum,
+            qty: qtyNum,
+            total,
+            laryzo_fee: fee,
+            customer_points_earned: customerPoints,
+            notes: notes || null,
+          })
+          if (mtErrorRetry) throw mtErrorRetry
+        } else {
+          throw mtError
+        }
+      }
 
       // 2. Insert into main transactions table (so it shows in admin panel)
       // Harga pokok = harga asli mitra (cost_price), harga konsumen = harga jual setelah markup
