@@ -27,15 +27,28 @@ export const MerchantAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('merchant_session');
-    if (stored) {
-      try {
-        setMerchant(JSON.parse(stored));
-      } catch {
-        localStorage.removeItem('merchant_session');
+    const initAuth = async () => {
+      const stored = localStorage.getItem('merchant_session');
+      if (stored) {
+        try {
+          // Check if we have a valid supabase session
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setMerchant(JSON.parse(stored));
+          } else {
+            // No valid supabase session, clear merchant state
+            localStorage.removeItem('merchant_session');
+            setMerchant(null);
+          }
+        } catch {
+          localStorage.removeItem('merchant_session');
+          setMerchant(null);
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {

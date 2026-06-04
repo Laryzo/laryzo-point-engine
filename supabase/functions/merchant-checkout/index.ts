@@ -91,6 +91,24 @@ Deno.serve(async (req) => {
       
       if (mtError) {
         console.error('Merchant transactions insert error:', mtError);
+        // Log more details for debugging
+        console.error('Attempted payload:', {
+          merchant_id: merchantId,
+          product_id: product_id || null,
+          customer_id: customer_id || null,
+          customer_name: customerName,
+          product_name,
+          price: priceNum,
+          qty: qtyNum,
+          qty_decimal: qtyNum,
+          unit: unit || null,
+          total,
+          laryzo_fee: fee,
+          customer_points_earned: customerPoints,
+          merchant_price: merchantPricePerUnit,
+          notes: notes || null,
+        });
+
         // If it's a schema error (column doesn't exist yet), try without the new columns
         if (mtError.code === '42703') {
           const { error: mtErrorRetry } = await supabase.from('merchant_transactions').insert({
