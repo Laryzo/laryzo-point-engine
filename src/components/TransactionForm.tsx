@@ -54,7 +54,8 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
     try {
       // Give 1% points to the customer who made the transaction
       // Note: customers.points is automatically updated via database trigger on point_history
-      const customerPoints = calculatedProfit * 0.01;
+      const totalProfit = calculatedProfit * qty;
+      const customerPoints = totalProfit * 0.01;
       await supabase.from('point_history').insert({
         transaction_id: transactionId,
         from_customer: customerId,
@@ -96,7 +97,7 @@ export const TransactionForm = ({ onClose, onSuccess }: TransactionFormProps) =>
 
         // Give 1% points to parent
         // Note: customers.points is automatically updated via database trigger on point_history
-        const uplinePoints = calculatedProfit * 0.01;
+        const uplinePoints = totalProfit * 0.01;
         await supabase.from('point_history').insert({
           transaction_id: transactionId,
           from_customer: customerId,

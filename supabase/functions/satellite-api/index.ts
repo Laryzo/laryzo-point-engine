@@ -326,6 +326,8 @@ Deno.serve(async (req) => {
 
     // Distribute points (1% to customer, 1% to each upline up to 10 levels)
     const margin = requestData.transaction_data.margin
+    const qty = requestData.transaction_data.qty || 1
+    const totalMargin = margin * qty
     const pointPercentage = 0.01 // 1%
     const distributedPoints: Array<{
       customer_id: string
@@ -346,7 +348,7 @@ Deno.serve(async (req) => {
     }> = []
 
     // Give 1% to the customer who made the transaction
-    const customerPoints = margin * pointPercentage
+    const customerPoints = totalMargin * pointPercentage
     
     pointHistoryRecords.push({
       transaction_id: transaction.id,
@@ -387,7 +389,7 @@ Deno.serve(async (req) => {
           .single()
 
         if (parentCustomer) {
-          const uplinePoints = margin * pointPercentage
+          const uplinePoints = totalMargin * pointPercentage
           
           pointHistoryRecords.push({
             transaction_id: transaction.id,

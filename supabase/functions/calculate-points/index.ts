@@ -42,6 +42,7 @@ interface Transaction {
   customer_id: string;
   harga_konsumen: number;
   harga_pokok: number;
+  qty: number;
   product_code: string;
 }
 
@@ -96,7 +97,7 @@ Deno.serve(async (req) => {
     console.log('Fetching transactions...');
     const { data: transactions, error: transactionError } = await supabase
       .from('transactions')
-      .select('id, customer_id, harga_konsumen, harga_pokok, product_code, product_name');
+      .select('id, customer_id, harga_konsumen, harga_pokok, qty, product_code, product_name');
 
     if (transactionError) {
       console.error('Error fetching transactions:', transactionError);
@@ -113,10 +114,11 @@ Deno.serve(async (req) => {
     const MAX_UPLINE_LEVELS = 10;
 
     for (const transaction of transactions || []) {
-      const profit = (transaction.harga_konsumen || 0) - (transaction.harga_pokok || 0);
-      const pointsPerLevel = profit * POINT_PERCENTAGE;
+      const profitPerUnit = (transaction.harga_konsumen || 0) - (transaction.harga_pokok || 0);
+      const totalProfit = profitPerUnit * (transaction.qty || 1);
+      const pointsPerLevel = totalProfit * POINT_PERCENTAGE;
 
-      if (profit <= 0 || !transaction.customer_id) continue;
+      if (totalProfit <= 0 || !transaction.customer_id) continue;
 
       // Level 0: Customer's own purchase points
       // Check if customer is blocked
