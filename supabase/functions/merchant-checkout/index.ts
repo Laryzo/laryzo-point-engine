@@ -61,13 +61,14 @@ Deno.serve(async (req) => {
       const qtyNum = Number(qty) || 0
       const priceNum = Number(price) || 0
       const total = priceNum * qtyNum
-      const fee = (priceNum - (Number(cost_price) || 0)) * qtyNum // Margin Laryzo
+      // Logic: Total Profit = laryzo_fee
+      // Based on instruction: points are calculated from Total Profit
+      const fee = (priceNum - (Number(cost_price) || 0)) * qtyNum // Total Profit received by Laryzo
       const pointsPerLevel = fee * POINT_PERCENTAGE
       const customerPoints = customer_id ? pointsPerLevel : 0
 
-      // 1. Insert merchant_transactions (qty column now numeric, qty_decimal stored as snapshot)
+      // 1. Insert merchant_transactions
       const merchantPricePerUnit = Number(cost_price) || 0
-      const merchantTotal = merchantPricePerUnit * qtyNum
       
       const { error: mtError } = await supabase.from('merchant_transactions').insert({
         merchant_id: merchantId,
@@ -80,7 +81,7 @@ Deno.serve(async (req) => {
         qty_decimal: qtyNum,
         unit: unit || null,
         total,
-        laryzo_fee: fee,
+        laryzo_fee: fee, // This is the "Total Profit" basis
         customer_points_earned: customerPoints,
         merchant_price: merchantPricePerUnit,
         notes: notes || null,
@@ -115,6 +116,9 @@ Deno.serve(async (req) => {
         const pointRecords: any[] = []
 
         if (insertedTx) {
+          // Basis points from Total Profit (fee)
+          const pointsFromProfit = fee * POINT_PERCENTAGE;
+
           const selfCustomer = customerMap.get(customer_id)
           if (selfCustomer && !selfCustomer.points_blocked) {
             pointRecords.push({
@@ -122,7 +126,7 @@ Deno.serve(async (req) => {
               from_customer: customer_id,
               to_customer: customer_id,
               level: 0,
-              points: pointsPerLevel,
+              points: pointsFromProfit, // 1% for customer
               product_code: `MITRA-${product_name.substring(0, 20)}`,
             })
           }
@@ -139,7 +143,7 @@ Deno.serve(async (req) => {
                 from_customer: customer_id,
                 to_customer: current.parent_id,
                 level,
-                points: pointsPerLevel,
+                points: pointsFromProfit, // 1% for each upline
                 product_code: `MITRA-${product_name.substring(0, 20)}`,
               })
             }

@@ -114,29 +114,31 @@ Deno.serve(async (req) => {
     const MAX_UPLINE_LEVELS = 10;
 
     for (const transaction of transactions || []) {
+      // Logic: Total Profit basis for point calculation
+      // For "Mitra" transactions, harga_konsumen - harga_pokok is the profit Laryzo receives
       const profitPerUnit = (Number(transaction.harga_konsumen) || 0) - (Number(transaction.harga_pokok) || 0);
       const totalProfit = profitPerUnit * (Number(transaction.qty) || 1);
-      const pointsPerLevel = totalProfit * POINT_PERCENTAGE;
+      
+      // Basis calculation: 1% from Total Profit
+      const pointsFromProfit = totalProfit * POINT_PERCENTAGE;
 
       if (totalProfit <= 0 || !transaction.customer_id) continue;
 
-      // Level 0: Customer's own purchase points
-      // Check if customer is blocked
+      // Level 0: Customer's own purchase points (1% of Total Profit)
       const selfCustomer = customerMap.get(transaction.customer_id);
       if (!selfCustomer?.points_blocked) {
-        const selfPoints = pointsPerLevel;
         pointHistoryRecords.push({
           transaction_id: transaction.id,
           from_customer: transaction.customer_id,
           to_customer: transaction.customer_id,
           level: 0,
-          points: selfPoints,
+          points: pointsFromProfit,
           product_code: transaction.product_code,
           description: `Bonus poin ${transaction.product_name || transaction.product_code || 'transaksi'}`
         });
       }
 
-      // Levels 1-10: Upline points
+      // Levels 1-10: Upline points (1% of Total Profit for each)
       let currentCustomerId = transaction.customer_id;
       for (let level = 1; level <= MAX_UPLINE_LEVELS; level++) {
         const currentCustomer = customerMap.get(currentCustomerId);
@@ -151,14 +153,12 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const uplinePoints = pointsPerLevel;
-
         pointHistoryRecords.push({
           transaction_id: transaction.id,
           from_customer: transaction.customer_id,
           to_customer: parentId,
           level: level,
-          points: uplinePoints,
+          points: pointsFromProfit,
           product_code: transaction.product_code,
           description: `Bonus jaringan level ${level}`
         });
