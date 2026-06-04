@@ -88,7 +88,10 @@ Deno.serve(async (req) => {
       if (mtError) throw mtError
 
       // 2. Insert into main transactions table (so it shows in admin panel)
-      const marginPerUnit = qtyNum > 0 ? fee / qtyNum : 0
+      // Harga pokok = harga asli mitra (cost_price), harga konsumen = harga jual setelah markup
+      const hargaPokokMitra = Math.round(merchantPricePerUnit)
+      const hargaKonsumen = Math.round(priceNum)
+      const marginPerUnit = hargaKonsumen - hargaPokokMitra
 
       const { data: txData, error: txError } = await supabase.from('transactions').insert({
         product_code: `MITRA-${product_name.substring(0, 20)}`,
@@ -97,8 +100,8 @@ Deno.serve(async (req) => {
         qty: Math.max(1, Math.round(qtyNum)),
         margin: marginPerUnit,
         customer_id: customer_id || null,
-        harga_konsumen: priceNum,
-        harga_pokok: priceNum - marginPerUnit,
+        harga_konsumen: hargaKonsumen,
+        harga_pokok: hargaPokokMitra,
       }).select('id')
       
       const insertedTx = txData && txData.length > 0 ? txData[0] : null;
