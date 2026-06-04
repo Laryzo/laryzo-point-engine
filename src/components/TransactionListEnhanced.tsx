@@ -87,11 +87,36 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
         return level;
       };
 
-      // Add level to each transaction
-      const dataWithLevel = (data || []).map(tx => ({
-        ...tx,
-        customerLevel: tx.customer_id ? calculateLevel(tx.customer_id) : 0
-      }));
+      // For Mitra transactions, use the live merchant cost_price as harga_pokok
+      const mitraNames = Array.from(new Set(
+        (data || []).filter(t => t.product_type === 'Mitra').map(t => t.product_name).filter(Boolean)
+      ));
+      const mitraCostMap = new Map<string, number>();
+      if (mitraNames.length > 0) {
+        const { data: mp } = await supabase
+          .from('merchant_products')
+          .select('name, cost_price')
+          .in('name', mitraNames as string[]);
+        (mp || []).forEach(p => {
+          if (p.name && p.cost_price != null) mitraCostMap.set(p.name, Number(p.cost_price));
+        });
+      }
+
+      // Add level + override harga_pokok/margin for Mitra rows
+      const dataWithLevel = (data || []).map(tx => {
+        let harga_pokok = tx.harga_pokok;
+        let margin = tx.margin;
+        if (tx.product_type === 'Mitra' && tx.product_name && mitraCostMap.has(tx.product_name)) {
+          harga_pokok = mitraCostMap.get(tx.product_name)!;
+          margin = (Number(tx.harga_konsumen) || 0) - harga_pokok;
+        }
+        return {
+          ...tx,
+          harga_pokok,
+          margin,
+          customerLevel: tx.customer_id ? calculateLevel(tx.customer_id) : 0
+        };
+      });
       
       // Sort by created_at descending, then by customer name descending for consistent order
       const sortedData = dataWithLevel.sort((a, b) => {
