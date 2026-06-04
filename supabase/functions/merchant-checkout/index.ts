@@ -60,14 +60,14 @@ Deno.serve(async (req) => {
       const { product_id, product_name, price, qty, stock, cost_price, unit } = item
       const qtyNum = Number(qty) || 0
       const priceNum = Number(price) || 0
-      const total = Math.round(priceNum * qtyNum)
-      const fee = Math.round((priceNum - (Number(cost_price) || 0)) * qtyNum) // Margin Laryzo
-      const pointsPerCustomer = fee * POINT_PERCENTAGE
-      const customerPoints = customer_id ? pointsPerCustomer : 0
+      const total = priceNum * qtyNum
+      const fee = (priceNum - (Number(cost_price) || 0)) * qtyNum // Margin Laryzo
+      const pointsPerLevel = fee * POINT_PERCENTAGE
+      const customerPoints = customer_id ? pointsPerLevel : 0
 
       // 1. Insert merchant_transactions (qty column now numeric, qty_decimal stored as snapshot)
       const merchantPricePerUnit = Number(cost_price) || 0
-      const merchantTotal = Math.round(merchantPricePerUnit * qtyNum)
+      const merchantTotal = merchantPricePerUnit * qtyNum
       
       const { error: mtError } = await supabase.from('merchant_transactions').insert({
         merchant_id: merchantId,
@@ -89,8 +89,8 @@ Deno.serve(async (req) => {
 
       // 2. Insert into main transactions table (so it shows in admin panel)
       // Harga pokok = harga asli mitra (cost_price), harga konsumen = harga jual setelah markup
-      const hargaPokokMitra = Math.round(merchantPricePerUnit)
-      const hargaKonsumen = Math.round(priceNum)
+      const hargaPokokMitra = merchantPricePerUnit
+      const hargaKonsumen = priceNum
       const marginPerUnit = hargaKonsumen - hargaPokokMitra
 
       const { data: txData, error: txError } = await supabase.from('transactions').insert({
@@ -112,7 +112,6 @@ Deno.serve(async (req) => {
 
       // 3. Distribute points if customer is selected
       if (customer_id && fee > 0) {
-        const pointsPerLevel = fee * POINT_PERCENTAGE
         const pointRecords: any[] = []
 
         if (insertedTx) {

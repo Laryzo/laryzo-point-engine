@@ -114,8 +114,8 @@ Deno.serve(async (req) => {
     const MAX_UPLINE_LEVELS = 10;
 
     for (const transaction of transactions || []) {
-      const profitPerUnit = (transaction.harga_konsumen || 0) - (transaction.harga_pokok || 0);
-      const totalProfit = profitPerUnit * (transaction.qty || 1);
+      const profitPerUnit = (Number(transaction.harga_konsumen) || 0) - (Number(transaction.harga_pokok) || 0);
+      const totalProfit = profitPerUnit * (Number(transaction.qty) || 1);
       const pointsPerLevel = totalProfit * POINT_PERCENTAGE;
 
       if (totalProfit <= 0 || !transaction.customer_id) continue;
