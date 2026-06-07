@@ -914,8 +914,14 @@ const CustomerShop = () => {
                 onClick={() => setSelectedProduct(product)}
               >
                 <CardContent className="p-4 flex items-center gap-4">
-                  <div className="flex items-center justify-center p-2 bg-muted rounded-lg">
-                    {getCategoryIcon(product.type, product.ppob_type)}
+                  <div className="flex items-center justify-center">
+                    {product.type === 'ppob'
+                      ? getProductBrandLogo(product)
+                      : (
+                        <div className="p-2 bg-muted rounded-lg">
+                          {getCategoryIcon(product.type, product.ppob_type)}
+                        </div>
+                      )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-sm truncate">{product.name}</h3>
