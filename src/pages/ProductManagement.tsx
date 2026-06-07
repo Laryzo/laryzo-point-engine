@@ -886,6 +886,42 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                     placeholder="phone, meter_number, etc"
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Logo Produk</Label>
+                  <div className="flex items-center gap-3">
+                    {formData.image_url && (
+                      <img
+                        src={formData.image_url}
+                        alt="Logo produk"
+                        className="w-14 h-14 rounded-md object-contain border border-border bg-background"
+                      />
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingImage}
+                        onChange={handleImageUpload}
+                      />
+                      {formData.image_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setFormData({ ...formData, image_url: '' })}
+                        >
+                          Hapus logo
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {uploadingImage && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Mengunggah...
+                    </p>
+                  )}
+                </div>
               </>
             )}
 
