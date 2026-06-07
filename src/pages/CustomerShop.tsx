@@ -277,10 +277,62 @@ const CustomerShop = () => {
   };
 
   const getBrandIcon = (brand: string) => {
-    // Could be extended with actual brand logos
-    return <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-      {brand.charAt(0)}
-    </div>;
+    const logoUrl = getBrandLogoUrl(brand);
+    const { color } = getBrandMeta(brand);
+    if (logoUrl) {
+      return (
+        <div
+          className="h-10 w-10 rounded-full bg-white flex items-center justify-center p-1.5 border"
+          style={{ borderColor: `#${color}33` }}
+        >
+          <img
+            src={logoUrl}
+            alt={brand}
+            className="h-full w-full object-contain"
+            loading="lazy"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+      );
+    }
+    return (
+      <div
+        className="h-10 w-10 rounded-full flex items-center justify-center font-bold text-lg text-white"
+        style={{ backgroundColor: `#${color}` }}
+      >
+        {brand.charAt(0)}
+      </div>
+    );
+  };
+
+  const getProductBrandLogo = (product: Product) => {
+    if (product.type !== 'ppob') return null;
+    const logoUrl = getBrandLogoUrlFromProductName(product.name);
+    const color = getBrandColorFromProductName(product.name);
+    if (logoUrl) {
+      return (
+        <div
+          className="h-10 w-10 rounded-lg bg-white flex items-center justify-center p-1 border shrink-0"
+          style={{ borderColor: `#${color}33` }}
+        >
+          <img
+            src={logoUrl}
+            alt={product.name}
+            className="h-full w-full object-contain"
+            loading="lazy"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+      );
+    }
+    return (
+      <div
+        className="h-10 w-10 rounded-lg flex items-center justify-center font-bold text-white shrink-0"
+        style={{ backgroundColor: `#${color}` }}
+      >
+        {getPpobBrandFromProductName(product.name).charAt(0)}
+      </div>
+    );
   };
 
   const getInputLabel = (inputType: string | null) => {
