@@ -64,6 +64,29 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeTab, setActiveTab] = useState('ppob');
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `ppob/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('merchant-products')
+        .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from('merchant-products').getPublicUrl(path);
+      setFormData((prev) => ({ ...prev, image_url: data.publicUrl }));
+      toast({ title: 'Logo berhasil diunggah' });
+    } catch (err: any) {
+      toast({ title: 'Gagal mengunggah', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploadingImage(false);
+      e.target.value = '';
+    }
+  };
 
   // Hierarchical PPOB navigation
   const [ppobMenuLevel, setPpobMenuLevel] = useState<PPOBMenuLevel>('category');
