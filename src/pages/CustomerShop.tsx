@@ -308,7 +308,7 @@ const CustomerShop = () => {
 
   const getProductBrandLogo = (product: Product) => {
     if (product.type !== 'ppob') return null;
-    const logoUrl = getBrandLogoUrlFromProductName(product.name);
+    const logoUrl = product.image_url || getBrandLogoUrlFromProductName(product.name);
     const color = getBrandColorFromProductName(product.name);
     if (logoUrl) {
       return (

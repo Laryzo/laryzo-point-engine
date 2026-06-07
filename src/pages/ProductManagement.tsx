@@ -64,6 +64,29 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeTab, setActiveTab] = useState('ppob');
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `ppob/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('merchant-products')
+        .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from('merchant-products').getPublicUrl(path);
+      setFormData((prev) => ({ ...prev, image_url: data.publicUrl }));
+      toast({ title: 'Logo berhasil diunggah' });
+    } catch (err: any) {
+      toast({ title: 'Gagal mengunggah', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploadingImage(false);
+      e.target.value = '';
+    }
+  };
 
   // Hierarchical PPOB navigation
   const [ppobMenuLevel, setPpobMenuLevel] = useState<PPOBMenuLevel>('category');
@@ -885,6 +908,42 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                     onChange={(e) => setFormData({ ...formData, requires_input: e.target.value })}
                     placeholder="phone, meter_number, etc"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Logo Produk</Label>
+                  <div className="flex items-center gap-3">
+                    {formData.image_url && (
+                      <img
+                        src={formData.image_url}
+                        alt="Logo produk"
+                        className="w-14 h-14 rounded-md object-contain border border-border bg-background"
+                      />
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingImage}
+                        onChange={handleImageUpload}
+                      />
+                      {formData.image_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setFormData({ ...formData, image_url: '' })}
+                        >
+                          Hapus logo
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {uploadingImage && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Mengunggah...
+                    </p>
+                  )}
                 </div>
               </>
             )}
