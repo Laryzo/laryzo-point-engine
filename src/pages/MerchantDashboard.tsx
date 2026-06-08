@@ -1242,20 +1242,18 @@ const MerchantDashboard = () => {
               <TableCell>{t.qty}</TableCell>
               <TableCell>Rp {Number(t.total).toLocaleString()}</TableCell>
 	              {(() => {
-	                // Fallback logic for Pendapatan Mitra:
-	                // 1. Use t.merchant_price if it's already set (> 0)
-	                // 2. Otherwise, use cost_price from the joined merchant_products table
-	                // 3. Last resort: derive from total and laryzo_fee (legacy logic)
-	                const productCostPrice = t.merchant_products?.cost_price;
+	                // Pendapatan Mitra = harga asli mitra (cost_price di Produk Saya) × qty.
+	                // Prioritas: merchant_products.cost_price (terbaru), fallback ke
+	                // merchant_price tersimpan saat checkout (untuk produk ad-hoc / sudah dihapus).
+	                const productCostPrice = Number(t.merchant_products?.cost_price || 0);
+	                const storedMerchantPrice = Number(t.merchant_price || 0);
+	                const effectiveMerchantPrice = productCostPrice > 0
+	                  ? productCostPrice
+	                  : storedMerchantPrice;
 	                
-	                const effectiveMerchantPrice = t.merchant_price > 0 
-	                  ? t.merchant_price 
-	                  : productCostPrice > 0
-	                    ? productCostPrice
-	                    : (Number(t.total) - Number(t.laryzo_fee || 0)) / (Number(t.qty) || 1);
-	                
-	                const merchantRevenue = Math.round(Number(effectiveMerchantPrice) * (t.qty || 0));
-	                const appFee = Number(t.total) - merchantRevenue;
+	                const merchantRevenue = Math.round(effectiveMerchantPrice * (Number(t.qty) || 0));
+	                // Biaya Aplikasi = total harga customer − pendapatan mitra (tidak pernah negatif).
+	                const appFee = Math.max(0, Number(t.total) - merchantRevenue);
 	                
 	                return (
 	                  <>
@@ -1268,6 +1266,7 @@ const MerchantDashboard = () => {
 	                  </>
 	                );
 	              })()}
+
               {isSuperAdmin && (
                 <TableCell>
                   <div className="flex items-center gap-1">
