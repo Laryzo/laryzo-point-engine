@@ -88,9 +88,17 @@ const MerchantLogin = () => {
               {loading ? 'Memproses...' : 'Masuk'}
             </Button>
           </form>
-          <p className="text-sm text-muted-foreground text-center mt-4">
-            Hubungi admin untuk mendaftarkan akun Mitra
-          </p>
+          <div className="text-sm text-center mt-4 space-y-2">
+            <p className="text-muted-foreground">
+              Belum punya akun mitra?{' '}
+              <Link to="/mitra/register" className="text-orange-600 font-medium hover:underline">
+                Daftar di sini
+              </Link>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Atau hubungi admin untuk bantuan pendaftaran
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

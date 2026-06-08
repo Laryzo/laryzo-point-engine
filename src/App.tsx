@@ -29,6 +29,7 @@ const CustomerTopupForm = lazy(() => import("./pages/CustomerTopupForm"));
 const CustomerTopupTransfer = lazy(() => import("./pages/CustomerTopupTransfer"));
 const MerchantLogin = lazy(() => import("./pages/MerchantLogin"));
 const MerchantDashboard = lazy(() => import("./pages/MerchantDashboard"));
+const MerchantRegister = lazy(() => import("./pages/MerchantRegister"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -119,6 +120,7 @@ const MerchantRoutes = () => {
   return (
     <Routes>
       <Route path="login" element={merchant ? <Navigate to="/mitra" replace /> : <MerchantLogin />} />
+      <Route path="register" element={merchant ? <Navigate to="/mitra" replace /> : <MerchantRegister />} />
       <Route path="/" element={
         <MerchantProtectedRoute>
           <MerchantDashboard />
