@@ -1,44 +1,15 @@
-## Tujuan
-Menampilkan logo resmi untuk semua brand PPOB (Telkomsel, Indosat, XL, Axis, Smartfren, Tri, PLN, LinkAja, Maxim, dll.) yang saat ini masih jatuh ke fallback badge inisial karena tidak tersedia di simple-icons CDN.
+Rencana perbaikan:
 
-## Langkah
+Lingkup terbatas: hanya tampilan di tabel Riwayat Transaksi Mitra. Logika harga di "Produk Saya" (markup 5% + pembulatan Rp500) dan proses checkout tidak diubah.
 
-### 1. Anda upload file logo ke chat
-Upload file gambar logo (PNG/SVG, latar transparan lebih baik) untuk brand-brand berikut. Nama file bebas, nanti saya rapikan:
+1. Kolom "Pendapatan Mitra" di Riwayat Transaksi
+   - Dihitung dari harga asli mitra (`cost_price` di Produk Saya) × qty.
+   - Prioritas sumber harga asli: `merchant_products.cost_price` (data terbaru dari Produk Saya). Jika produk sudah tidak ada (mis. item ad-hoc / sudah dihapus), pakai `merchant_transactions.merchant_price` yang tersimpan saat checkout.
 
-- Telkomsel
-- Indosat (IM3)
-- XL
-- Axis
-- Smartfren
-- Tri (3)
-- PLN
-- LinkAja
-- Maxim
-- (Opsional) brand lain yang ingin ditambah
+2. Kolom "Biaya Aplikasi" di Riwayat Transaksi
+   - Tidak lagi mengikuti 5% atau nilai `laryzo_fee` lama.
+   - Selalu dihitung sebagai: `total harga customer − pendapatan mitra` (dari poin 1).
+   - Jika hasilnya negatif (kasus harga manual lebih rendah dari harga asli), tampilkan Rp 0.
 
-Brand yang sudah ada di simple-icons (GoPay, OVO, Dana, ShopeePay, Grab) tidak perlu di-upload kecuali Anda mau ganti ke versi resmi sendiri.
-
-### 2. Saya simpan ke `src/assets/ppob-logos/`
-Setiap file disimpan dengan nama kanonis, mis. `telkomsel.png`, `indosat.png`, `xl.png`, dst.
-
-### 3. Refactor `src/lib/ppob-brand-logo.ts`
-- Tambahkan field `localLogo?: string` ke `BrandMeta`, di-import dari `src/assets/ppob-logos/*`.
-- Isi `localLogo` untuk tiap brand yang sudah Anda upload.
-- Ubah `getBrandLogoUrl(brand)` agar:
-  1. Prioritas pertama: `localLogo` (file lokal yang baru di-upload).
-  2. Prioritas kedua: simple-icons CDN (`slug`).
-  3. Kalau dua-duanya tidak ada → return `null` (tetap fallback inisial).
-
-### 4. Tidak ada perubahan di `CustomerShop.tsx`
-Komponen `getProductBrandLogo` sudah memanggil `getBrandLogoUrlFromProductName`, jadi otomatis ikut terpakai.
-
-### 5. Verifikasi
-Buka `/portal/shop`, klik tiap kategori PPOB, pastikan logo brand muncul dengan benar dan tidak ada layout shift.
-
-## Catatan
-- Tidak ada perubahan logika bisnis, database, atau edge function — murni UI/asset.
-- Kalau ada brand yang Anda lewati upload-nya, brand itu akan tetap memakai badge inisial berwarna sebagai fallback (tidak akan broken image).
-
-## Action selanjutnya
-Silakan upload file logo-nya di pesan berikutnya, lalu saya implementasikan dalam satu langkah.
+File yang diubah:
+- `src/pages/MerchantDashboard.tsx` (hanya bagian render kolom di `renderHistory`)
