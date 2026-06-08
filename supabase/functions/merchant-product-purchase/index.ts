@@ -292,7 +292,8 @@ Deno.serve(async (req) => {
     // Shipping fee distribution removed - ongkir handled by ojol app directly
 
     // Insert into merchant_transactions so it appears in merchant's transaction history
-    const laryzoFee = productMargin > 0 ? Math.round(productMargin * 0.05) : 0;
+    // Biaya aplikasi = selisih harga konsumen - harga asli (cost_price) mitra
+    const laryzoFee = productMargin > 0 ? Math.round(productMargin) : 0;
     const { error: mtxErr } = await supabase.from("merchant_transactions").insert({
       merchant_id: product.merchant_id,
       product_id: product_id,
