@@ -409,6 +409,7 @@ export type Database = {
           id: string
           laryzo_fee: number
           merchant_id: string
+          merchant_price: number
           notes: string | null
           price: number
           product_id: string | null
@@ -428,6 +429,7 @@ export type Database = {
           id?: string
           laryzo_fee?: number
           merchant_id: string
+          merchant_price?: number
           notes?: string | null
           price?: number
           product_id?: string | null
@@ -447,6 +449,7 @@ export type Database = {
           id?: string
           laryzo_fee?: number
           merchant_id?: string
+          merchant_price?: number
           notes?: string | null
           price?: number
           product_id?: string | null
