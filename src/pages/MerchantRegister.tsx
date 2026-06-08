@@ -34,11 +34,13 @@ const MerchantRegister = () => {
     setLoading(true);
 
     try {
+      console.log('Sending registration request for:', formData.email);
       const { data, error } = await supabase.functions.invoke('merchant-register', {
         body: formData
       });
 
       if (error) {
+        console.error('Edge Function invocation error:', error);
         toast({
           title: 'Pendaftaran Gagal',
           description: error.message || 'Terjadi kesalahan saat mendaftar',
@@ -58,6 +60,7 @@ const MerchantRegister = () => {
         navigate('/mitra/login');
       }
     } catch (err) {
+      console.error('Registration exception:', err);
       toast({
         title: 'Kesalahan Sistem',
         description: 'Gagal menghubungi server',
