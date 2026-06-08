@@ -1,0 +1,1 @@
+ALTER TABLE public.merchant_transactions ADD COLUMN IF NOT EXISTS merchant_price numeric NOT NULL DEFAULT 0;
