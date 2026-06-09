@@ -1,20 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
 import bcrypt from 'npm:bcryptjs@2.4.3'
 
-// CORS configuration - allow all origins for custom domains
-function getCorsHeaders(origin: string | null): Record<string, string> {
-  return {
-    'Access-Control-Allow-Origin': origin || '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin'
-  }
+// Ultra-permissive CORS for debugging and public registration
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 Deno.serve(async (req) => {
-  const origin = req.headers.get('origin')
-  const corsHeaders = getCorsHeaders(origin)
+  console.log(`Request received: ${req.method} ${req.url}`)
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -23,6 +18,14 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing Supabase environment variables')
+    return new Response(
+      JSON.stringify({ error: 'Server configuration error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -34,41 +37,24 @@ Deno.serve(async (req) => {
       )
     }
 
-    const body = await req.json()
+    let body;
+    try {
+      body = await req.json()
+    } catch (e) {
+      console.error('Failed to parse request body:', e)
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const { name, email, password, whatsapp, business_name, business_address } = body
+    console.log(`Registering merchant: ${email}`)
 
     // Input validation
-    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    if (!name || !email || !password || !whatsapp || !business_name) {
       return new Response(
-        JSON.stringify({ error: 'Nama harus minimal 2 karakter' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return new Response(
-        JSON.stringify({ error: 'Email tidak valid' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return new Response(
-        JSON.stringify({ error: 'Password harus minimal 6 karakter' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (!whatsapp || typeof whatsapp !== 'string' || whatsapp.trim().length < 10) {
-      return new Response(
-        JSON.stringify({ error: 'Nomor WhatsApp tidak valid' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (!business_name || typeof business_name !== 'string' || business_name.trim().length < 2) {
-      return new Response(
-        JSON.stringify({ error: 'Nama bisnis harus minimal 2 karakter' }),
+        JSON.stringify({ error: 'Semua field wajib diisi (Nama, Email, Password, WhatsApp, Nama Bisnis)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -88,7 +74,7 @@ Deno.serve(async (req) => {
 
     if (existingAuth) {
       return new Response(
-        JSON.stringify({ error: 'Email sudah terdaftar' }),
+        JSON.stringify({ error: 'Email sudah terdaftar sebagai mitra' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -120,7 +106,6 @@ Deno.serve(async (req) => {
     }
 
     // 2. Create Merchant Auth
-    // Use 'super_admin' for self-registered merchants (owners)
     const { error: authError } = await supabase
       .from('merchant_auth')
       .insert({
@@ -150,11 +135,9 @@ Deno.serve(async (req) => {
 
     if (authUserError && !authUserError.message.includes('already been registered')) {
       console.error('Auth user creation error:', authUserError)
-      // We don't throw here to avoid failing if user exists in auth but not in merchant tables
-      // This allows syncing existing auth users with the merchant system
     }
 
-    console.log(`Merchant registered: ${sanitizedEmail}`)
+    console.log(`Merchant successfully registered: ${sanitizedEmail}`)
 
     return new Response(
       JSON.stringify({ success: true, message: 'Pendaftaran mitra berhasil' }),
@@ -162,9 +145,9 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in merchant-register:', error)
+    console.error('Unexpected error in merchant-register:', error)
     return new Response(
-      JSON.stringify({ error: (error as Error).message || 'Terjadi kesalahan server' }),
+      JSON.stringify({ error: (error as Error).message || 'Terjadi kesalahan server internal' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
