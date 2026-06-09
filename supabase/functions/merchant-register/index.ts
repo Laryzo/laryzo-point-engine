@@ -1,28 +1,34 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
 import bcrypt from 'npm:bcryptjs@2.4.3'
 
-// Ultra-permissive CORS for debugging and public registration
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': origin || '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin'
+  }
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin')
+  const corsHeaders = getCorsHeaders(origin)
+
   console.log(`Request received: ${req.method} ${req.url}`)
 
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 
   if (!supabaseUrl || !supabaseServiceKey) {
     console.error('Missing Supabase environment variables')
     return new Response(
-      JSON.stringify({ error: 'Server configuration error' }),
+      JSON.stringify({ error: 'Server configuration missing' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
@@ -51,26 +57,28 @@ Deno.serve(async (req) => {
     const { name, email, password, whatsapp, business_name, business_address } = body
     console.log(`Registering merchant: ${email}`)
 
-    // Input validation
     if (!name || !email || !password || !whatsapp || !business_name) {
       return new Response(
-        JSON.stringify({ error: 'Semua field wajib diisi (Nama, Email, Password, WhatsApp, Nama Bisnis)' }),
+        JSON.stringify({ error: 'Data pendaftaran tidak lengkap. Semua field wajib diisi.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: 'Password minimal 6 karakter' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     const sanitizedEmail = email.toLowerCase().trim()
 
-    // Check if email already exists in merchant_auth
-    const { data: existingAuth, error: checkError } = await supabase
+    // Check if email already exists
+    const { data: existingAuth } = await supabase
       .from('merchant_auth')
       .select('id')
       .eq('email', sanitizedEmail)
       .maybeSingle()
-
-    if (checkError) {
-      console.error('Error checking existing auth:', checkError)
-    }
 
     if (existingAuth) {
       return new Response(
@@ -117,7 +125,6 @@ Deno.serve(async (req) => {
 
     if (authError) {
       console.error('Merchant auth creation error:', authError)
-      // Rollback merchant creation if auth fails
       await supabase.from('merchants').delete().eq('id', newMerchant.id)
       return new Response(
         JSON.stringify({ error: `Gagal membuat data autentikasi: ${authError.message}` }),
@@ -137,10 +144,30 @@ Deno.serve(async (req) => {
       console.error('Auth user creation error:', authUserError)
     }
 
-    console.log(`Merchant successfully registered: ${sanitizedEmail}`)
+    // 4. Create Session
+    let session = null
+    if (supabaseAnonKey) {
+      try {
+        const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey)
+        const { data: signInData } = await supabaseAnon.auth.signInWithPassword({
+          email: sanitizedEmail,
+          password,
+        })
+        session = signInData.session
+      } catch (e) {
+        console.error('Auto sign-in failed:', e)
+      }
+    }
+
+    console.log(`Merchant registered successfully: ${sanitizedEmail}`)
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Pendaftaran mitra berhasil' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Pendaftaran mitra berhasil',
+        merchant_id: newMerchant.id,
+        session: session
+      }),
       { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

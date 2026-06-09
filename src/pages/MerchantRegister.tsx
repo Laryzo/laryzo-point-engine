@@ -53,6 +53,11 @@ const MerchantRegister = () => {
           variant: 'destructive',
         });
       } else {
+        if (data?.session) {
+          // If the function returned a session, we could potentially log them in immediately
+          // But for now, let's stick to the manual login to ensure all state is correctly initialized
+          console.log('Session received, but redirecting to login for clean state');
+        }
         toast({
           title: 'Pendaftaran Berhasil',
           description: 'Akun mitra Anda telah dibuat. Silakan login.',
