@@ -18,12 +18,12 @@ const Index = () => {
           <Button asChild variant="outline" size="lg" className="border-orange-500 text-orange-600 hover:bg-orange-50">
             <Link to="/mitra/login">
               <Store className="w-4 h-4 mr-2" />
-              Mitra Login
+              Mitra
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg">
             <Link to="/login">
-              Admin Login
+              Admin
             </Link>
           </Button>
         </div>
