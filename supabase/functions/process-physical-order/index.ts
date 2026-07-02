@@ -1,4 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { requireAdmin } from '../_shared/auth.ts'
 
 // CORS configuration - restrict to trusted origins
 const ALLOWED_ORIGINS = [
@@ -110,14 +111,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  // Validate origin for non-preflight requests
-  if (!isOriginAllowed(origin)) {
-    console.warn('Blocked process-physical-order request from unauthorized origin:', origin)
+  // AUTH: caller must be an authenticated admin. Origin-only checks are
+  // trivially spoofable and are no longer used for authorization.
+  const admin = await requireAdmin(req)
+  if (!admin) {
     return new Response(
-      JSON.stringify({ error: 'Origin not allowed' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
+
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
