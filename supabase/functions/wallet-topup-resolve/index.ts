@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
+import { serviceClient, requireAdmin } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,14 +9,21 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  )
+  // AUTH: caller must be an authenticated admin. admin_email is derived from
+  // the verified JWT — never accepted from the body.
+  const admin = await requireAdmin(req)
+  if (!admin) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+  const admin_email = admin.email
+
+  const supabase = serviceClient()
 
   try {
-    const { request_id, action, admin_email, admin_notes } = await req.json()
-    if (!request_id || !action || !admin_email) {
+    const { request_id, action, admin_notes } = await req.json()
+    if (!request_id || !action) {
       return new Response(JSON.stringify({ error: 'Data tidak lengkap' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -24,15 +31,6 @@ Deno.serve(async (req) => {
     if (!['approve', 'reject'].includes(action)) {
       return new Response(JSON.stringify({ error: 'Action tidak valid' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    // Verify admin
-    const { data: admin } = await supabase
-      .from('admins').select('email, role').eq('email', admin_email).maybeSingle()
-    if (!admin) {
-      return new Response(JSON.stringify({ error: 'Bukan admin' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -51,9 +49,39 @@ Deno.serve(async (req) => {
       .select('*').single()
 
     if (error || !updated) {
-      return new Response(JSON.stringify({ error: error?.message || 'Permintaan tidak ditemukan / sudah diproses' }), {
+      return new Response(JSON.stringify({ error: error?.message || 'Permintaan tidak ditemukan' }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
+    }
+
+    if (action === 'approve') {
+      // Credit wallet
+      const { data: wb } = await supabase
+        .from('wallet_balances')
+        .select('id, balance')
+        .eq('user_id', updated.customer_id)
+        .eq('user_type', 'customer')
+        .maybeSingle()
+
+      if (wb) {
+        await supabase.from('wallet_balances')
+          .update({ balance: Number(wb.balance) + Number(updated.amount), updated_at: new Date().toISOString() })
+          .eq('id', wb.id)
+        await supabase.from('wallet_transactions').insert({
+          wallet_id: wb.id, amount: Number(updated.amount), type: 'topup',
+          description: `Top up disetujui - ${updated.unique_code}`,
+        })
+      } else {
+        const { data: newWb } = await supabase.from('wallet_balances')
+          .insert({ user_id: updated.customer_id, user_type: 'customer', balance: Number(updated.amount) })
+          .select('id').single()
+        if (newWb) {
+          await supabase.from('wallet_transactions').insert({
+            wallet_id: newWb.id, amount: Number(updated.amount), type: 'topup',
+            description: `Top up disetujui - ${updated.unique_code}`,
+          })
+        }
+      }
     }
 
     return new Response(JSON.stringify({ success: true, request: updated }), {

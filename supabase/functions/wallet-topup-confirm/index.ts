@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
+import { serviceClient, requireCustomer } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,14 +9,20 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  )
+  // AUTH: derive customer_id from JWT — never from the body.
+  const caller = await requireCustomer(req)
+  if (!caller) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+  const customer_id = caller.customer_id
+
+  const supabase = serviceClient()
 
   try {
-    const { request_id, customer_id } = await req.json()
-    if (!request_id || !customer_id) {
+    const { request_id } = await req.json()
+    if (!request_id) {
       return new Response(JSON.stringify({ error: 'Data tidak lengkap' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -41,7 +47,6 @@ Deno.serve(async (req) => {
 
     const bank = req_.bank_snapshot as any || {}
 
-    // Get admin email
     const { data: emailSetting } = await supabase
       .from('system_settings').select('value').eq('key', 'admin_topup_email').maybeSingle()
     let adminEmail = emailSetting?.value?.trim()
@@ -51,7 +56,6 @@ Deno.serve(async (req) => {
       adminEmail = admin?.email
     }
 
-    // Send email (non-blocking failure)
     const RESEND_KEY = Deno.env.get('RESEND_API_KEY')
     if (adminEmail && RESEND_KEY) {
       const html = `
