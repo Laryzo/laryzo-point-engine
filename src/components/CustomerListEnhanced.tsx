@@ -98,14 +98,23 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
 
       // Use customer.points directly (synced by database trigger from point_history)
       // This is faster and ensures consistency with customer portal
+      // Fetch plaintext passwords from admin-only customer_credentials table.
+      // RLS restricts this select to admins; non-admins receive an empty list.
+      const { data: credsData } = await supabase
+        .from('customer_credentials')
+        .select('customer_id, plain_password');
+      const credMap = new Map((credsData || []).map(c => [c.customer_id, c.plain_password || '']));
+
       const customersWithPoints = (customersData || []).map((customer) => {
         const level = calculateLevel(customer.id);
         return {
           ...customer,
+          plain_password: credMap.get(customer.id) || '',
           totalPoints: Number(customer.points) || 0,
           level
         };
       });
+
 
       // Sort by created_at descending, then by name descending for consistent order
       customersWithPoints.sort((a, b) => {
