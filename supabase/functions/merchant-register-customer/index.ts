@@ -208,12 +208,21 @@ Deno.serve(async (req) => {
         whatsapp: whatsapp.trim(),
         parent_id,
         position,
-        plain_password: plainPassword,
       })
       .select('id, name, email, whatsapp, points')
       .single()
 
     if (insertError) throw insertError
+
+    const { error: credError } = await supabase
+      .from('customer_credentials')
+      .upsert(
+        { customer_id: newCustomer.id, plain_password: plainPassword, updated_at: new Date().toISOString() },
+        { onConflict: 'customer_id' }
+      )
+    if (credError) {
+      console.error('Error upserting customer_credentials:', credError)
+    }
 
     const { error: authInsertError } = await supabase
       .from('customer_auth')
@@ -226,6 +235,7 @@ Deno.serve(async (req) => {
     if (authInsertError) {
       console.error('Error creating customer_auth:', authInsertError)
     }
+
 
     const { error: authUserError } = await supabase.auth.admin.createUser({
       email: sanitizedEmail,
