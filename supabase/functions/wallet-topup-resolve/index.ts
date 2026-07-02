@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
+import { serviceClient, requireAdmin } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,14 +9,21 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  )
+  // AUTH: caller must be an authenticated admin. admin_email is derived from
+  // the verified JWT — never accepted from the body.
+  const admin = await requireAdmin(req)
+  if (!admin) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+  const admin_email = admin.email
+
+  const supabase = serviceClient()
 
   try {
-    const { request_id, action, admin_email, admin_notes } = await req.json()
-    if (!request_id || !action || !admin_email) {
+    const { request_id, action, admin_notes } = await req.json()
+    if (!request_id || !action) {
       return new Response(JSON.stringify({ error: 'Data tidak lengkap' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -24,15 +31,6 @@ Deno.serve(async (req) => {
     if (!['approve', 'reject'].includes(action)) {
       return new Response(JSON.stringify({ error: 'Action tidak valid' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    // Verify admin
-    const { data: admin } = await supabase
-      .from('admins').select('email, role').eq('email', admin_email).maybeSingle()
-    if (!admin) {
-      return new Response(JSON.stringify({ error: 'Bukan admin' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 

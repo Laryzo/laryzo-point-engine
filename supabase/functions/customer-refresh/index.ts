@@ -1,6 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
+import { serviceClient, requireCustomer } from '../_shared/auth.ts'
 
-// CORS configuration - allow all origins for custom domains
 function getCorsHeaders(origin: string | null): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin || '*',
@@ -26,22 +25,19 @@ Deno.serve(async (req) => {
     )
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  )
+  // AUTH: derive customer_id from the authenticated JWT — never from the body.
+  const caller = await requireCustomer(req)
+  if (!caller) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+  const customer_id = caller.customer_id
+
+  const supabase = serviceClient()
 
   try {
-    const body = await req.json()
-    const { customer_id } = body
-
-    if (!customer_id) {
-      return new Response(
-        JSON.stringify({ error: 'Customer ID diperlukan' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
     // Fetch latest customer data
     const { data: customer, error: customerError } = await supabase
       .from('customers')
@@ -57,7 +53,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Fetch wallet balance
     const { data: wallet } = await supabase
       .from('wallet_balances')
       .select('balance')

@@ -1,4 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { requireAdmin, isServiceRole } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,6 +10,19 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
+
+  // AUTH: allow either an internal service-role invocation (this function is
+  // called by digiflazz-topup on fallback) OR an authenticated admin.
+  if (!isServiceRole(req)) {
+    const admin = await requireAdmin(req)
+    if (!admin) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+  }
+
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!

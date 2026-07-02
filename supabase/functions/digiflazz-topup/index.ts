@@ -1,5 +1,6 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { createHash } from 'node:crypto'
+import { requireCustomer, isServiceRole } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -228,6 +229,19 @@ Deno.serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // AUTH: allow either an internal service-role invocation OR the customer
+    // who owns this order. Never trust order_id alone.
+    if (!isServiceRole(req)) {
+      const caller = await requireCustomer(req)
+      if (!caller || caller.customer_id !== order.customer_id) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
 
     if (order.status !== 'pending') {
       return new Response(

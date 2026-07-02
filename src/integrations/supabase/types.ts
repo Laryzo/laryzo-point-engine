@@ -115,6 +115,32 @@ export type Database = {
           },
         ]
       }
+      customer_credentials: {
+        Row: {
+          customer_id: string
+          plain_password: string | null
+          updated_at: string
+        }
+        Insert: {
+          customer_id: string
+          plain_password?: string | null
+          updated_at?: string
+        }
+        Update: {
+          customer_id?: string
+          plain_password?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_credentials_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_phone_history: {
         Row: {
           created_at: string
@@ -155,7 +181,6 @@ export type Database = {
           longitude: number | null
           name: string | null
           parent_id: string | null
-          plain_password: string | null
           points: number | null
           points_blocked: boolean | null
           position: Database["public"]["Enums"]["customer_position"] | null
@@ -171,7 +196,6 @@ export type Database = {
           longitude?: number | null
           name?: string | null
           parent_id?: string | null
-          plain_password?: string | null
           points?: number | null
           points_blocked?: boolean | null
           position?: Database["public"]["Enums"]["customer_position"] | null
@@ -187,7 +211,6 @@ export type Database = {
           longitude?: number | null
           name?: string | null
           parent_id?: string | null
-          plain_password?: string | null
           points?: number | null
           points_blocked?: boolean | null
           position?: Database["public"]["Enums"]["customer_position"] | null
@@ -1180,6 +1203,23 @@ export type Database = {
       is_authenticated_merchant: { Args: never; Returns: boolean }
       is_merchant_super_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      merchant_get_customer_names: {
+        Args: { ids: string[] }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
+      merchant_search_customer: {
+        Args: { query: string }
+        Returns: {
+          email: string
+          id: string
+          name: string
+          points: number
+          whatsapp: string
+        }[]
+      }
     }
     Enums: {
       admin_role: "admin" | "super_admin"

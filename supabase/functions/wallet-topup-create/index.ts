@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
+import { serviceClient, requireCustomer } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,15 +9,21 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  )
+  // AUTH: derive customer_id from JWT — never from the body.
+  const caller = await requireCustomer(req)
+  if (!caller) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+  const customer_id = caller.customer_id
+
+  const supabase = serviceClient()
 
   try {
-    const { customer_id, amount, bank_account_id } = await req.json()
+    const { amount, bank_account_id } = await req.json()
 
-    if (!customer_id || !amount || !bank_account_id) {
+    if (!amount || !bank_account_id) {
       return new Response(JSON.stringify({ error: 'Data tidak lengkap' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -30,7 +36,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Min amount
     const { data: minSetting } = await supabase
       .from('system_settings').select('value').eq('key', 'min_topup_amount').maybeSingle()
     const minAmount = Number(minSetting?.value || 10000)
@@ -40,7 +45,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Verify customer exists
     const { data: customer } = await supabase
       .from('customers').select('id, name').eq('id', customer_id).maybeSingle()
     if (!customer) {
@@ -49,7 +53,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Get bank
     const { data: bank } = await supabase
       .from('bank_accounts').select('*').eq('id', bank_account_id).eq('is_active', true).maybeSingle()
     if (!bank) {
@@ -58,7 +61,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Generate unique code (try up to 20x)
     let unique_code = 0
     let transfer_amount = 0
     for (let i = 0; i < 20; i++) {

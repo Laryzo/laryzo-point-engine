@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
+import { serviceClient, requireCustomer } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,15 +9,21 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  )
+  // AUTH: caller must be the customer whose wallet is being debited.
+  const caller = await requireCustomer(req)
+  if (!caller) {
+    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const supabase = serviceClient()
 
   try {
-    const { customer_id, amount, order_id, description } = await req.json()
+    const { amount, order_id, description } = await req.json()
+    const customer_id = caller.customer_id
     const amt = Number(amount)
-    if (!customer_id || !Number.isFinite(amt) || amt <= 0) {
+    if (!Number.isFinite(amt) || amt <= 0) {
       return new Response(JSON.stringify({ success: false, error: 'Data tidak valid' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
