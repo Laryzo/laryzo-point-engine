@@ -249,15 +249,18 @@ Deno.serve(async (req) => {
 
       if (updateAuthError) throw updateAuthError;
 
-      // Update plain_password in customers table
+      // Upsert plaintext password into admin-only credentials table
       const { error: updateError } = await supabase
-        .from("customers")
-        .update({ plain_password: generatedPassword })
-        .eq("id", customer_id);
+        .from("customer_credentials")
+        .upsert(
+          { customer_id, plain_password: generatedPassword, updated_at: new Date().toISOString() },
+          { onConflict: "customer_id" }
+        );
 
       if (updateError) {
-        console.error("Error updating plain_password:", updateError);
+        console.error("Error upserting customer_credentials:", updateError);
       }
+
 
       // Update Supabase Auth user password
       const { data: users } = await supabase.auth.admin.listUsers();
@@ -295,15 +298,18 @@ Deno.serve(async (req) => {
       throw insertError;
     }
 
-    // Update plain_password in customers table
+    // Upsert plaintext password into admin-only credentials table
     const { error: updateError } = await supabase
-      .from("customers")
-      .update({ plain_password: generatedPassword })
-      .eq("id", customer_id);
+      .from("customer_credentials")
+      .upsert(
+        { customer_id, plain_password: generatedPassword, updated_at: new Date().toISOString() },
+        { onConflict: "customer_id" }
+      );
 
     if (updateError) {
-      console.error("Error updating plain_password:", updateError);
+      console.error("Error upserting customer_credentials:", updateError);
     }
+
 
     // Create Supabase Auth user
     const { error: authUserError } = await supabase.auth.admin.createUser({
