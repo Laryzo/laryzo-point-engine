@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       // Get all customers with email
       const { data: customers, error: customersError } = await supabase
         .from("customers")
-        .select("id, name, email, whatsapp, plain_password");
+        .select("id, name, email, whatsapp");
 
       if (customersError) throw customersError;
 
@@ -116,14 +116,21 @@ Deno.serve(async (req) => {
 
       if (authError) throw authError;
 
+      // Get existing plaintext credentials (admin-only table)
+      const { data: existingCreds } = await supabase
+        .from("customer_credentials")
+        .select("customer_id, plain_password");
+
       const existingCustomerIds = new Set(existingAuth?.map(a => a.customer_id) || []);
+      const credByCustomer = new Map((existingCreds || []).map(c => [c.customer_id, c.plain_password]));
 
       // Filter customers with email that either:
       // 1. Don't have auth yet, OR
-      // 2. Have auth but plain_password is empty (need to regenerate)
-      const customersToProcess = (customers || []).filter(c => 
-        c.email && (!existingCustomerIds.has(c.id) || !c.plain_password)
+      // 2. Have auth but plaintext password is missing (need to regenerate)
+      const customersToProcess = (customers || []).filter(c =>
+        c.email && (!existingCustomerIds.has(c.id) || !credByCustomer.get(c.id))
       );
+
 
       let created = 0;
       let regenerated = 0;
@@ -184,13 +191,16 @@ Deno.serve(async (req) => {
             results.push({ customer_id: customer.id, success: true, action: 'created' });
           }
 
-          // Update plain_password in customers table
+          // Upsert plaintext password into admin-only credentials table
           const { error: updateError } = await supabase
-            .from("customers")
-            .update({ plain_password: generatedPassword })
-            .eq("id", customer.id);
+            .from("customer_credentials")
+            .upsert(
+              { customer_id: customer.id, plain_password: generatedPassword, updated_at: new Date().toISOString() },
+              { onConflict: "customer_id" }
+            );
 
           if (updateError) throw updateError;
+
 
         } catch (err) {
           errors++;
