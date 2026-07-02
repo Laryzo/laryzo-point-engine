@@ -197,12 +197,13 @@ const MerchantDashboard = () => {
       const orderCustomerIds = [...new Set((orderData || []).map(o => o.customer_id))];
       let customerNames = new Map<string, string>();
       if (orderCustomerIds.length > 0) {
+        // Use safe RPC that only returns id + name (no PII exposure).
         const { data: customers } = await supabase
-          .from('customers')
-          .select('id, name')
-          .in('id', orderCustomerIds);
-        (customers || []).forEach(c => customerNames.set(c.id, c.name || 'Customer'));
+          .rpc('merchant_get_customer_names', { ids: orderCustomerIds });
+        (customers || []).forEach((c: { id: string; name: string | null }) =>
+          customerNames.set(c.id, c.name || 'Customer'));
       }
+
 
       // Group by customer_id from both sources
       const customerMap = new Map<string, { id: string; name: string; totalSpent: number; totalQty: number; totalOrders: number; lastOrder: string }>();
@@ -504,14 +505,12 @@ const MerchantDashboard = () => {
     const q = (query ?? customerSearch).trim();
     if (!q) { setCustomerResults([]); return; }
     setSearchLoading(true);
-    const { data } = await supabase
-      .from('customers')
-      .select('id, name, email, whatsapp, points')
-      .or(`name.ilike.%${q}%,email.ilike.%${q}%,whatsapp.ilike.%${q}%`)
-      .limit(5);
-    setCustomerResults(data || []);
+    // Use safe RPC that only returns id, name, email, whatsapp, points.
+    const { data } = await supabase.rpc('merchant_search_customer', { query: q });
+    setCustomerResults((data as any[]) || []);
     setSearchLoading(false);
   }, [customerSearch]);
+
 
   const handleCustomerSearchChange = (value: string) => {
     setCustomerSearch(value);
