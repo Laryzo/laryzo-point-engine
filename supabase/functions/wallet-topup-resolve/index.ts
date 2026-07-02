@@ -49,39 +49,9 @@ Deno.serve(async (req) => {
       .select('*').single()
 
     if (error || !updated) {
-      return new Response(JSON.stringify({ error: error?.message || 'Permintaan tidak ditemukan' }), {
+      return new Response(JSON.stringify({ error: error?.message || 'Permintaan tidak ditemukan / sudah diproses' }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
-    }
-
-    if (action === 'approve') {
-      // Credit wallet
-      const { data: wb } = await supabase
-        .from('wallet_balances')
-        .select('id, balance')
-        .eq('user_id', updated.customer_id)
-        .eq('user_type', 'customer')
-        .maybeSingle()
-
-      if (wb) {
-        await supabase.from('wallet_balances')
-          .update({ balance: Number(wb.balance) + Number(updated.amount), updated_at: new Date().toISOString() })
-          .eq('id', wb.id)
-        await supabase.from('wallet_transactions').insert({
-          wallet_id: wb.id, amount: Number(updated.amount), type: 'topup',
-          description: `Top up disetujui - ${updated.unique_code}`,
-        })
-      } else {
-        const { data: newWb } = await supabase.from('wallet_balances')
-          .insert({ user_id: updated.customer_id, user_type: 'customer', balance: Number(updated.amount) })
-          .select('id').single()
-        if (newWb) {
-          await supabase.from('wallet_transactions').insert({
-            wallet_id: newWb.id, amount: Number(updated.amount), type: 'topup',
-            description: `Top up disetujui - ${updated.unique_code}`,
-          })
-        }
-      }
     }
 
     return new Response(JSON.stringify({ success: true, request: updated }), {
