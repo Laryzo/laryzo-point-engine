@@ -31,6 +31,7 @@ const MerchantLogin = lazy(() => import("./pages/MerchantLogin"));
 const MerchantDashboard = lazy(() => import("./pages/MerchantDashboard"));
 const MerchantRegister = lazy(() => import("./pages/MerchantRegister"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Multibeauty = lazy(() => import("./pages/Multibeauty"));
 
 const queryClient = new QueryClient();
 
@@ -138,6 +139,8 @@ const App = () => (
       <BrowserRouter>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
+            {/* Public landing pages */}
+            <Route path="/multibeauty" element={<Multibeauty />} />
             {/* Admin Routes */}
             <Route path="/*" element={
               <AuthProvider>
