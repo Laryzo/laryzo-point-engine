@@ -139,6 +139,8 @@ const App = () => (
       <BrowserRouter>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
+            {/* Public landing pages */}
+            <Route path="/multibeauty" element={<Multibeauty />} />
             {/* Admin Routes */}
             <Route path="/*" element={
               <AuthProvider>
