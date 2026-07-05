@@ -293,6 +293,45 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_pages: {
+        Row: {
+          created_at: string
+          id: string
+          sections_draft: Json
+          sections_published: Json
+          slug: string
+          theme_draft: Json
+          theme_published: Json
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sections_draft?: Json
+          sections_published?: Json
+          slug: string
+          theme_draft?: Json
+          theme_published?: Json
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sections_draft?: Json
+          sections_published?: Json
+          slug?: string
+          theme_draft?: Json
+          theme_published?: Json
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       login_attempts: {
         Row: {
           attempted_at: string | null
