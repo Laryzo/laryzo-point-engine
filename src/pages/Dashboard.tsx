@@ -4,7 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins, Wallet } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins, Wallet, Layout } from 'lucide-react';
+import LandingBuilder from '@/pages/LandingBuilder';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
 import { TransactionForm } from '@/components/TransactionForm';
@@ -111,6 +112,8 @@ const Dashboard = () => {
         return <div className="p-6"><AdminTopupRequests /></div>;
       case 'settings':
         return isSuperAdmin ? <SystemSettings /> : null;
+      case 'landing-builder':
+        return <div className="h-[calc(100vh-73px)]"><LandingBuilder /></div>;
       case 'tree':
         return (
           <div className="p-6">
@@ -396,6 +399,15 @@ const Dashboard = () => {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setActiveView('landing-builder')}
+                      className={activeView === 'landing-builder' ? 'bg-accent' : ''}
+                    >
+                      <Layout className="h-4 w-4" />
+                      <span>Landing Page</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
@@ -437,6 +449,7 @@ const Dashboard = () => {
                  activeView === 'merchants' ? 'Mitra' :
                  activeView === 'point-history' ? 'Riwayat Poin' :
                  activeView === 'settings' ? 'Settings' :
+                 activeView === 'landing-builder' ? 'Landing Page Builder' :
                  'Dashboard'}
               </h1>
             </div>
