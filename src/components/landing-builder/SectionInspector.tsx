@@ -54,6 +54,7 @@ export default function SectionInspector({ section, onChange }: Props) {
       {section.type === "text" && (
         <>
           <Text k="title" label="Judul" />
+          <Text k="subtitle" label="Sub-judul (aksen)" />
           <Text k="body" label="Teks" rows={5} />
           <div>
             <Label>Rata</Label>
@@ -62,6 +63,146 @@ export default function SectionInspector({ section, onChange }: Props) {
               <option value="left">Kiri</option>
             </select>
           </div>
+          <ColorField label="Background" value={p.bg} onChange={(v) => onChange({ bg: v } as any)} />
+        </>
+      )}
+
+      {section.type === "usage" && (
+        <>
+          <Text k="title" label="Judul" />
+          <Text k="subtitle" label="Subjudul" rows={2} />
+          <Text k="footer" label="Teks bawah" rows={2} />
+          <ColorField label="Background" value={p.bg} onChange={(v) => onChange({ bg: v } as any)} />
+          <div className="space-y-2">
+            <Label>Item</Label>
+            {(p.items || []).map((it: any, i: number) => (
+              <div key={i} className="flex gap-2">
+                <Input placeholder="Icon" className="w-20" value={it.icon || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { icon: e.target.value }) } as any)} />
+                <Input placeholder="Label" value={it.label || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { label: e.target.value }) } as any)} />
+                <Button type="button" size="icon" variant="ghost" onClick={() => onChange({ items: p.items.filter((_: any, idx: number) => idx !== i) } as any)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => onChange({ items: [...(p.items || []), { icon: "✨", label: "Fungsi baru" }] } as any)}>
+              <Plus className="w-3 h-3 mr-1" /> Tambah
+            </Button>
+          </div>
+        </>
+      )}
+
+      {section.type === "comparison" && (
+        <>
+          <Text k="title" label="Judul" />
+          <Text k="subtitle" label="Subjudul" rows={2} />
+          <ColorField label="Background" value={p.bg} onChange={(v) => onChange({ bg: v } as any)} />
+          <div className="p-3 border rounded space-y-2 bg-red-50/50">
+            <Label className="font-bold">Kolom Kiri (Cara Lama)</Label>
+            <Text k="leftTitle" label="Judul" />
+            <Text k="leftSubtitle" label="Subjudul" />
+            {(p.leftItems || []).map((it: any, i: number) => (
+              <div key={i} className="flex gap-1">
+                <Input placeholder="Icon" className="w-14" value={it.icon || ""} onChange={(e) => onChange({ leftItems: setItem(p.leftItems, i, { icon: e.target.value }) } as any)} />
+                <Input placeholder="Label" value={it.label || ""} onChange={(e) => onChange({ leftItems: setItem(p.leftItems, i, { label: e.target.value }) } as any)} />
+                <Input placeholder="Harga" className="w-24" value={it.price || ""} onChange={(e) => onChange({ leftItems: setItem(p.leftItems, i, { price: e.target.value }) } as any)} />
+                <Button type="button" size="icon" variant="ghost" onClick={() => onChange({ leftItems: p.leftItems.filter((_: any, idx: number) => idx !== i) } as any)}><Trash2 className="w-4 h-4" /></Button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => onChange({ leftItems: [...(p.leftItems || []), { icon: "💊", label: "Produk", price: "Rp 0" }] } as any)}>
+              <Plus className="w-3 h-3 mr-1" /> Tambah Item
+            </Button>
+            <Text k="leftTotalLabel" label="Label total" />
+            <Text k="leftTotal" label="Total" />
+          </div>
+          <div className="p-3 border rounded space-y-2 bg-emerald-50/50">
+            <Label className="font-bold">Kolom Kanan (Solusi)</Label>
+            <Text k="rightTitle" label="Judul" />
+            <Text k="rightSubtitle" label="Subjudul" />
+            <ImageUploader label="Gambar produk" value={p.rightImage} onChange={(url) => onChange({ rightImage: url } as any)} />
+            <Text k="rightPriceLabel" label="Label harga" />
+            <Text k="rightPrice" label="Harga" />
+            {(p.rightBenefits || []).map((b: string, i: number) => (
+              <div key={i} className="flex gap-2">
+                <Input value={b} onChange={(e) => { const arr = [...p.rightBenefits]; arr[i] = e.target.value; onChange({ rightBenefits: arr } as any); }} />
+                <Button type="button" size="icon" variant="ghost" onClick={() => onChange({ rightBenefits: p.rightBenefits.filter((_: any, idx: number) => idx !== i) } as any)}><Trash2 className="w-4 h-4" /></Button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => onChange({ rightBenefits: [...(p.rightBenefits || []), "Manfaat baru"] } as any)}>
+              <Plus className="w-3 h-3 mr-1" /> Tambah Manfaat
+            </Button>
+            <Text k="rightFooter" label="Teks bawah" />
+          </div>
+        </>
+      )}
+
+      {section.type === "beforeAfter" && (
+        <>
+          <Text k="title" label="Judul" />
+          <Text k="subtitle" label="Subjudul" />
+          <Text k="disclaimer" label="Disclaimer" />
+          <ColorField label="Background" value={p.bg} onChange={(v) => onChange({ bg: v } as any)} />
+          <div className="space-y-3">
+            <Label>Item</Label>
+            {(p.items || []).map((it: any, i: number) => (
+              <div key={i} className="border rounded p-2 space-y-2 bg-muted/30">
+                <div className="grid grid-cols-2 gap-2">
+                  <ImageUploader label="Sebelum" value={it.before} onChange={(url) => onChange({ items: setItem(p.items, i, { before: url }) } as any)} />
+                  <ImageUploader label="Sesudah" value={it.after} onChange={(url) => onChange({ items: setItem(p.items, i, { after: url }) } as any)} />
+                </div>
+                <Input placeholder="Caption" value={it.caption || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { caption: e.target.value }) } as any)} />
+                <Input placeholder="Durasi" value={it.duration || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { duration: e.target.value }) } as any)} />
+                <Button type="button" size="sm" variant="ghost" onClick={() => onChange({ items: p.items.filter((_: any, idx: number) => idx !== i) } as any)}>
+                  <Trash2 className="w-4 h-4 mr-1" /> Hapus
+                </Button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => onChange({ items: [...(p.items || []), { before: "", after: "", caption: "", duration: "" }] } as any)}>
+              <Plus className="w-3 h-3 mr-1" /> Tambah Pasangan
+            </Button>
+          </div>
+        </>
+      )}
+
+      {section.type === "testimonials" && (
+        <>
+          <Text k="title" label="Judul" />
+          <Text k="subtitle" label="Subjudul" />
+          <div>
+            <Label>Kolom</Label>
+            <Input type="number" min={1} max={4} value={p.columns || 2} onChange={(e) => onChange({ columns: parseInt(e.target.value) || 2 } as any)} />
+          </div>
+          <ColorField label="Background" value={p.bg} onChange={(v) => onChange({ bg: v } as any)} />
+          <div className="space-y-3">
+            <Label>Testimoni</Label>
+            {(p.items || []).map((it: any, i: number) => (
+              <div key={i} className="border rounded p-2 space-y-2 bg-muted/30">
+                <ImageUploader label="Foto" value={it.photo} onChange={(url) => onChange({ items: setItem(p.items, i, { photo: url }) } as any)} />
+                <Textarea rows={3} placeholder="Kutipan" value={it.quote || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { quote: e.target.value }) } as any)} />
+                <div className="flex gap-2">
+                  <Input placeholder="Nama" value={it.name || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { name: e.target.value }) } as any)} />
+                  <Input placeholder="Kota" value={it.location || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { location: e.target.value }) } as any)} />
+                  <Button type="button" size="icon" variant="ghost" onClick={() => onChange({ items: p.items.filter((_: any, idx: number) => idx !== i) } as any)}><Trash2 className="w-4 h-4" /></Button>
+                </div>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => onChange({ items: [...(p.items || []), { photo: "", quote: "", name: "", location: "" }] } as any)}>
+              <Plus className="w-3 h-3 mr-1" /> Tambah Testimoni
+            </Button>
+          </div>
+        </>
+      )}
+
+      {section.type === "countdown" && (
+        <>
+          <Text k="title" label="Judul" />
+          <Text k="subtitle" label="Subjudul" />
+          <div>
+            <Label>Berakhir pada (ISO datetime)</Label>
+            <Input type="datetime-local" value={p.endsAt ? new Date(p.endsAt).toISOString().slice(0,16) : ""} onChange={(e) => onChange({ endsAt: e.target.value ? new Date(e.target.value).toISOString() : "" } as any)} />
+          </div>
+          <Text k="bonusText" label="Teks bonus" />
+          <Text k="ctaText" label="Teks tombol" />
+          <Text k="ctaHref" label="Link tombol" />
           <ColorField label="Background" value={p.bg} onChange={(v) => onChange({ bg: v } as any)} />
         </>
       )}
