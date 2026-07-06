@@ -30,7 +30,7 @@ export type HeroSection = SectionBase & {
 
 export type TextSection = SectionBase & {
   type: "text";
-  props: { title?: string; body?: string; align?: "left" | "center"; bg?: string };
+  props: { title?: string; subtitle?: string; body?: string; align?: "left" | "center"; bg?: string };
 };
 
 export type FeaturesSection = SectionBase & {
@@ -77,6 +77,73 @@ export type LegalSection = SectionBase & {
   };
 };
 
+export type UsageSection = SectionBase & {
+  type: "usage";
+  props: {
+    title?: string;
+    subtitle?: string;
+    items: { icon?: string; label: string }[];
+    footer?: string;
+    bg?: string;
+  };
+};
+
+export type ComparisonSection = SectionBase & {
+  type: "comparison";
+  props: {
+    title?: string;
+    subtitle?: string;
+    leftTitle?: string;
+    leftSubtitle?: string;
+    leftItems: { icon?: string; label: string; price: string }[];
+    leftTotalLabel?: string;
+    leftTotal?: string;
+    rightTitle?: string;
+    rightSubtitle?: string;
+    rightImage?: string;
+    rightPrice?: string;
+    rightPriceLabel?: string;
+    rightBenefits: string[];
+    rightFooter?: string;
+    bg?: string;
+  };
+};
+
+export type BeforeAfterSection = SectionBase & {
+  type: "beforeAfter";
+  props: {
+    title?: string;
+    subtitle?: string;
+    disclaimer?: string;
+    items: { before: string; after: string; caption?: string; duration?: string }[];
+    bg?: string;
+  };
+};
+
+export type TestimonialsSection = SectionBase & {
+  type: "testimonials";
+  props: {
+    title?: string;
+    subtitle?: string;
+    items: { photo?: string; quote: string; name: string; location?: string }[];
+    columns?: number;
+    bg?: string;
+  };
+};
+
+export type CountdownSection = SectionBase & {
+  type: "countdown";
+  props: {
+    title?: string;
+    subtitle?: string;
+    endsAt?: string; // ISO string
+    ctaText?: string;
+    ctaHref?: string;
+    bonusText?: string;
+    bg?: string;
+  };
+};
+
 export type CheckoutSection = SectionBase & {
   type: "checkout";
   props: {
@@ -101,6 +168,11 @@ export type Section =
   | ImageTextSection
   | GallerySection
   | LegalSection
+  | UsageSection
+  | ComparisonSection
+  | BeforeAfterSection
+  | TestimonialsSection
+  | CountdownSection
   | CheckoutSection
   | FooterSection;
 
@@ -122,6 +194,11 @@ export const SECTION_LIBRARY: { type: SectionType; label: string; icon: string }
   { type: "features", label: "Features / Cards", icon: "🎴" },
   { type: "checklist", label: "Checklist", icon: "✅" },
   { type: "imageText", label: "Image + Text", icon: "🖼️" },
+  { type: "usage", label: "Usage / Multi-guna", icon: "🧼" },
+  { type: "comparison", label: "Comparison", icon: "⚖️" },
+  { type: "beforeAfter", label: "Before / After", icon: "🔄" },
+  { type: "testimonials", label: "Testimonials", icon: "💬" },
+  { type: "countdown", label: "Countdown", icon: "⏰" },
   { type: "gallery", label: "Gallery", icon: "🎨" },
   { type: "legal", label: "Legality", icon: "🛡️" },
   { type: "checkout", label: "Checkout Form", icon: "🛒" },
