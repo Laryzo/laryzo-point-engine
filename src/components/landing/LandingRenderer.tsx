@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CheckCircle2 } from "lucide-react";
 import type { Section, Theme } from "@/lib/landing/types";
@@ -10,6 +10,31 @@ const bgStyle = (bg?: string): React.CSSProperties => {
     return { backgroundImage: bg };
   return { backgroundColor: bg };
 };
+
+function Countdown({ endsAt }: { endsAt?: string }) {
+  const target = endsAt ? new Date(endsAt).getTime() : Date.now() + 24 * 3600 * 1000;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = Math.max(0, target - now);
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff / 3600000) % 24);
+  const m = Math.floor((diff / 60000) % 60);
+  const s = Math.floor((diff / 1000) % 60);
+  const Item = ({ v, l }: { v: number; l: string }) => (
+    <div className="flex flex-col items-center bg-white/10 backdrop-blur border border-white/20 rounded-xl px-4 py-3 min-w-[70px]">
+      <div className="text-3xl md:text-4xl font-bold tabular-nums">{String(v).padStart(2, "0")}</div>
+      <div className="text-[10px] uppercase opacity-80 tracking-wider">{l}</div>
+    </div>
+  );
+  return (
+    <div className="flex justify-center gap-3">
+      <Item v={d} l="Hari" /><Item v={h} l="Jam" /><Item v={m} l="Menit" /><Item v={s} l="Detik" />
+    </div>
+  );
+}
 
 export default function LandingRenderer({
   sections,
@@ -23,6 +48,7 @@ export default function LandingRenderer({
   const [lightbox, setLightbox] = useState<string | null>(null);
   const primary = theme.primary || "#059669";
   const primaryDark = theme.primaryDark || "#065f46";
+  const accent = theme.accent || "#f59e0b";
   const textColor = theme.text || "#0f172a";
 
   return (
@@ -80,6 +106,7 @@ export default function LandingRenderer({
                 <section key={s.id} style={bgStyle(s.props.bg)}>
                   <div className={`max-w-4xl mx-auto px-4 py-16 ${s.props.align === "left" ? "text-left" : "text-center"} space-y-4`}>
                     {s.props.title && <h2 className="text-3xl md:text-4xl font-bold">{s.props.title}</h2>}
+                    {s.props.subtitle && <p className="text-xl font-semibold" style={{ color: primary }}>{s.props.subtitle}</p>}
                     {s.props.body && <p className="text-lg opacity-80 leading-relaxed whitespace-pre-wrap">{s.props.body}</p>}
                   </div>
                 </section>
@@ -140,7 +167,7 @@ export default function LandingRenderer({
                     )}
                     <div className="space-y-4">
                       {s.props.badge && (
-                        <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: (theme.accent || "#f59e0b") + "33", color: theme.accent || "#b45309" }}>
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: accent + "33", color: accent }}>
                           {s.props.badge}
                         </span>
                       )}
@@ -151,6 +178,155 @@ export default function LandingRenderer({
                 </section>
               );
             }
+
+            case "usage":
+              return (
+                <section key={s.id} style={bgStyle(s.props.bg)} className="py-16">
+                  <div className="max-w-5xl mx-auto px-4 text-center space-y-6">
+                    {s.props.title && <h2 className="text-3xl md:text-4xl font-bold">{s.props.title}</h2>}
+                    {s.props.subtitle && <p className="opacity-80 text-lg max-w-2xl mx-auto">{s.props.subtitle}</p>}
+                    <div className="grid gap-4 grid-cols-2 md:grid-cols-4 pt-4">
+                      {(s.props.items || []).map((it, i) => (
+                        <div key={i} className="p-6 rounded-xl border-2 bg-white/80" style={{ borderColor: primary + "44" }}>
+                          <div className="text-5xl mb-3">{it.icon}</div>
+                          <div className="font-semibold">{it.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {s.props.footer && <p className="pt-4 opacity-70 italic">{s.props.footer}</p>}
+                  </div>
+                </section>
+              );
+
+            case "comparison":
+              return (
+                <section key={s.id} style={bgStyle(s.props.bg)} className="py-16">
+                  <div className="max-w-6xl mx-auto px-4">
+                    <div className="text-center mb-10 space-y-2">
+                      {s.props.title && <h2 className="text-3xl md:text-4xl font-bold">{s.props.title}</h2>}
+                      {s.props.subtitle && <p className="opacity-70 max-w-3xl mx-auto">{s.props.subtitle}</p>}
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {/* Left: old way */}
+                      <div className="p-6 rounded-2xl bg-red-50 border-2 border-red-200 space-y-3">
+                        <h3 className="text-2xl font-bold text-red-700">{s.props.leftTitle}</h3>
+                        {s.props.leftSubtitle && <p className="text-sm text-red-800/80">{s.props.leftSubtitle}</p>}
+                        <ul className="space-y-2">
+                          {(s.props.leftItems || []).map((it, i) => (
+                            <li key={i} className="flex justify-between items-center bg-white/70 rounded px-3 py-2 text-sm">
+                              <span>{it.icon} {it.label}</span>
+                              <span className="font-semibold text-red-700">{it.price}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="pt-3 border-t border-red-300 text-center">
+                          <div className="text-sm opacity-80">{s.props.leftTotalLabel}</div>
+                          <div className="text-3xl font-bold text-red-700">{s.props.leftTotal}</div>
+                        </div>
+                      </div>
+                      {/* Right: smart solution */}
+                      <div className="p-6 rounded-2xl border-2 space-y-3" style={{ backgroundColor: primary + "11", borderColor: primary }}>
+                        <h3 className="text-2xl font-bold" style={{ color: primaryDark }}>{s.props.rightTitle}</h3>
+                        {s.props.rightSubtitle && <p className="text-sm opacity-80">{s.props.rightSubtitle}</p>}
+                        {s.props.rightImage && (
+                          <img src={s.props.rightImage} alt="" className="w-full max-w-xs mx-auto rounded-lg" />
+                        )}
+                        <div className="text-center bg-white/70 rounded p-3">
+                          <div className="text-sm opacity-80">{s.props.rightPriceLabel}</div>
+                          <div className="text-3xl font-bold" style={{ color: primaryDark }}>{s.props.rightPrice}</div>
+                        </div>
+                        <ul className="space-y-2">
+                          {(s.props.rightBenefits || []).map((b, i) => (
+                            <li key={i} className="flex gap-2 items-start text-sm">
+                              <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: primary }} />
+                              <span>{b}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {s.props.rightFooter && <p className="text-sm font-medium text-center pt-2">{s.props.rightFooter}</p>}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              );
+
+            case "beforeAfter":
+              return (
+                <section key={s.id} style={bgStyle(s.props.bg)} className="py-16">
+                  <div className="max-w-6xl mx-auto px-4">
+                    <div className="text-center mb-10 space-y-2">
+                      {s.props.title && <h2 className="text-3xl md:text-4xl font-bold">{s.props.title}</h2>}
+                      {s.props.subtitle && <p className="opacity-70">{s.props.subtitle}</p>}
+                    </div>
+                    <div className="grid gap-8 md:grid-cols-2">
+                      {(s.props.items || []).map((it, i) => (
+                        <div key={i} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                          <div className="grid grid-cols-2">
+                            <div className="relative">
+                              <img src={it.before} alt="Sebelum" className="w-full aspect-square object-cover cursor-pointer" onClick={() => setLightbox(it.before)} />
+                              <span className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">Sebelum</span>
+                            </div>
+                            <div className="relative">
+                              <img src={it.after} alt="Sesudah" className="w-full aspect-square object-cover cursor-pointer" onClick={() => setLightbox(it.after)} />
+                              <span className="absolute top-2 left-2 text-white text-xs px-2 py-1 rounded" style={{ backgroundColor: primary }}>Sesudah</span>
+                            </div>
+                          </div>
+                          <div className="p-4 text-center space-y-1">
+                            {it.caption && <div className="font-medium">{it.caption}</div>}
+                            {it.duration && <div className="text-xs opacity-70">{it.duration}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {s.props.disclaimer && <p className="text-center text-xs opacity-60 mt-6 italic">{s.props.disclaimer}</p>}
+                  </div>
+                </section>
+              );
+
+            case "testimonials": {
+              const cols = s.props.columns || 2;
+              return (
+                <section key={s.id} style={bgStyle(s.props.bg)} className="py-16">
+                  <div className="max-w-6xl mx-auto px-4">
+                    <div className="text-center mb-10 space-y-2">
+                      {s.props.title && <h2 className="text-3xl md:text-4xl font-bold">{s.props.title}</h2>}
+                      {s.props.subtitle && <p className="opacity-70">{s.props.subtitle}</p>}
+                    </div>
+                    <div className={`grid gap-6 ${cols === 3 ? "md:grid-cols-3" : cols === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-2"}`}>
+                      {(s.props.items || []).map((it, i) => (
+                        <div key={i} className="bg-white rounded-2xl p-6 border shadow-sm">
+                          <div className="flex items-center gap-3 mb-3">
+                            {it.photo && <img src={it.photo} alt={it.name} className="w-14 h-14 rounded-full object-cover" />}
+                            <div>
+                              <div className="font-semibold">{it.name}</div>
+                              {it.location && <div className="text-xs opacity-70">{it.location}</div>}
+                            </div>
+                          </div>
+                          <p className="italic opacity-80 leading-relaxed">"{it.quote}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              );
+            }
+
+            case "countdown":
+              return (
+                <section key={s.id} style={bgStyle(s.props.bg)} className="py-16 text-white">
+                  <div className="max-w-3xl mx-auto px-4 text-center space-y-6">
+                    {s.props.title && <h2 className="text-3xl md:text-4xl font-bold">{s.props.title}</h2>}
+                    {s.props.subtitle && <p className="opacity-90">{s.props.subtitle}</p>}
+                    <Countdown endsAt={s.props.endsAt} />
+                    {s.props.bonusText && <p className="text-lg font-medium">{s.props.bonusText}</p>}
+                    {s.props.ctaText && (
+                      <a href={s.props.ctaHref || "#order"} className="inline-flex items-center px-8 py-4 rounded-md font-bold shadow-lg" style={{ backgroundColor: accent, color: "#000" }}>
+                        {s.props.ctaText}
+                      </a>
+                    )}
+                  </div>
+                </section>
+              );
 
             case "gallery": {
               const cols = s.props.columns || 5;

@@ -30,6 +30,11 @@ const emptyProps = (t: SectionType): any => {
     case "features": return { title: "Fitur", columns: 3, bg: "#ffffff", items: [{ icon: "✨", title: "Fitur 1", desc: "Deskripsi" }] };
     case "checklist": return { title: "Manfaat", columns: 4, bg: "#ffffff", items: ["Item 1", "Item 2"] };
     case "imageText": return { title: "Judul", body: "Teks...", imagePosition: "left", bg: "#ffffff" };
+    case "usage": return { title: "Multi-guna", subtitle: "Bisa digunakan sebagai:", bg: "#fffbeb", items: [{ icon: "🧼", label: "Fungsi 1" }, { icon: "🚿", label: "Fungsi 2" }] };
+    case "comparison": return { title: "Perbandingan", bg: "#ffffff", leftTitle: "Cara Lama", leftItems: [{ icon: "💊", label: "Produk", price: "Rp 0" }], leftTotalLabel: "Total", leftTotal: "Rp 0", rightTitle: "Solusi", rightPriceLabel: "Hanya", rightPrice: "Rp 0", rightBenefits: ["Manfaat 1"] };
+    case "beforeAfter": return { title: "Before & After", bg: "#ffffff", items: [{ before: "", after: "", caption: "", duration: "" }] };
+    case "testimonials": return { title: "Testimoni", columns: 2, bg: "#ffffff", items: [{ photo: "", quote: "Sangat bagus!", name: "Nama", location: "Kota" }] };
+    case "countdown": return { title: "Penawaran Terbatas", endsAt: new Date(Date.now() + 86400000).toISOString(), ctaText: "Pesan Sekarang", ctaHref: "#order", bg: "linear-gradient(135deg, #065f46, #047857)" };
     case "gallery": return { title: "Galeri", columns: 5, bg: "#ffffff", images: [] };
     case "legal": return { title: "Legalitas", bg: "#ffffff", items: [{ icon: "🛡️", title: "Legal" }] };
     case "checkout": return { title: "Pesan Sekarang", price: 75000, buttonText: "Kirim Pesanan", bg: "linear-gradient(135deg, #059669, #065f46)" };
