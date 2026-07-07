@@ -1,6 +1,6 @@
 import type { Section, Theme } from "./types";
 
-// Auto-import bundled multibeauty images (used as default seed)
+// Optional bundled fallbacks
 const imageModules = import.meta.glob("@/assets/multibeauty/*.{png,jpeg,jpg}", {
   eager: true,
   import: "default",
@@ -14,11 +14,47 @@ export const bundledImages = Object.entries(imageModules)
   })
   .map(([, url]) => url);
 
-const img = (i: number) => bundledImages[i] || bundledImages[0] || "";
-const heroImage = img(0);
-const productBox = img(1) || img(0);
-const antsImage = img(2);
-const testimonials = bundledImages.slice(3);
+const CDN = "https://driplab.b-cdn.net/tapsite-ai/assets";
+const STORAGE = "https://storage.tapsite.ai/media/assets";
+
+const HERO = `${CDN}/1000008947-019bb.webp`;
+const PRODUCT_BOX = `${CDN}/1000011496-019bb.webp`;
+
+const BA = [
+  { before: `${CDN}/1000011463-019bb.webp`, after: `${CDN}/1000011462-019bb.webp` },
+  { before: `${CDN}/1000011479-019bb.webp`, after: `${CDN}/1000011480-019bb.webp` },
+  { before: `${CDN}/1000011473-019bb.webp`, after: `${CDN}/1000011474-019bb.webp` },
+  { before: `${CDN}/1000011476-019bb.webp`, after: `${CDN}/1000011477-019bb.webp` },
+];
+
+const GALLERY = [
+  "019f3b58-8f45-7-a842-2f5271389fe04195",
+  "019f3b68-ceb0-7-9767-2189ea2c3278b5a6",
+  "019f3b6d-9855-7-896e-864385d966e5fae0",
+  "019f3b6d-93b2-7-94fd-a7f18c38439adb1f",
+  "019f3b6d-a085-7-bcb2-37de5e3cc9c5a167",
+  "019f3b6d-a3f5-7-9547-6e4c8ff5b2a78120",
+  "019f3b6d-ac23-7-b3b7-23b75ff3fd57b985",
+  "019f3b6d-aee9-7-8079-b74dff245a1d3f23",
+  "019f3b6d-b766-7-89d3-f9ffc964569b29a5",
+  "019f3b6d-badd-7-bc35-277ddb56263dd44a",
+  "019f3b6d-bfbc-7-ad3c-39ccae6c868442fe",
+  "019f3b6d-c3b3-7-8e6c-e1781298feac94f1",
+  "019f3b9f-e50c-7-b5e3-082998255fbf32be",
+  "019f3b9f-dec4-7-9d90-728a22487376a385",
+  "019f3b9f-d5b5-7-ae5f-f413ecf52e43ea7a",
+  "019f3b9f-cfb0-7-881a-867008d45b5da29c",
+  "019f3b9f-cc2e-7-a64c-8267135153ca8aac",
+  "019f3b9f-c866-7-9d3e-6f5a5d37401bfc7f",
+  "019f3b9f-baa2-7-82c3-40ac5df6d33e2ec5",
+  "019f3b9f-b4c8-7-b80d-9d7d89e3805fb088",
+  "019f3b9f-9c27-7-855b-5173ae106eadabe3",
+  "019f3b9f-8fec-7-8b73-10fefcb174a2b3b7",
+  "019f3b9f-86f9-7-83a9-19059fe2f2acb7f8",
+  "019f3b9f-80b8-7-92c5-d0bd6c10f979b655",
+  "019f3b9f-73f0-7-ad4a-e77119893895a627",
+  "019f3b9f-6d9c-7-ab4f-84a2206623e3e88a",
+].map((id) => `${CDN}/${id}.webp`);
 
 const uid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -35,50 +71,45 @@ export const defaultTheme: Theme = {
 };
 
 export const defaultMultibeautySections: Section[] = [
-  // 1. HERO
   {
     id: uid(),
     type: "hero",
     visible: true,
     props: {
-      badge: "🌿 100% Herbal · Bebas Bahan Kimia",
       title: "Transformasi Kulit:",
-      titleAccent: "Cerah Alami & Bebas Masalah",
+      titleAccent: "Cerah Alami| & Bebas Masalah",
       subtitle:
         "Multibeauty Soap: Sabun Kesehatan Alami Multifungsi untuk Wajah, Rambut & Tubuh. Solusi lengkap dengan kekuatan Madu, Spirulina, dan Gamat.",
       ctaPrimary: "Pesan Sekarang",
       ctaPrimaryHref: "#order",
-      ctaSecondary: "Lihat Testimoni",
-      ctaSecondaryHref: "#testimoni",
-      image: heroImage,
-      bg: "linear-gradient(135deg, #fef3c7 0%, #fefce8 50%, #ecfdf5 100%)",
+      image: HERO,
+      bg: "#ffffff",
     },
   },
-  // 2. PROBLEM
   {
     id: uid(),
     type: "text",
     visible: true,
     props: {
       title: "Lelah dengan Masalah Kulit yang Tak Kunjung Usai?",
-      body: "Apakah Anda sering merasa frustrasi menghadapi jerawat membandel, flek hitam yang mengganggu, kulit kusam yang membuat tidak percaya diri, atau gatal-gatal yang meresahkan? Mungkin Anda sudah mencoba berbagai produk namun hasilnya kurang memuaskan atau bahkan menimbulkan efek samping. Kami memahami betapa sulitnya menemukan solusi yang benar-benar bekerja dan aman untuk kulit Anda.",
+      body:
+        "Apakah Anda sering merasa frustrasi menghadapi jerawat membandel, flek hitam yang mengganggu, kulit kusam yang membuat tidak percaya diri, atau gatal-gatal yang meresahkan? Mungkin Anda sudah mencoba berbagai produk namun hasilnya kurang memuaskan atau bahkan menimbulkan efek samping. Kami memahami betapa sulitnya menemukan solusi yang benar-benar bekerja dan aman untuk kulit Anda.",
       align: "center",
-      bg: "#ffffff",
+      bg: "#f8fafc",
     },
   },
-  // 3. SOLUTION INTRO
   {
     id: uid(),
     type: "text",
     visible: true,
     props: {
       subtitle: "Saatnya Beralih ke Solusi Alami yang Efektif: Multibeauty Soap!",
-      body: "Multibeauty Soap hadir sebagai jawaban atas pencarian Anda. Dirancang dengan kekuatan alam yang terbukti, sabun multi-guna ini tidak hanya membersihkan, tetapi juga merawat dan membantu mengatasi berbagai masalah kulit dari ujung rambut hingga kaki, memberikan Anda kulit yang sehat, cerah, dan bebas masalah secara alami.",
+      body:
+        "Multibeauty Soap hadir sebagai jawaban atas pencarian Anda. Dirancang dengan kekuatan alam yang terbukti, sabun multi-guna ini tidak hanya membersihkan, tetapi juga merawat dan membantu mengatasi berbagai masalah kulit dari ujung rambut hingga kaki, memberikan Anda kulit yang sehat, cerah, dan bebas masalah secara alami.",
       align: "center",
-      bg: "linear-gradient(to bottom, #ffffff, #f0fdf4)",
+      bg: "#ffffff",
     },
   },
-  // 4. WHY CHOOSE
   {
     id: uid(),
     type: "features",
@@ -86,32 +117,53 @@ export const defaultMultibeautySections: Section[] = [
     props: {
       title: "Mengapa Memilih Multibeauty Soap?",
       columns: 3,
-      bg: "#ffffff",
+      bg: "#f9fafb",
       items: [
-        { icon: "🌿", title: "Formula Alami Terbaik", desc: "Gabungan unik madu, Spirulina, dan Gamat menghasilkan sinergi ampuh untuk berbagai masalah kulit tanpa bahan kimia berbahaya." },
-        { icon: "✨", title: "Solusi Multi-guna", desc: "Satu sabun untuk semua: wajah, rambut, dan tubuh. Praktis, hemat, dan efektif untuk seluruh keluarga." },
-        { icon: "🏆", title: "Terbukti Berkhasiat", desc: "Telah membantu ribuan orang mengatasi jerawat, flek, gatal, dan mendapatkan kulit sehat alami kembali." },
+        {
+          icon: "🌿",
+          title: "Formula Alami Terbaik",
+          desc: "Gabungan unik madu, Spirulina, dan Gamat menghasilkan sinergi ampuh untuk berbagai masalah kulit tanpa bahan kimia berbahaya.",
+        },
+        {
+          icon: "✨",
+          title: "Solusi Multi-guna",
+          desc: "Satu sabun untuk semua: wajah, rambut, dan tubuh. Praktis, hemat, dan efektif untuk seluruh keluarga.",
+        },
+        {
+          icon: "🏆",
+          title: "Terbukti Berkhasiat",
+          desc: "Telah membantu ribuan orang mengatasi jerawat, flek, gatal, dan mendapatkan kulit sehat alami kembali.",
+        },
       ],
     },
   },
-  // 5. INGREDIENTS
   {
     id: uid(),
     type: "features",
     visible: true,
     props: {
       title: "Kekuatan Unik Alam dalam Setiap Sabun",
-      subtitle: "Sinergi 3 bahan alami premium yang tidak dimiliki sabun biasa",
       columns: 3,
-      bg: "linear-gradient(to bottom, #ecfdf5, #ffffff)",
+      bg: "#ffffff",
       items: [
-        { icon: "🍯", title: "Madu Murni", desc: "Pelembap alami kaya antioksidan dan antibakteri. Menenangkan kulit, mengurangi peradangan, melembapkan mendalam, dan memberikan kilau alami." },
-        { icon: "🌿", title: "Spirulina", desc: "Ganggang biru-hijau superfood penuh vitamin, mineral, dan protein. Detoksifikasi kulit, melawan radikal bebas, mencerahkan, dan regenerasi sel." },
-        { icon: "🌊", title: "Gamat (Teripang)", desc: "Kaya kolagen dan Cell Growth Factor. Sangat efektif mempercepat penyembuhan luka, mengurangi bekas, meredakan gatal, dan meremajakan kulit." },
+        {
+          icon: "🍯",
+          title: "Madu Murni",
+          desc: "Dikenal sebagai pelembap alami, madu kaya akan antioksidan dan memiliki sifat antibakteri. Membantu menenangkan kulit, mengurangi peradangan, melembapkan secara mendalam, dan memberikan kilau alami.",
+        },
+        {
+          icon: "🌿",
+          title: "Spirulina",
+          desc: "Ganggang biru-hijau superfood ini penuh vitamin, mineral, dan protein. Detoksifikasi kulit, melawan radikal bebas, mencerahkan, dan membantu regenerasi sel kulit untuk tampilan lebih muda.",
+        },
+        {
+          icon: "🌊",
+          title: "Gamat (Teripang)",
+          desc: "Mengandung kolagen tinggi dan Cell Growth Factor. Sangat efektif dalam mempercepat penyembuhan luka, mengurangi bekas luka, meredakan gatal, dan meremajakan tekstur kulit.",
+        },
       ],
     },
   },
-  // 6. BENEFITS CHECKLIST
   {
     id: uid(),
     type: "checklist",
@@ -119,7 +171,7 @@ export const defaultMultibeautySections: Section[] = [
     props: {
       title: "Manfaat Luas Multibeauty Soap untuk Kulit & Tubuh Anda",
       columns: 2,
-      bg: "#ffffff",
+      bg: "#f9fafb",
       items: [
         "Mengatasi Jerawat & Bekas Jerawat",
         "Memudarkan Flek Hitam & Noda di Kulit",
@@ -130,7 +182,6 @@ export const defaultMultibeautySections: Section[] = [
       ],
     },
   },
-  // 7. USAGE (4 fungsi)
   {
     id: uid(),
     type: "usage",
@@ -145,32 +196,19 @@ export const defaultMultibeautySections: Section[] = [
         { icon: "🧴", label: "Shampo" },
         { icon: "🦷", label: "Pasta Gigi" },
       ],
-      footer: "Rasakan kemudahan perawatan lengkap dari ujung rambut hingga kaki hanya dengan satu produk alami!",
+      footer:
+        "Rasakan kemudahan perawatan lengkap dari ujung rambut hingga kaki hanya dengan satu produk alami!",
     },
   },
-  // 8. NATURAL PROOF (semut)
-  {
-    id: uid(),
-    type: "imageText",
-    visible: true,
-    props: {
-      badge: "BUKTI 100% ALAMI",
-      title: "Dikerubungi Semut = Bebas Bahan Kimia",
-      body: "Semut adalah detektor alami. Mereka hanya menghampiri bahan yang benar-benar alami dan mengandung nutrisi asli. Multibeauty Soap terbukti bebas dari bahan kimia berbahaya.",
-      image: antsImage,
-      imagePosition: "left",
-      bg: "#ffffff",
-    },
-  },
-  // 9. COMPARISON
   {
     id: uid(),
     type: "comparison",
     visible: true,
     props: {
       title: "Stop Membuang Uang untuk Perawatan yang Rumit!",
-      subtitle: "Lihat perbandingan cerdas antara membeli puluhan produk dengan satu solusi praktis yang menghemat waktu, ruang, dan terutama anggaran Anda.",
-      bg: "linear-gradient(to bottom, #ffffff, #fef2f2)",
+      subtitle:
+        "Lihat perbandingan cerdas antara membeli puluhan produk dengan satu solusi praktis yang menghemat waktu, ruang, dan terutama anggaran Anda.",
+      bg: "#ffffff",
       leftTitle: "Cara Lama: Ribet & Boros",
       leftSubtitle: "Estimasi pengeluaran untuk berbagai produk terpisah:",
       leftItems: [
@@ -178,15 +216,19 @@ export const defaultMultibeautySections: Section[] = [
         { icon: "💧", label: "Sabun Wajah (Jerawat)", price: "Rp 90.000" },
         { icon: "🚿", label: "Sabun Mandi (Gatal)", price: "Rp 45.000" },
         { icon: "💊", label: "Obat Totol Jerawat", price: "Rp 80.000" },
+        { icon: "💊", label: "Obat Luka", price: "Rp 12.000" },
+        { icon: "💊", label: "Obat Luka Bakar", price: "Rp 100.000" },
         { icon: "🩹", label: "Salep Gatal & Herpes", price: "Rp 65.000" },
         { icon: "🦷", label: "Pasta Gigi Khusus", price: "Rp 35.000" },
+        { icon: "🦷", label: "Obat Sakit Gigi", price: "Rp 50.000" },
         { icon: "👄", label: "Obat Sariawan", price: "Rp 25.000" },
+        { icon: "➕", label: "… dan banyak lagi!", price: "…" },
       ],
       leftTotalLabel: "Total Pengeluaran Tiap 1-2 Bulan:",
       leftTotal: "Rp 415.000++",
       rightTitle: "Solusi Cerdas: Multibeauty",
-      rightSubtitle: "Hanya dengan 1 Paket, semua masalah teratasi:",
-      rightImage: productBox,
+      rightSubtitle: "Hanya dengan 1 Paket:",
+      rightImage: PRODUCT_BOX,
       rightPriceLabel: "Hanya",
       rightPrice: "Rp 450.000",
       rightBenefits: [
@@ -194,46 +236,79 @@ export const defaultMultibeautySections: Section[] = [
         "Jauh Lebih Hemat & Sangat Praktis",
         "Mengatasi Semua Masalah Di Atas",
       ],
-      rightFooter: "Hanya Rp 75.000 per bulan untuk perawatan lengkap dari ujung rambut hingga kaki.",
+      rightFooter:
+        "Penghematan Luar Biasa! Dengan 1 paket Multibeauty, Anda hanya mengeluarkan Rp 75.000 per bulan untuk perawatan lengkap dari ujung rambut hingga kaki.",
     },
   },
-  // 10. BEFORE AFTER
   {
     id: uid(),
     type: "beforeAfter",
     visible: true,
     props: {
       title: "Transformasi Nyata: Lihat Hasilnya!",
-      subtitle: "Kami memahami Anda ingin bukti. Inilah beberapa cerita sukses nyata dari pelanggan kami.",
+      subtitle: "Kami memahami Anda ingin bukti. Inilah beberapa cerita sukses nyata dari pelanggan kami:",
       bg: "#ffffff",
       disclaimer: "*Hasil dapat bervariasi pada setiap individu.",
       items: [
-        { before: bundledImages[3] || heroImage, after: bundledImages[4] || heroImage, caption: "Jerawat dan kemerahan berkurang drastis.", duration: "Setelah 3 minggu pemakaian rutin" },
-        { before: bundledImages[5] || heroImage, after: bundledImages[6] || heroImage, caption: "Flek hitam memudar, kulit tampak lebih cerah.", duration: "Setelah 8 minggu pemakaian" },
-        { before: bundledImages[7] || heroImage, after: bundledImages[8] || heroImage, caption: "Kulit kepala pulih & rambut tumbuh kembali.", duration: "Dalam 3 bulan pemakaian" },
-        { before: bundledImages[9] || heroImage, after: bundledImages[10] || heroImage, caption: "Luka bakar cepat pulih dan bekasnya memudar.", duration: "Hasil dari fungsi Gamat!" },
+        { before: BA[0].before, after: BA[0].after, caption: "Siti Aminah — jerawat berkurang, kulit lebih kencang & bersih.", duration: "Setelah 3 bulan pemakaian" },
+        { before: BA[1].before, after: BA[1].after, caption: "Budi Santoso — kulit kepala sembuh setelah beragam produk gagal.", duration: "Setelah 3 bulan pemakaian" },
+        { before: BA[2].before, after: BA[2].after, caption: "Sri Wahyuni — kulit lebih cerah dan flek hitam berkurang.", duration: "Setelah 4 bulan pemakaian rutin" },
+        { before: BA[3].before, after: BA[3].after, caption: "Arianto — kulit terbakar air panas mulai membaik.", duration: "Setelah 38 hari pemakaian" },
       ],
     },
   },
-  // 11. TESTIMONIALS
   {
     id: uid(),
     type: "testimonials",
     visible: true,
     props: {
       title: "Apa Kata Pelanggan Kami?",
-      subtitle: "Mereka telah merasakan langsung manfaat Multibeauty Soap. Simak pengalaman jujur mereka.",
-      bg: "linear-gradient(to bottom, #f0fdf4, #ffffff)",
+      subtitle: "Mereka telah merasakan langsung manfaat Multibeauty Soap. Simak pengalaman jujur mereka:",
+      bg: "#f9fafb",
       columns: 2,
       items: [
-        { photo: bundledImages[11], quote: "Awalnya ragu, tapi setelah pakai rutin selama sebulan, jerawat di punggung saya jauh berkurang! Kulit juga jadi lebih halus. Nyesel baru tahu sabun ini sekarang!", name: "Sari L.", location: "Jakarta" },
-        { photo: bundledImages[12], quote: "Flek di pipi mulai memudar perlahan setelah pakai Multibeauty Soap sebagai sabun muka. Rasanya alami dan tidak bikin kulit kering. Seneng banget sama hasilnya!", name: "Rina S.", location: "Bandung" },
-        { photo: bundledImages[13], quote: "Suami saya punya masalah gatal di kulit, pakai sabun biasa malah makin parah. Coba Multibeauty Soap, alhamdulillah gatalnya mereda dan kulitnya jadi lebih sehat.", name: "Ibu Ani", location: "Surabaya" },
-        { photo: bundledImages[14], quote: "Anak saya jatuh dan lututnya luka, saya coba cuci pakai sabun ini. Bersih, tidak perih, dan lukanya cepat sekali mengeringnya. Amazing! Selalu sedia di rumah sekarang.", name: "Nisa W.", location: "Yogyakarta" },
+        {
+          photo: `${STORAGE}/019793cd-482d-7-b9ba-e39f1874803c9e0f.webp`,
+          quote:
+            "Awalnya ragu, tapi setelah pakai rutin selama sebulan, jerawat di punggung saya jauh berkurang! Kulit juga jadi lebih halus. Nyesel baru tahu sabun ini sekarang!",
+          name: "Sari L.",
+          location: "Jakarta",
+        },
+        {
+          photo: `${CDN}/1000011474-019bb.webp`,
+          quote:
+            "Flek di pipi mulai memudar perlahan setelah pakai Multibeauty Soap sebagai sabun muka. Rasanya alami dan tidak bikin kulit kering. Seneng banget sama hasilnya!",
+          name: "Sri Wahyuni",
+          location: "Bandung",
+        },
+        {
+          photo: `${STORAGE}/019793ca-69dd-7-88bf-f97a0144239ce232.webp`,
+          quote:
+            "Suami saya punya masalah gatal di kulit, pakai sabun biasa malah makin parah. Coba Multibeauty Soap, alhamdulillah gatalnya mereda dan kulitnya jadi lebih sehat. Benar-benar multifungsi!",
+          name: "Ibu Ani",
+          location: "Surabaya",
+        },
+        {
+          photo: `${STORAGE}/019793ca-107c-7-a8ce-2d765be106c2c0ed.webp`,
+          quote:
+            "Anak saya jatuh dan lututnya luka, saya coba cuci pakai sabun ini. Bersih, tidak perih, dan lukanya cepat sekali mengeringnya. Amazing! Selalu sedia di rumah sekarang.",
+          name: "Nisa W.",
+          location: "Yogyakarta",
+        },
       ],
     },
   },
-  // 12. GALLERY (all testimonial screenshots)
+  {
+    id: uid(),
+    type: "text",
+    visible: true,
+    props: {
+      subtitle: "Anda Terinspirasi?",
+      body: "Bergabunglah dengan ratusan pelanggan puas lainnya dan rasakan sendiri keajaiban Multibeauty Soap.",
+      align: "center",
+      bg: "#ffffff",
+    },
+  },
   {
     id: uid(),
     type: "gallery",
@@ -243,10 +318,9 @@ export const defaultMultibeautySections: Section[] = [
       subtitle: "Ribuan testimoni dari pengguna yang telah merasakan manfaatnya",
       columns: 5,
       bg: "#ffffff",
-      images: testimonials,
+      images: GALLERY,
     },
   },
-  // 13. LEGAL
   {
     id: uid(),
     type: "legal",
@@ -254,7 +328,8 @@ export const defaultMultibeautySections: Section[] = [
     props: {
       badge: "LEGALITAS RESMI",
       title: "Diproduksi oleh Perusahaan Resmi",
-      body: "Multibeauty Soap diproduksi dan didistribusikan oleh PT. Angkasa Wijaya Internasional, perusahaan terdaftar resmi dengan standar produksi yang terjamin.",
+      body:
+        "Multibeauty Soap diproduksi dan didistribusikan oleh PT. Angkasa Wijaya Internasional, perusahaan terdaftar resmi dengan standar produksi yang terjamin.",
       bg: "linear-gradient(to bottom, #ffffff, #ecfdf5)",
       items: [
         { icon: "🛡️", title: "Perusahaan Legal" },
@@ -263,7 +338,6 @@ export const defaultMultibeautySections: Section[] = [
       ],
     },
   },
-  // 14. COUNTDOWN
   {
     id: uid(),
     type: "countdown",
@@ -272,26 +346,25 @@ export const defaultMultibeautySections: Section[] = [
       title: "Penawaran Spesial Terbatas!",
       subtitle: "Jangan lewatkan kesempatan emas untuk mendapatkan kulit sehat alami impian Anda.",
       endsAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
-      bonusText: "🎁 Beli Hari Ini & Dapatkan Sabun GRATIS Setiap Bulan!",
+      bonusText: "🎁 Beli Multibeauty Soap Hari Ini & Dapatkan Sabun GRATIS Setiap Bulan!",
       ctaText: "Pesan Sekarang",
       ctaHref: "#order",
       bg: "linear-gradient(135deg, #065f46, #047857)",
     },
   },
-  // 15. CHECKOUT
   {
     id: uid(),
     type: "checkout",
     visible: true,
     props: {
       title: "Satu Langkah Lagi Menuju Kulit Sehat",
-      subtitle: "Lengkapi data di bawah, tim kami akan segera menghubungi Anda via WhatsApp untuk konfirmasi pesanan.",
-      price: 75000,
+      subtitle:
+        "Lengkapi data di bawah ini, dan tim kami akan segera menghubungi Anda via WhatsApp untuk konfirmasi pesanan dan pembayaran.",
+      price: 450000,
       buttonText: "Kirim Pesanan Sekarang",
       bg: "linear-gradient(135deg, #059669, #065f46)",
     },
   },
-  // 16. FOOTER
   {
     id: uid(),
     type: "footer",

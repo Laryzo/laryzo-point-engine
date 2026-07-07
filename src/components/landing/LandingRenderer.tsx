@@ -76,7 +76,17 @@ export default function LandingRenderer({
                       )}
                       <h1 className="text-4xl md:text-5xl font-bold leading-tight">
                         {s.props.title}
-                        {s.props.titleAccent && <><br /><span style={{ color: primary }}>{s.props.titleAccent}</span></>}
+                        {s.props.titleAccent && (() => {
+                          const [accent, ...rest] = s.props.titleAccent!.split("|");
+                          const tail = rest.join("|");
+                          return (
+                            <>
+                              <br />
+                              <span style={{ color: primary }}>{accent}</span>
+                              {tail && <span>{tail}</span>}
+                            </>
+                          );
+                        })()}
                       </h1>
                       {s.props.subtitle && <p className="text-lg opacity-80">{s.props.subtitle}</p>}
                       <div className="flex flex-wrap gap-3">
