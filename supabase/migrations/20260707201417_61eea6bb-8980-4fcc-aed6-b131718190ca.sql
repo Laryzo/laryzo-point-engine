@@ -1,0 +1,1 @@
+UPDATE public.landing_pages SET sections_draft = '[]'::jsonb, sections_published = '[]'::jsonb WHERE slug = 'multibeauty';
