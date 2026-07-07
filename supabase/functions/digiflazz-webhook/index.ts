@@ -178,19 +178,17 @@ Deno.serve(async (req) => {
     const webhookData = await req.json()
     console.log('Received Digiflazz webhook:', JSON.stringify(webhookData))
 
-    // Verifikasi webhook secret jika dikonfigurasi
+    // Verifikasi webhook secret WAJIB - tolak jika secret tidak dikonfigurasi
+    // atau tidak cocok. Ini mencegah callback palsu yang bisa memicu poin fraud.
     const webhookSecret = Deno.env.get('DIGIFLAZZ_WEBHOOK_SECRET')
-    if (webhookSecret) {
-      const receivedSecret = webhookData.secret
-      if (receivedSecret !== webhookSecret) {
-        console.warn('Invalid webhook secret received')
-        await logWebhookAttempt(supabase, ipAddress, null, false)
-        return new Response(
-          JSON.stringify({ success: false, error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      console.log('Webhook secret verified successfully')
+    const receivedSecret = webhookData.secret
+    if (!webhookSecret || receivedSecret !== webhookSecret) {
+      console.warn('Rejected webhook - missing or invalid secret')
+      await logWebhookAttempt(supabase, ipAddress, null, false)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     const { data } = webhookData
