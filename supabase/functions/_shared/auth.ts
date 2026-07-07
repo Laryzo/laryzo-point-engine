@@ -34,28 +34,16 @@ export async function getAuthUser(req: Request): Promise<null | { id: string; em
   }
 }
 
-// Decode a JWT payload without verification. Only use for cheap role sniffing
-// (service-role detection); never trust the payload for authorization.
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const [, payload] = token.split('.')
-    if (!payload) return null
-    // base64url -> base64
-    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=')
-    return JSON.parse(atob(b64))
-  } catch {
-    return null
-  }
-}
-
+// Service-role detection: ONLY trust an exact match against the configured
+// service-role key. Never decode/inspect an unverified JWT payload — an
+// attacker can craft a token with role=service_role and no valid signature.
 export function isServiceRole(req: Request): boolean {
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
   if (!authHeader?.startsWith('Bearer ')) return false
   const token = authHeader.slice('Bearer '.length).trim()
   const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (service && token === service) return true
-  const claims = decodeJwtPayload(token)
-  return claims?.role === 'service_role'
+  if (!service || !token) return false
+  return token === service
 }
 
 // Look up an admin row for the authenticated user by email. Returns null if
