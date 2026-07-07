@@ -1,94 +1,46 @@
-## Landing Page Builder untuk Multibeauty
+## Sinkronisasi Landing Page Multibeauty dengan Referensi
 
-Membuat sistem CMS (Content Management System) drag-and-drop di dalam admin Laryzo untuk mengelola landing page `/multibeauty` secara penuh — teks, warna, gambar, urutan section, dan fitur — tanpa perlu edit kode.
+Tujuan: menyamakan konten, urutan section, gambar, dan copy landing `/multibeauty` agar identik dengan `https://id.tapsite.ai/multibeauty-soap`. Builder + arsitektur tetap; yang diubah adalah seed `defaults.ts`, sedikit tweak renderer, dan migrasi seed ulang draft.
 
-### Arsitektur
+### Section list final (16 blok, urut persis referensi)
 
-```text
-┌─────────────────────────────────────────────────┐
-│  Admin Laryzo → Menu "Landing Page Builder"     │
-│  ┌──────────────┬──────────────────────────┐    │
-│  │ Section List │  Live Preview            │    │
-│  │ (drag & drop)│  (iframe /multibeauty)   │    │
-│  │              │                          │    │
-│  │ [☰] Hero     │                          │    │
-│  │ [☰] Bahan    │  ← klik untuk edit       │    │
-│  │ [☰] Manfaat  │                          │    │
-│  │ [☰] Galeri   │                          │    │
-│  │ [☰] Legal    │                          │    │
-│  │ [☰] Checkout │                          │    │
-│  │ [+ Section]  │                          │    │
-│  └──────────────┴──────────────────────────┘    │
-└─────────────────────────────────────────────────┘
-```
+1. **Hero** — badge dihapus, judul: `Transformasi Kulit:` + baris kedua accent inline `Cerah Alami` (hijau) + ` & Bebas Masalah`. Gambar produk kuning "Say Goodbye Pimples".
+2. **Text – Masalah** — `Lelah dengan Masalah Kulit yang Tak Kunjung Usai?` + paragraf frustrasi kulit.
+3. **Text – Intro Solusi** — subtitle `Saatnya Beralih ke Solusi Alami yang Efektif: Multibeauty Soap!` + paragraf.
+4. **Features 3 kolom** — `Mengapa Memilih Multibeauty Soap?` (Formula Alami Terbaik / Solusi Multi-guna / Terbukti Berkhasiat) — teks disamakan verbatim.
+5. **Features 3 kolom** — `Kekuatan Unik Alam dalam Setiap Sabun` (Madu Murni 🍯, Spirulina 🌿, Gamat 🌊).
+6. **Checklist** — `Manfaat Luas Multibeauty Soap untuk Kulit & Tubuh Anda` (6 item ✔️).
+7. **Usage 4 kolom** — `Satu Sabun, Segala Kebutuhan Perawatan!` (Sabun Wajah, Sabun Mandi, Shampo, Pasta Gigi) + footer.
+8. **Comparison** — `Stop Membuang Uang untuk Perawatan yang Rumit!`
+   - Kiri "Cara Lama": 10 item persis (Shampo Khusus, Sabun Wajah Jerawat, Sabun Mandi Gatal, Obat Totol Jerawat, Obat Luka, Obat Luka Bakar, Salep Gatal & Herpes, Pasta Gigi Khusus, Obat Sakit Gigi, Obat Sariawan) + "…dan banyak lagi!" + total `Rp 415.000++`.
+   - Kanan "Solusi Cerdas: Multibeauty": harga `Rp 450.000`, benefits `Isi 6 Pcs untuk Pemakaian Hingga 6 Bulan!`, `Jauh Lebih Hemat & Sangat Praktis`, `Mengatasi Semua Masalah Di Atas`, footer hemat `Rp 75.000/bulan`.
+9. **Before/After** — 4 pasang persis referensi (Siti Aminah, Budi Santoso, Sri Wahyuni, Arianto) memakai URL `driplab.b-cdn.net`. Disclaimer `*Hasil dapat bervariasi pada setiap individu.`
+10. **Testimonials 2 kolom** — 4 kartu dengan nama & lokasi referensi: Sari L. (Jakarta), Sri Wahyuni (Bandung), Ibu Ani (Surabaya), Nisa W. (Yogyakarta), pakai URL foto `storage.tapsite.ai` + `driplab.b-cdn.net`.
+11. **Text CTA kecil** — `Anda Terinspirasi?` + ajakan bergabung.
+12. **Gallery** — `Bukti Nyata Pengguna` dengan ~25 URL screenshot `driplab.b-cdn.net` (semua thumbnail testimoni dari referensi), 5 kolom.
+13. **Legal** — dipertahankan (PT. Angkasa Wijaya Internasional + 3 badge).
+14. **Countdown** — `Penawaran Spesial Terbatas!` + bonus `Beli Multibeauty Soap Hari Ini & Dapatkan Sabun GRATIS Setiap Bulan!`
+15. **Checkout** — `Satu Langkah Lagi Menuju Kulit Sehat` + subtitle referensi + harga `Rp 450.000` (bukan 75.000), tombol `Kirim Pesanan Sekarang`.
+16. **Footer** — brand Multibeauty Soap.
 
-### Database (Lovable Cloud)
+Section "Dikerubungi Semut" **dihapus** (tidak ada di referensi).
 
-Tabel baru `landing_pages`:
-- `id`, `slug` (unique, default `multibeauty`)
-- `title`, `theme` (jsonb: `{ primary, secondary, background, text, font }`)
-- `sections` (jsonb array — sumber utama urutan & konten)
-- `updated_at`, `updated_by`
+### Perubahan file
 
-Struktur satu section dalam `sections`:
-```json
-{
-  "id": "uuid",
-  "type": "hero | text | image | gallery | features | testimonials | legal | checkout | video | spacer",
-  "visible": true,
-  "props": { "title": "...", "subtitle": "...", "bg": "#fff", "images": [...], "items": [...] }
-}
-```
+**`src/lib/landing/defaults.ts`** — tulis ulang seluruh `defaultMultibeautySections` sesuai list di atas. Ganti sumber gambar dari `bundledImages` ke URL asli tapsite (driplab CDN + storage.tapsite.ai) untuk hero, produk box, before/after, dan foto testimonial. Hapus penggunaan `antsImage` & imageText.
 
-Storage bucket `landing-assets` untuk gambar upload admin (public read).
+**`src/components/landing/LandingRenderer.tsx`** — sedikit tweak hero agar `titleAccent` bisa render inline (bukan selalu `<br/>`), atau tambahkan flag `accentInline` untuk mendukung layout "Cerah Alami & Bebas Masalah" (accent hanya di dua kata pertama). Pendekatan: split `titleAccent` di karakter `|` → sebelum `|` = accent, sesudah = teks normal lanjutan pada baris yang sama.
 
-RLS: Super Admin & Admin full access. Anon `SELECT` untuk halaman publik.
+**Migrasi baru** — reset `sections_draft` dan `sections_published` untuk `slug='multibeauty'` ke seed baru supaya halaman live langsung ikut update (opsional; kalau admin sudah edit manual, cukup buka builder → Publish ulang. Saya sertakan migrasi reset karena user meminta hasilnya "sama persis" sekarang).
 
-### Halaman Builder Admin (`/admin/landing-builder`)
+### Detail teknis kecil
 
-- **Panel kiri**: daftar section dengan handle drag (pakai `@dnd-kit/sortable` — sudah ringan & compatible). Toggle visibility, duplicate, delete, tambah section dari library.
-- **Panel tengah**: live preview iframe `/multibeauty?preview=1` dengan hot-reload via postMessage saat data berubah.
-- **Panel kanan**: inspector edit properti section aktif — text field, color picker, image uploader (multi), toggle, reorder item dalam section (mis. urutan gambar galeri, list bahan/manfaat).
-- **Global theme**: primary color, background, font family, logo — apply ke semua section.
-- **Tombol**: Save, Preview, Publish (versi draft vs published disimpan di kolom `sections_draft` + `sections_published`).
+- Semua URL gambar referensi diakses langsung dari CDN mereka (public hotlink). Kalau nanti diblokir, admin bisa upload manual lewat builder.
+- Warna tema tetap (hijau `#059669`, dark `#065f46`, accent `#f59e0b`) — sudah cocok dengan palet referensi.
+- Font tetap Inter.
+- Fitur builder (drag & drop, edit, publish) tidak diubah — admin tetap bisa memodifikasi setelah reseed.
 
-### Halaman Publik `/multibeauty` (refactor)
-
-- Load `landing_pages` where `slug='multibeauty'` (published version).
-- Render tiap section berdasarkan `type` lewat map komponen:
-  - `HeroSection`, `TextSection`, `ImageSection`, `GallerySection`, `FeaturesSection`, `TestimonialsSection`, `LegalSection`, `CheckoutSection`, `VideoSection`, `SpacerSection`
-- Semua styling ambil dari `theme` + `section.props`.
-- Section `checkout` tetap terhubung ke edge function `multibeauty-checkout` yang sudah ada (tidak diubah).
-- Mode `?preview=1` load draft & listen postMessage untuk update realtime dari builder.
-
-### Section Library (default saat pertama kali)
-
-Migrasi seed mengisi `sections` dengan konten Multibeauty existing (hero, 3 bahan, manfaat, galeri testimoni, legal, form checkout) supaya halaman langsung sama seperti sekarang, lalu admin bebas edit.
-
-### Files yang dibuat / diubah
-
-**Baru:**
-- `supabase/migrations/xxx_landing_pages.sql` — tabel + RLS + GRANT + seed multibeauty
-- `src/pages/admin/LandingBuilder.tsx` — UI builder
-- `src/components/landing-builder/SectionList.tsx` — daftar drag-drop
-- `src/components/landing-builder/SectionInspector.tsx` — form edit properti
-- `src/components/landing-builder/ThemeEditor.tsx`
-- `src/components/landing-builder/ImageUploader.tsx`
-- `src/components/landing/sections/*.tsx` — 10 komponen section renderer
-- `src/hooks/useLandingPage.ts` — fetch & save
-
-**Diubah:**
-- `src/pages/Multibeauty.tsx` — refactor jadi renderer dinamis dari DB
-- `src/App.tsx` — tambah route `/admin/landing-builder`
-- Menu navigasi admin — tambah link "Landing Page Builder" (Super Admin & Admin)
-
-### Dependency
-- `@dnd-kit/core` + `@dnd-kit/sortable` (drag & drop ringan, React-friendly)
-- `react-colorful` (color picker kecil)
-
-### Alur admin
-1. Buka menu **Landing Page Builder**
-2. Drag section untuk atur urutan
-3. Klik section → edit teks/warna/gambar di panel kanan
-4. Upload gambar baru langsung di editor
-5. Save → Publish → perubahan live di `/multibeauty`
+### Files
+- edit `src/lib/landing/defaults.ts`
+- edit `src/components/landing/LandingRenderer.tsx` (hero accent inline)
+- new `supabase/migrations/xxx_reseed_multibeauty_landing.sql`
