@@ -372,10 +372,14 @@ export default function LandingRenderer({
                     {s.props.title && <h2 className="text-3xl md:text-4xl font-bold">{s.props.title}</h2>}
                     {s.props.body && <p className="text-lg opacity-80">{s.props.body}</p>}
                     {s.props.items?.length ? (
-                      <div className="grid grid-cols-3 gap-4 pt-6 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-6 text-sm">
                         {s.props.items.map((it, i) => (
-                          <div key={i} className="p-4 rounded-lg bg-white border">
-                            {it.icon && <div className="text-3xl mb-2">{it.icon}</div>}
+                          <div key={i} className="p-4 rounded-lg bg-white border flex flex-col items-center">
+                            {it.image ? (
+                              <img src={it.image} alt={it.title} className="w-full h-40 object-contain mb-3 rounded" />
+                            ) : it.icon ? (
+                              <div className="text-3xl mb-2">{it.icon}</div>
+                            ) : null}
                             <div className="font-semibold">{it.title}</div>
                           </div>
                         ))}
