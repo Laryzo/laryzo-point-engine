@@ -25,8 +25,12 @@ export default function ImageUploader({
         .from("landing-assets")
         .upload(path, file, { upsert: false, contentType: file.type });
       if (error) throw error;
-      const { data } = supabase.storage.from("landing-assets").getPublicUrl(path);
-      onChange(data.publicUrl);
+      // Bucket is private (workspace policy blocks public buckets) — use signed URL (10 years)
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("landing-assets")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+      if (signErr || !signed?.signedUrl) throw signErr || new Error("Gagal membuat URL");
+      onChange(signed.signedUrl);
       toast({ title: "Gambar terupload" });
     } catch (e) {
       toast({ title: "Upload gagal", description: (e as Error).message, variant: "destructive" });
