@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
 import ImageUploader from "./ImageUploader";
+import LegalProofUploader from "./LegalProofUploader";
 import ColorField from "./ColorField";
 import type { Section } from "@/lib/landing/types";
 
