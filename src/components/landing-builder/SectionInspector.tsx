@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
 import ImageUploader from "./ImageUploader";
+import LegalProofUploader from "./LegalProofUploader";
 import ColorField from "./ColorField";
 import type { Section } from "@/lib/landing/types";
 
@@ -325,7 +326,17 @@ export default function SectionInspector({ section, onChange }: Props) {
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
-                <ImageUploader label="Bukti legalitas (opsional)" value={it.image} onChange={(url) => onChange({ items: setItem(p.items, i, { image: url }) } as any)} />
+                <Textarea
+                  rows={2}
+                  placeholder="Keterangan (nama dokumen, tanggal berlaku, dll)"
+                  value={it.description || ""}
+                  onChange={(e) => onChange({ items: setItem(p.items, i, { description: e.target.value }) } as any)}
+                />
+                <LegalProofUploader
+                  value={it.image}
+                  fileType={it.fileType}
+                  onChange={(patch) => onChange({ items: setItem(p.items, i, patch) } as any)}
+                />
               </div>
             ))}
             <Button type="button" variant="outline" size="sm" onClick={() => onChange({ items: [...(p.items || []), { icon: "✅", title: "Item baru" }] } as any)}>
