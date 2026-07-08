@@ -314,15 +314,18 @@ export default function SectionInspector({ section, onChange }: Props) {
           <Text k="title" label="Judul" />
           <Text k="body" label="Teks" rows={3} />
           <ColorField label="Background" value={p.bg} onChange={(v) => onChange({ bg: v } as any)} />
-          <div className="space-y-2">
-            <Label>Item</Label>
+          <div className="space-y-3">
+            <Label>Item Legalitas</Label>
             {(p.items || []).map((it: any, i: number) => (
-              <div key={i} className="flex gap-2">
-                <Input placeholder="Icon" className="w-20" value={it.icon || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { icon: e.target.value }) } as any)} />
-                <Input placeholder="Judul" value={it.title || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { title: e.target.value }) } as any)} />
-                <Button type="button" size="icon" variant="ghost" onClick={() => onChange({ items: p.items.filter((_: any, idx: number) => idx !== i) } as any)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+              <div key={i} className="space-y-2 border rounded p-2">
+                <div className="flex gap-2">
+                  <Input placeholder="Icon" className="w-20" value={it.icon || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { icon: e.target.value }) } as any)} />
+                  <Input placeholder="Judul" value={it.title || ""} onChange={(e) => onChange({ items: setItem(p.items, i, { title: e.target.value }) } as any)} />
+                  <Button type="button" size="icon" variant="ghost" onClick={() => onChange({ items: p.items.filter((_: any, idx: number) => idx !== i) } as any)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                <ImageUploader label="Bukti legalitas (opsional)" value={it.image} onChange={(url) => onChange({ items: setItem(p.items, i, { image: url }) } as any)} />
               </div>
             ))}
             <Button type="button" variant="outline" size="sm" onClick={() => onChange({ items: [...(p.items || []), { icon: "✅", title: "Item baru" }] } as any)}>
