@@ -72,7 +72,7 @@ export type LegalSection = SectionBase & {
     badge?: string;
     title?: string;
     body?: string;
-    items: { icon?: string; title: string; image?: string }[];
+    items: { icon?: string; title: string; image?: string; fileType?: "image" | "pdf"; description?: string }[];
     bg?: string;
   };
 };
