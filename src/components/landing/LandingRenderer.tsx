@@ -373,16 +373,39 @@ export default function LandingRenderer({
                     {s.props.body && <p className="text-lg opacity-80">{s.props.body}</p>}
                     {s.props.items?.length ? (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-6 text-sm">
-                        {s.props.items.map((it, i) => (
-                          <div key={i} className="p-4 rounded-lg bg-white border flex flex-col items-center">
-                            {it.image ? (
-                              <img src={it.image} alt={it.title} className="w-full h-40 object-contain mb-3 rounded" />
-                            ) : it.icon ? (
-                              <div className="text-3xl mb-2">{it.icon}</div>
-                            ) : null}
-                            <div className="font-semibold">{it.title}</div>
-                          </div>
-                        ))}
+                        {s.props.items.map((it, i) => {
+                          const isPdf = it.fileType === "pdf" || (it.image && /\.pdf($|\?)/i.test(it.image));
+                          return (
+                            <div key={i} className="p-4 rounded-lg bg-white border flex flex-col items-center text-center">
+                              {it.image ? (
+                                isPdf ? (
+                                  <a
+                                    href={it.image}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="w-full h-40 mb-3 rounded border flex flex-col items-center justify-center bg-red-50 hover:bg-red-100 transition"
+                                  >
+                                    <div className="text-4xl mb-1">📄</div>
+                                    <div className="text-xs font-medium text-red-700">Lihat PDF</div>
+                                  </a>
+                                ) : (
+                                  <img
+                                    src={it.image}
+                                    alt={it.title}
+                                    className="w-full h-40 object-contain mb-3 rounded cursor-pointer"
+                                    onClick={() => setLightbox(it.image!)}
+                                  />
+                                )
+                              ) : it.icon ? (
+                                <div className="text-3xl mb-2">{it.icon}</div>
+                              ) : null}
+                              <div className="font-semibold">{it.title}</div>
+                              {it.description && (
+                                <div className="text-xs opacity-70 mt-1 whitespace-pre-wrap">{it.description}</div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : null}
                   </div>
