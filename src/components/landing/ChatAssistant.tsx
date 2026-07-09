@@ -36,37 +36,80 @@ const QUICK_REPLIES_ALT = [
   "Hubungi WhatsApp",
 ];
 
-function getWhatsAppNumber(): string | null {
-  const stored = localStorage.getItem("admin_whatsapp_number");
-  if (stored) return stored;
-  return null;
-}
-
-function normalizeWhatsAppNumber(number: string): string {
-  const cleaned = number.replace(/[^0-9]/g, "");
+// ============================================================
+// NORMALISASI NOMOR — sama dengan pola Fallback PPOB
+// ============================================================
+function normalizePhoneNumber(raw: string): string {
+  // Bersihkan semua karakter non-digit
+  const cleaned = raw.replace(/[^0-9]/g, "");
+  
+  // Konversi format lokal (08xx) ke internasional (628xx)
   if (cleaned.startsWith("0")) {
     return "62" + cleaned.slice(1);
   }
-  if (!cleaned.startsWith("62")) {
-    return "62" + cleaned;
+  
+  // Jika sudah 62, langsung return
+  if (cleaned.startsWith("62")) {
+    return cleaned;
   }
-  return cleaned;
+  
+  // Fallback: tambahkan 62
+  return "62" + cleaned;
 }
 
-function buildWhatsAppLink(phoneNumber: string, message?: string): string {
-  const normalized = normalizeWhatsAppNumber(phoneNumber);
-  const text = message || "Halo, saya tertarik dengan Multibeauty Soap. Bisa bantu saya?";
-  // Gunakan api.whatsapp.com agar langsung membuka chat tanpa perlu simpan nomor kontak
-  return `https://api.whatsapp.com/send?phone=${normalized}&text=${encodeURIComponent(text)}`;
+// ============================================================
+// BUILD WA LINK — menggunakan api.whatsapp.com/send
+// agar langsung buka chat tanpa perlu simpan kontak
+// ============================================================
+function buildWaLink(phoneNumber: string, message?: string): string {
+  const phone = normalizePhoneNumber(phoneNumber);
+  const text = message || "Halo, saya tertarik dengan produk Anda. Bisa bantu saya?";
+  // api.whatsapp.com/send langsung membuka chat tanpa perlu simpan nomor
+  return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
 }
 
-function openWhatsApp(phoneNumber: string, message?: string) {
-  const normalized = normalizeWhatsAppNumber(phoneNumber);
-  const text = message || "Halo, saya tertarik dengan Multibeauty Soap. Bisa bantu saya?";
-  // Gunakan api.whatsapp.com/send untuk langsung membuka chat WhatsApp
-  // tanpa perlu menyimpan nomor ke kontak terlebih dahulu
-  const link = `https://api.whatsapp.com/send?phone=${normalized}&text=${encodeURIComponent(text)}`;
-  window.open(link, "_blank", "noopener,noreferrer");
+// ============================================================
+// OPEN WHATSAPP — menggunakan window.location untuk lebih reliable
+// ============================================================
+function openWhatsAppDirect(phoneNumber: string, message?: string): void {
+  const link = buildWaLink(phoneNumber, message);
+  
+  // Coba dengan window.open terlebih dahulu (lebih kompatibel)
+  const win = window.open(link, "_blank", "noopener,noreferrer");
+  
+  // Jika popup blocker mencegah window.open, fallback ke location.assign
+  if (!win || win.closed || typeof win.closed === "undefined") {
+    // Fallback: redirect langsung
+    window.location.href = link;
+  }
+}
+
+// ============================================================
+// FETCH WA NUMBER — mengikuti pola CustomerOrderManual
+// ============================================================
+async function fetchAdminWaNumber(): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "admin_ppob_wa_number")
+      .maybeSingle();
+    
+    if (data?.value) {
+      const number = String(data.value).replace(/[^0-9]/g, "");
+      // Simpan ke localStorage untuk cache
+      localStorage.setItem("admin_whatsapp_number", number);
+      return number;
+    }
+  } catch (err) {
+    console.error("Error fetching WA number:", err);
+  }
+  
+  // Fallback: coba dari localStorage
+  const stored = localStorage.getItem("admin_whatsapp_number");
+  if (stored) return stored;
+  
+  return null;
 }
 
 export default function ChatAssistant({
@@ -91,34 +134,9 @@ export default function ChatAssistant({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Ambil nomor WhatsApp admin dari Supabase
+  // Ambil nomor WhatsApp admin — mengikuti pola Fallback PPOB
   useEffect(() => {
-    const fetchWaNumber = async () => {
-      try {
-        const { data } = await supabase
-          .from("system_settings")
-          .select("value")
-          .eq("key", "admin_ppob_wa_number")
-          .maybeSingle();
-        
-        if (data?.value) {
-          const number = String(data.value).replace(/[^0-9]/g, "");
-          setAdminWaNumber(number);
-          localStorage.setItem("admin_whatsapp_number", number);
-        } else {
-          // Coba dari localStorage
-          const stored = getWhatsAppNumber();
-          if (stored) setAdminWaNumber(stored);
-        }
-      } catch (err) {
-        console.error("Error fetching WA number:", err);
-        // Fallback ke localStorage
-        const stored = getWhatsAppNumber();
-        if (stored) setAdminWaNumber(stored);
-      }
-    };
-
-    fetchWaNumber();
+    fetchAdminWaNumber().then(setAdminWaNumber);
   }, []);
 
   const scrollToBottom = () => {
@@ -211,17 +229,31 @@ export default function ChatAssistant({
     }
   };
 
-  // Tombol WhatsApp handler
-  const handleWhatsAppClick = () => {
+  // Tombol WhatsApp handler — langsung buka chat ke admin
+  const handleWhatsAppClick = useCallback(() => {
     if (adminWaNumber) {
       const lastUserMessage = [...messages].reverse().find(m => m.role === "user");
       const context = lastUserMessage?.content || "";
-      openWhatsApp(adminWaNumber, `Halo, saya tertarik dengan ${productName}. ${context ? `Saya ingin bertanya tentang: ${context}` : ""}`);
+      const waMessage = `Halo, saya tertarik dengan ${productName}. ${context ? `Saya ingin bertanya tentang: ${context}` : ""}`;
+      
+      openWhatsAppDirect(adminWaNumber, waMessage);
     } else {
-      // Buka WhatsApp tanpa nomor (kirim ke diri sendiri atau cari)
-      window.open("https://wa.me/?text=" + encodeURIComponent(`Halo, saya tertarik dengan ${productName}. Bisa bantu saya?`), "_blank");
+      // Jika nomor belum tersedia, tampilkan pesan di chat
+      const fallbackMsg: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: `Nomor WhatsApp admin belum dikonfigurasi. Silakan hubungi kami langsung atau coba lagi nanti. 🙏\n\nNomor WhatsApp akan aktif setelah admin mengkonfigurasi di halaman System Settings → "Fallback PPOB ke WhatsApp Admin".`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, fallbackMsg]);
     }
-  };
+  }, [adminWaNumber, messages, productName]);
+
+  // Re-fetch nomor WA ketika chat dibuka (untuk catch update dari admin)
+  const handleOpenChat = useCallback(() => {
+    setIsOpen(true);
+    fetchAdminWaNumber().then(setAdminWaNumber);
+  }, []);
 
   if (!isOpen) {
     return (
@@ -239,7 +271,7 @@ export default function ChatAssistant({
 
         {/* Tombol Chat AI */}
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={handleOpenChat}
           className="rounded-full shadow-lg hover:shadow-xl transition-all duration-300 p-4 text-white animate-pulse hover:animate-none"
           style={{ backgroundColor: primaryColor }}
           title="Chat dengan AI Asisten"
@@ -357,10 +389,16 @@ export default function ChatAssistant({
         {/* Tombol WhatsApp */}
         <button
           onClick={handleWhatsAppClick}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium transition-colors"
+          disabled={!adminWaNumber}
+          className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
+            adminWaNumber 
+              ? "bg-green-500 hover:bg-green-600" 
+              : "bg-gray-400 cursor-not-allowed"
+          }`}
+          title={adminWaNumber ? "Klik untuk langsung chat via WhatsApp" : "Nomor WhatsApp belum dikonfigurasi"}
         >
           <Phone className="w-4 h-4" />
-          Hubungi via WhatsApp
+          {adminWaNumber ? "Hubungi via WhatsApp" : "WhatsApp belum tersedia"}
         </button>
       </div>
     </div>
