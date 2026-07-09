@@ -1,0 +1,9 @@
+The LandingBuilder.tsx file currently contains:
+- Imports for Tabs, TabsContent, TabsList, TabsTrigger from @/components/ui/tabs
+- Imports for Switch from @/components/ui/switch
+- State for 'settings' using LandingSettings type
+- Logic to load settings_draft or settings_published from landing_pages table
+- A UI structure using Tabs to separate 'Tema', 'Chatbot', and 'Order'
+- TabsContent for 'chatbot' containing Enable/Disable Switch, Welcome Message Input, WA Number Input, and AI System Prompt Textarea.
+- TabsContent for 'checkout' containing Product ID, Price, and Success Message.
+- handleSave and handlePublish updated to include settings_draft.
