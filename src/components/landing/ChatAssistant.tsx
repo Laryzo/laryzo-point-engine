@@ -56,11 +56,16 @@ function normalizeWhatsAppNumber(number: string): string {
 function buildWhatsAppLink(phoneNumber: string, message?: string): string {
   const normalized = normalizeWhatsAppNumber(phoneNumber);
   const text = message || "Halo, saya tertarik dengan Multibeauty Soap. Bisa bantu saya?";
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(text)}`;
+  // Gunakan api.whatsapp.com agar langsung membuka chat tanpa perlu simpan nomor kontak
+  return `https://api.whatsapp.com/send?phone=${normalized}&text=${encodeURIComponent(text)}`;
 }
 
 function openWhatsApp(phoneNumber: string, message?: string) {
-  const link = buildWhatsAppLink(phoneNumber, message);
+  const normalized = normalizeWhatsAppNumber(phoneNumber);
+  const text = message || "Halo, saya tertarik dengan Multibeauty Soap. Bisa bantu saya?";
+  // Gunakan api.whatsapp.com/send untuk langsung membuka chat WhatsApp
+  // tanpa perlu menyimpan nomor ke kontak terlebih dahulu
+  const link = `https://api.whatsapp.com/send?phone=${normalized}&text=${encodeURIComponent(text)}`;
   window.open(link, "_blank", "noopener,noreferrer");
 }
 
