@@ -85,24 +85,36 @@ function openWhatsAppDirect(phoneNumber: string, message?: string): void {
 }
 
 // ============================================================
-// FETCH WA NUMBER — mengikuti pola CustomerOrderManual
+// FETCH WA NUMBER — menggunakan Edge Function untuk bypass RLS
 // ============================================================
 async function fetchAdminWaNumber(): Promise<string | null> {
   try {
-    const { data } = await supabase
-      .from("system_settings")
-      .select("value")
-      .eq("key", "admin_ppob_wa_number")
-      .maybeSingle();
+    // Panggil Edge Function yang menggunakan service role
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-landing-settings`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
     
-    if (data?.value) {
-      const number = String(data.value).replace(/[^0-9]/g, "");
+    if (data?.admin_ppob_wa_number) {
+      const number = String(data.admin_ppob_wa_number).replace(/[^0-9]/g, "");
       // Simpan ke localStorage untuk cache
       localStorage.setItem("admin_whatsapp_number", number);
       return number;
     }
   } catch (err) {
-    console.error("Error fetching WA number:", err);
+    console.error("Error fetching WA number from Edge Function:", err);
   }
   
   // Fallback: coba dari localStorage
