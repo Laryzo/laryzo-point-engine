@@ -95,3 +95,12 @@ verify_jwt = false
 
 [functions.merchant-register]
 verify_jwt = false
+
+[functions.get-landing-settings]
+verify_jwt = false
+
+[functions.chat-multibeauty]
+verify_jwt = false
+
+[functions.multibeauty-checkout]
+verify_jwt = false
