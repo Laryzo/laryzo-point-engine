@@ -29,10 +29,15 @@ const Multibeauty = () => {
 
   useEffect(() => {
     if (active) {
-      const link = (document.querySelector("link[rel*='icon']") || document.createElement('link')) as HTMLLinkElement;
+      // Menghapus semua tag link icon yang ada agar tidak konflik
+      const existingLinks = document.querySelectorAll("link[rel*='icon']");
+      existingLinks.forEach(link => link.parentNode?.removeChild(link));
+
+      // Membuat tag link baru untuk favicon Multibeauty
+      const link = document.createElement('link');
       link.type = 'image/png';
       link.rel = 'shortcut icon';
-      link.href = `${favicon}?v=2`;
+      link.href = `${favicon}?v=${Date.now()}`; // Gunakan timestamp agar selalu unik
       document.getElementsByTagName('head')[0].appendChild(link);
       
       if (active.title) {
