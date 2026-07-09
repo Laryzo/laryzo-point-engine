@@ -15,6 +15,26 @@ interface ChatAssistantProps {
   onClose?: () => void;
 }
 
+// Fallback responses untuk ketika AI tidak tersedia
+const FALLBACK_RESPONSES: { [key: string]: string } = {
+  manfaat: "Multibeauty Soap memiliki banyak manfaat luar biasa:\n\n🌿 Mengatasi jerawat dan bekas jerawat\n✨ Memudarkan flek hitam dan noda di kulit\n💫 Mencerahkan kulit kusam secara alami\n🧴 Menghaluskan kulit kasar dan kering\n🔥 Meredakan gatal-gatal dan masalah kulit lainnya\n⚡ Mempercepat penyembuhan luka ringan\n\nSabun ini mengandung Madu, Spirulina, dan Gamat yang bekerja sinergis untuk hasil maksimal.",
+  cara: "Cara menggunakan Multibeauty Soap sangat mudah:\n\n1️⃣ Basahi area yang ingin dibersihkan dengan air\n2️⃣ Ambil sabun dan buat busa dengan tangan atau spons\n3️⃣ Usapkan ke wajah, rambut, atau tubuh secara merata\n4️⃣ Diamkan selama 1-2 menit agar bahan aktif bekerja\n5️⃣ Bilas hingga bersih dengan air mengalir\n\nGunakan 2x sehari untuk hasil optimal. Aman untuk semua jenis kulit dan dapat digunakan oleh ibu hamil dan menyusui.",
+  harga: "Harga Multibeauty Soap:\n\n💰 Rp 75.000 per bar (satuan)\n💰 Rp 450.000 untuk paket hemat (6 pcs)\n\nDengan paket 6 pcs, Anda hanya membayar Rp 75.000 per bulan untuk perawatan lengkap selama 6 bulan. Sangat hemat dibanding membeli produk perawatan terpisah!",
+  bahan: "Bahan-bahan utama Multibeauty Soap:\n\n🍯 Madu Murni - Pelembap alami, kaya antioksidan, antibakteri\n🌿 Spirulina - Detoksifikasi, melawan radikal bebas, mencerahkan\n🌊 Gamat (Teripang) - Kolagen tinggi, Cell Growth Factor, menyembuhkan luka\n\nSemua bahan alami, tanpa kimia berbahaya, dan telah tersertifikasi BPOM.",
+  pesan: "Untuk memesan Multibeauty Soap, Anda dapat:\n\n1. Mengisi formulir pemesanan di bagian bawah halaman ini\n2. Admin kami akan menghubungi Anda via WhatsApp untuk konfirmasi\n3. Lakukan pembayaran sesuai instruksi\n4. Produk akan dikirim ke alamat Anda\n\nProses cepat dan mudah! Ada yang ingin ditanyakan lebih lanjut?",
+  default: "Maaf, saya tidak bisa menjawab pertanyaan itu dengan sempurna. Silakan hubungi kami melalui WhatsApp untuk bantuan lebih lanjut atau tanyakan tentang manfaat, cara pakai, harga, atau cara memesan Multibeauty Soap."
+};
+
+function getKeywordMatch(text: string): string | null {
+  const lower = text.toLowerCase();
+  if (lower.includes("manfaat") || lower.includes("keuntungan") || lower.includes("apa saja")) return "manfaat";
+  if (lower.includes("cara") || lower.includes("pakai") || lower.includes("gunakan") || lower.includes("penggunaan")) return "cara";
+  if (lower.includes("harga") || lower.includes("berapa") || lower.includes("biaya") || lower.includes("cost")) return "harga";
+  if (lower.includes("bahan") || lower.includes("kandungan") || lower.includes("ingredient")) return "bahan";
+  if (lower.includes("pesan") || lower.includes("order") || lower.includes("beli") || lower.includes("membeli")) return "pesan";
+  return null;
+}
+
 export default function ChatAssistant({
   primaryColor = "#059669",
   productName = "Multibeauty Soap",
@@ -64,7 +84,7 @@ export default function ChatAssistant({
     setIsLoading(true);
 
     try {
-      // Panggil Edge Function untuk mendapatkan respons AI
+      // Coba panggil Edge Function untuk mendapatkan respons AI
       const { data, error } = await supabase.functions.invoke("chat-multibeauty", {
         body: {
           message: userMessage.content,
@@ -75,23 +95,32 @@ export default function ChatAssistant({
         },
       });
 
-      if (error) throw error;
+      if (error || !data?.message) {
+        // Jika ada error atau tidak ada response, gunakan fallback
+        throw new Error(error?.message || "No response from AI");
+      }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.message || "Maaf, saya tidak bisa menjawab pertanyaan itu.",
+        content: data.message,
         timestamp: new Date(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Chat error:", error);
+      
+      // Gunakan fallback response berdasarkan keyword
+      const keyword = getKeywordMatch(userMessage.content);
+      const fallbackResponse = keyword 
+        ? FALLBACK_RESPONSES[keyword] 
+        : FALLBACK_RESPONSES.default;
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          "Maaf, terjadi kesalahan. Silakan coba lagi atau hubungi kami melalui WhatsApp.",
+        content: fallbackResponse,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -155,7 +184,7 @@ export default function ChatAssistant({
             }`}
           >
             <div
-              className={`max-w-xs px-4 py-2 rounded-lg text-sm ${
+              className={`max-w-xs px-4 py-2 rounded-lg text-sm whitespace-pre-wrap ${
                 message.role === "user"
                   ? "text-white rounded-br-none"
                   : "bg-white border border-gray-200 text-gray-800 rounded-bl-none"
