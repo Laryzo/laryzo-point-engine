@@ -12,12 +12,29 @@ const bgStyle = (bg?: string): React.CSSProperties => {
 };
 
 function Countdown({ endsAt }: { endsAt?: string }) {
-  const target = endsAt ? new Date(endsAt).getTime() : Date.now() + 24 * 3600 * 1000;
   const [now, setNow] = useState(Date.now());
+  
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Jika endsAt ada, gunakan itu. Jika tidak, hitung mundur ke akhir hari ini (23:59:59)
+  const getTarget = () => {
+    if (endsAt) {
+      const targetDate = new Date(endsAt).getTime();
+      // Jika target sudah lewat, kita bisa buat dia berulang harian atau tetap 0
+      // Tapi permintaan user adalah "setiap hari selalu menghitung mundur"
+      if (targetDate > now) return targetDate;
+    }
+    
+    // Default: Hitung mundur ke tengah malam hari ini
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return today.getTime();
+  };
+
+  const target = getTarget();
   const diff = Math.max(0, target - now);
   const d = Math.floor(diff / 86400000);
   const h = Math.floor((diff / 3600000) % 24);
