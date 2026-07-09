@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import favicon from "@/assets/multibeauty/favicon.png";
 import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import LandingRenderer from "@/components/landing/LandingRenderer";
@@ -25,6 +26,20 @@ const Multibeauty = () => {
   }, [isPreview]);
 
   const active = live || data;
+
+  useEffect(() => {
+    if (active) {
+      const link = (document.querySelector("link[rel*='icon']") || document.createElement('link')) as HTMLLinkElement;
+      link.type = 'image/png';
+      link.rel = 'shortcut icon';
+      link.href = favicon;
+      document.getElementsByTagName('head')[0].appendChild(link);
+      
+      if (active.title) {
+        document.title = active.title;
+      }
+    }
+  }, [active]);
 
   if (loading || !active) {
     return (
