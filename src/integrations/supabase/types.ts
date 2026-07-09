@@ -299,6 +299,8 @@ export type Database = {
           id: string
           sections_draft: Json
           sections_published: Json
+          settings_draft: Json
+          settings_published: Json
           slug: string
           theme_draft: Json
           theme_published: Json
@@ -311,6 +313,8 @@ export type Database = {
           id?: string
           sections_draft?: Json
           sections_published?: Json
+          settings_draft?: Json
+          settings_published?: Json
           slug: string
           theme_draft?: Json
           theme_published?: Json
@@ -323,6 +327,8 @@ export type Database = {
           id?: string
           sections_draft?: Json
           sections_published?: Json
+          settings_draft?: Json
+          settings_published?: Json
           slug?: string
           theme_draft?: Json
           theme_published?: Json
