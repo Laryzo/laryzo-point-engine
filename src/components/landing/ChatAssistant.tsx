@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, X, MessageCircle, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -64,29 +65,18 @@ export default function ChatAssistant({
 
     try {
       // Panggil Edge Function untuk mendapatkan respons AI
-      const response = await fetch(
-        `${window.location.origin}/.netlify/functions/chat-multibeauty` ||
-          "/api/chat-multibeauty",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: userMessage.content,
-            conversationHistory: messages.map((m) => ({
-              role: m.role,
-              content: m.content,
-            })),
-          }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke("chat-multibeauty", {
+        body: {
+          message: userMessage.content,
+          conversationHistory: messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        },
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to get response from AI");
-      }
+      if (error) throw error;
 
-      const data = await response.json();
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
