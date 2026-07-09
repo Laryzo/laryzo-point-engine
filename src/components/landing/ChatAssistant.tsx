@@ -543,3 +543,5 @@ Untuk anti-aging, bahan Gamat (Teripang) mengandung kolagen tinggi dan CGF yang 
 
 Mau tahu lebih detail tentang salah satu topik di atas? Atau kamu bisa langsung klik tombol **Hubungi via WhatsApp** di bawah untuk chat langsung dengan tim kami! 💬`;
 }
+
+export default ChatAssistant;
