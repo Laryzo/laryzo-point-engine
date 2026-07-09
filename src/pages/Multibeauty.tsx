@@ -61,11 +61,12 @@ const Multibeauty = () => {
       <LandingRenderer sections={active.sections} theme={active.theme} previewMode={isPreview} />
       
       {/* Chat Asisten - hanya tampil jika bukan preview mode */}
-      {!isPreview && showChat && (
+      {!isPreview && showChat && active.settings?.chatbot?.enabled !== false && (
         <ChatAssistant
           primaryColor={active.theme?.primary || "#059669"}
           productName={active.title || "Multibeauty Soap"}
           onClose={() => setShowChat(false)}
+          settings={active.settings?.chatbot}
         />
       )}
     </>

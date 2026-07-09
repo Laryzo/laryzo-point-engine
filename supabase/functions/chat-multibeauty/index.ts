@@ -430,19 +430,21 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  let body: any = {};
   try {
-    const { message, conversationHistory, whatsappNumber } = await req.json();
+    body = await req.json();
+    const { message, conversationHistory, customPrompt } = body;
 
-    // Validasi input
-    if (!message || typeof message !== "string") {
-      return new Response(JSON.stringify({ error: "Invalid message" }), {
+    // Check for required fields
+    if (!message) {
+      return new Response(JSON.stringify({ error: "Message is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Get system prompt
-    const systemPrompt = buildSystemPrompt();
+    const systemPrompt = customPrompt || buildSystemPrompt();
 
     // Cek apakah ada OpenAI API key
     const apiKey = Deno.env.get("OPENAI_API_KEY");
@@ -517,7 +519,7 @@ serve(async (req) => {
     
     // Fallback ke smart response generator
     try {
-      const { message, whatsappNumber } = await req.json();
+      const { message } = body;
       const fallbackMessage = generateFallbackResponse(message || "");
       
       return new Response(JSON.stringify({ 

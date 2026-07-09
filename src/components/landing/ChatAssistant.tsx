@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, X, MessageCircle, Loader2, ChevronRight, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { ChatbotSettings } from "@/lib/landing/types";
 
 interface Message {
   id: string;
@@ -14,6 +15,7 @@ interface ChatAssistantProps {
   primaryColor?: string;
   productName?: string;
   onClose?: () => void;
+  settings?: ChatbotSettings;
 }
 
 // Quick reply suggestions yang lebih natural
@@ -116,13 +118,14 @@ export default function ChatAssistant({
   primaryColor = "#059669",
   productName = "Multibeauty Soap",
   onClose,
+  settings,
 }: ChatAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "assistant",
-      content: `Halo! 👋 Saya adalah asisten AI untuk ${productName}. Ada yang bisa saya bantu?\n\nTanyakan tentang manfaat, cara pakai, harga, bahan, keamanan, atau cara pemesanan!`,
+      content: settings?.welcomeMessage || `Halo! 👋 Saya adalah asisten AI untuk ${productName}. Ada yang bisa saya bantu?\n\nTanyakan tentang manfaat, cara pakai, harga, bahan, keamanan, atau cara pemesanan!`,
       timestamp: new Date(),
       quickReplies: QUICK_REPLIES,
     },
@@ -136,8 +139,12 @@ export default function ChatAssistant({
 
   // Ambil nomor WhatsApp admin — mengikuti pola Fallback PPOB
   useEffect(() => {
-    fetchAdminWaNumber().then(setAdminWaNumber);
-  }, []);
+    if (settings?.waNumber) {
+      setAdminWaNumber(settings.waNumber);
+    } else {
+      fetchAdminWaNumber().then(setAdminWaNumber);
+    }
+  }, [settings?.waNumber]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -187,6 +194,7 @@ export default function ChatAssistant({
             content: m.content,
           })),
           whatsappNumber: adminWaNumber || null,
+          customPrompt: settings?.aiPrompt,
         },
       });
 
@@ -234,7 +242,7 @@ export default function ChatAssistant({
     if (adminWaNumber) {
       const lastUserMessage = [...messages].reverse().find(m => m.role === "user");
       const context = lastUserMessage?.content || "";
-      const waMessage = `Halo, saya tertarik dengan ${productName}. ${context ? `Saya ingin bertanya tentang: ${context}` : ""}`;
+      const waMessage = settings?.waMessage || `Halo, saya tertarik dengan ${productName}. ${context ? `Saya ingin bertanya tentang: ${context}` : ""}`;
       
       openWhatsAppDirect(adminWaNumber, waMessage);
     } else {

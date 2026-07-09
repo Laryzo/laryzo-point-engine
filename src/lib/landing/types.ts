@@ -178,6 +178,23 @@ export type Section =
 
 export type SectionType = Section["type"];
 
+export type ChatbotSettings = {
+  enabled?: boolean;
+  welcomeMessage?: string;
+  aiPrompt?: string;
+  waNumber?: string;
+  waMessage?: string;
+};
+
+export type LandingSettings = {
+  chatbot?: ChatbotSettings;
+  checkout?: {
+    productId?: string;
+    price?: number;
+    successMessage?: string;
+  };
+};
+
 export type LandingPageRow = {
   id: string;
   slug: string;
@@ -186,6 +203,8 @@ export type LandingPageRow = {
   theme_published: Theme;
   sections_draft: Section[];
   sections_published: Section[];
+  settings_draft: LandingSettings;
+  settings_published: LandingSettings;
 };
 
 export const SECTION_LIBRARY: { type: SectionType; label: string; icon: string }[] = [
