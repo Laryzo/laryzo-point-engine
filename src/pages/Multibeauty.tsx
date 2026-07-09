@@ -3,6 +3,7 @@ import favicon from "@/assets/multibeauty/favicon.png";
 import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import LandingRenderer from "@/components/landing/LandingRenderer";
+import ChatAssistant from "@/components/landing/ChatAssistant";
 import { useLandingPage } from "@/hooks/useLandingPage";
 import type { LandingData } from "@/hooks/useLandingPage";
 
@@ -11,6 +12,7 @@ const Multibeauty = () => {
   const isPreview = params.get("preview") === "1";
   const { data, loading } = useLandingPage("multibeauty", isPreview ? "draft" : "published");
   const [live, setLive] = useState<LandingData | null>(null);
+  const [showChat, setShowChat] = useState(true);
 
   // Live update via postMessage from builder
   useEffect(() => {
@@ -54,7 +56,20 @@ const Multibeauty = () => {
     );
   }
 
-  return <LandingRenderer sections={active.sections} theme={active.theme} previewMode={isPreview} />;
+  return (
+    <>
+      <LandingRenderer sections={active.sections} theme={active.theme} previewMode={isPreview} />
+      
+      {/* Chat Asisten - hanya tampil jika bukan preview mode */}
+      {!isPreview && showChat && (
+        <ChatAssistant
+          primaryColor={active.theme?.primary || "#059669"}
+          productName={active.title || "Multibeauty Soap"}
+          onClose={() => setShowChat(false)}
+        />
+      )}
+    </>
+  );
 };
 
 export default Multibeauty;
