@@ -12,6 +12,11 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Allow both GET and POST
+  if (req.method !== "GET" && req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+  }
+
   try {
     // Create Supabase client with service role (backend access)
     const supabase = createClient(

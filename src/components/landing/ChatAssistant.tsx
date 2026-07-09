@@ -90,9 +90,7 @@ function openWhatsAppDirect(phoneNumber: string, message?: string): void {
 async function fetchAdminWaNumber(): Promise<string | null> {
   try {
     // Panggil Edge Function yang menggunakan service role
-    const { data, error } = await supabase.functions.invoke("get-landing-settings", {
-      method: "GET",
-    });
+    const { data, error } = await supabase.functions.invoke("get-landing-settings");
 
     if (error) throw error;
     
