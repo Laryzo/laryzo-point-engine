@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Save, Send, ExternalLink, MessageSquare, ShoppingBag } from "lucide-react";
+import { Loader2, Plus, Save, Send, ExternalLink, MessageSquare, ShoppingBag, Palette } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Section, SectionType, Theme, LandingPageRow, LandingSettings } from "@/lib/landing/types";
 import { SECTION_LIBRARY } from "@/lib/landing/types";
@@ -15,7 +15,6 @@ import { saveLandingPage, publishLandingPage } from "@/hooks/useLandingPage";
 import SectionList from "@/components/landing-builder/SectionList";
 import SectionInspector from "@/components/landing-builder/SectionInspector";
 import ColorField from "@/components/landing-builder/ColorField";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 
 const SLUG = "multibeauty";
@@ -69,7 +68,10 @@ export default function LandingBuilder() {
         setSections(r.sections_draft?.length ? r.sections_draft : (r.sections_published?.length ? r.sections_published : defaultMultibeautySections));
         setTheme({ ...defaultTheme, ...(r.theme_draft || r.theme_published || {}) });
         setTitle(r.title || "Multibeauty Soap");
-        setSettings(r.settings_draft || r.settings_published || {});
+        setSettings(r.settings_draft || r.settings_published || {
+          chatbot: { enabled: true, welcomeMessage: "", waNumber: "", aiPrompt: "" },
+          checkout: { productId: "", price: 0, successMessage: "" }
+        });
       } else {
         setSections(defaultMultibeautySections);
       }
@@ -210,123 +212,119 @@ export default function LandingBuilder() {
         {/* Right: Inspector */}
         <div className="col-span-3 border-l flex flex-col min-h-0">
           <ScrollArea className="flex-1 p-4">
-            <div className="space-y-4">
-              <Tabs defaultValue="theme" className="w-full">
-                <TabsList className="grid grid-cols-3 mb-4">
-                  <TabsTrigger value="theme">Tema</TabsTrigger>
-                  <TabsTrigger value="chatbot">Chatbot</TabsTrigger>
-                  <TabsTrigger value="checkout">Order</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="theme">
-                  <Card className="p-3">
-                    <div className="text-xs font-semibold mb-3 uppercase">Tema Global</div>
-                    <div className="space-y-3">
-                      <ColorField label="Warna Utama" value={theme.primary} onChange={(v) => setTheme((t) => ({ ...t, primary: v }))} />
-                      <ColorField label="Warna Utama (gelap)" value={theme.primaryDark} onChange={(v) => setTheme((t) => ({ ...t, primaryDark: v }))} />
-                      <ColorField label="Warna Aksen" value={theme.accent} onChange={(v) => setTheme((t) => ({ ...t, accent: v }))} />
-                      <ColorField label="Background Halaman" value={theme.bg} onChange={(v) => setTheme((t) => ({ ...t, bg: v }))} />
-                      <ColorField label="Warna Teks" value={theme.text} onChange={(v) => setTheme((t) => ({ ...t, text: v }))} />
-                      <div>
-                        <Label className="text-xs">Font</Label>
-                        <Input value={theme.font || ""} onChange={(e) => setTheme((t) => ({ ...t, font: e.target.value }))} placeholder="'Inter', sans-serif" />
-                      </div>
-                    </div>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="chatbot">
-                  <Card className="p-3">
-                    <div className="text-xs font-semibold mb-3 flex items-center gap-2 uppercase">
-                      <MessageSquare className="w-3 h-3" /> Chatbot AI
-                    </div>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs">Aktifkan Chatbot</Label>
-                        <Switch 
-                          checked={settings?.chatbot?.enabled !== false} 
-                          onCheckedChange={(v) => setSettings(s => ({ ...s, chatbot: { ...(s?.chatbot || {}), enabled: v } }))} 
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Pesan Selamat Datang</Label>
-                        <Input 
-                          value={settings?.chatbot?.welcomeMessage || ""} 
-                          onChange={(e) => setSettings(s => ({ ...s, chatbot: { ...(s?.chatbot || {}), welcomeMessage: e.target.value } }))}
-                          placeholder="Halo! Ada yang bisa saya bantu?"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Nomor WhatsApp (Sinkron)</Label>
-                        <Input 
-                          value={settings?.chatbot?.waNumber || ""} 
-                          onChange={(e) => setSettings(s => ({ ...s, chatbot: { ...(s?.chatbot || {}), waNumber: e.target.value } }))}
-                          placeholder="628xxxxxxxxxx"
-                        />
-                        <p className="text-[10px] text-muted-foreground italic">Kosongkan untuk menggunakan nomor dari System Settings</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">AI System Prompt</Label>
-                        <textarea 
-                          className="w-full min-h-[120px] text-xs p-2 border rounded-md bg-background"
-                          value={settings?.chatbot?.aiPrompt || ""} 
-                          onChange={(e) => setSettings(s => ({ ...s, chatbot: { ...(s?.chatbot || {}), aiPrompt: e.target.value } }))}
-                          placeholder="Instruksi khusus untuk AI..."
-                        />
-                      </div>
-                    </div>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="checkout">
-                  <Card className="p-3">
-                    <div className="text-xs font-semibold mb-3 flex items-center gap-2 uppercase">
-                      <ShoppingBag className="w-3 h-3" /> Order
-                    </div>
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">ID Produk</Label>
-                        <Input 
-                          value={settings?.checkout?.productId || ""} 
-                          onChange={(e) => setSettings(s => ({ ...s, checkout: { ...(s?.checkout || {}), productId: e.target.value } }))}
-                          placeholder="ID Produk"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Harga Tampil</Label>
-                        <Input 
-                          type="number"
-                          value={settings?.checkout?.price || ""} 
-                          onChange={(e) => setSettings(s => ({ ...s, checkout: { ...(s?.checkout || {}), price: parseInt(e.target.value) || 0 } }))}
-                          placeholder="75000"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Pesan Sukses</Label>
-                        <textarea 
-                          className="w-full min-h-[80px] text-xs p-2 border rounded-md bg-background"
-                          value={settings?.checkout?.successMessage || ""} 
-                          onChange={(e) => setSettings(s => ({ ...s, checkout: { ...(s?.checkout || {}), successMessage: e.target.value } }))}
-                          placeholder="Terima kasih! Pesanan Anda sedang diproses..."
-                        />
-                      </div>
-                    </div>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            {activeSection ? (
+            <div className="space-y-6">
+              {/* GLOBAL THEME */}
               <Card className="p-3">
-                <div className="text-xs font-semibold mb-3">EDIT: {activeSection.type.toUpperCase()}</div>
-                <SectionInspector
-                  section={activeSection}
-                  onChange={(patch) => updateSectionProps(activeSection.id, patch)}
-                />
+                <div className="text-xs font-semibold mb-3 flex items-center gap-2 uppercase">
+                  <Palette className="w-3 h-3" /> Tema Global
+                </div>
+                <div className="space-y-3">
+                  <ColorField label="Warna Utama" value={theme.primary} onChange={(v) => setTheme((t) => ({ ...t, primary: v }))} />
+                  <ColorField label="Warna Utama (gelap)" value={theme.primaryDark} onChange={(v) => setTheme((t) => ({ ...t, primaryDark: v }))} />
+                  <ColorField label="Warna Aksen" value={theme.accent} onChange={(v) => setTheme((t) => ({ ...t, accent: v }))} />
+                  <ColorField label="Background Halaman" value={theme.bg} onChange={(v) => setTheme((t) => ({ ...t, bg: v }))} />
+                  <ColorField label="Warna Teks" value={theme.text} onChange={(v) => setTheme((t) => ({ ...t, text: v }))} />
+                  <div>
+                    <Label className="text-xs">Font</Label>
+                    <Input value={theme.font || ""} onChange={(e) => setTheme((t) => ({ ...t, font: e.target.value }))} placeholder="'Inter', sans-serif" />
+                  </div>
+                </div>
               </Card>
-            ) : (
-              <div className="text-xs text-muted-foreground text-center py-6">Pilih section untuk edit</div>
-            )}
+
+              {/* CHATBOT AI */}
+              <Card className="p-3 border-emerald-100 bg-emerald-50/30">
+                <div className="text-xs font-semibold mb-3 flex items-center gap-2 uppercase text-emerald-800">
+                  <MessageSquare className="w-3 h-3" /> Chatbot AI
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Aktifkan Chatbot</Label>
+                    <Switch 
+                      checked={settings?.chatbot?.enabled !== false} 
+                      onCheckedChange={(v) => setSettings(s => ({ ...s, chatbot: { ...(s?.chatbot || {}), enabled: v } }))} 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Pesan Selamat Datang</Label>
+                    <Input 
+                      className="bg-white"
+                      value={settings?.chatbot?.welcomeMessage || ""} 
+                      onChange={(e) => setSettings(s => ({ ...s, chatbot: { ...(s?.chatbot || {}), welcomeMessage: e.target.value } }))}
+                      placeholder="Halo! Ada yang bisa saya bantu?"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Nomor WhatsApp (Sinkron)</Label>
+                    <Input 
+                      className="bg-white"
+                      value={settings?.chatbot?.waNumber || ""} 
+                      onChange={(e) => setSettings(s => ({ ...s, chatbot: { ...(s?.chatbot || {}), waNumber: e.target.value } }))}
+                      placeholder="628xxxxxxxxxx"
+                    />
+                    <p className="text-[10px] text-muted-foreground italic">Kosongkan untuk menggunakan nomor dari System Settings</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">AI System Prompt</Label>
+                    <textarea 
+                      className="w-full min-h-[100px] text-xs p-2 border rounded-md bg-white"
+                      value={settings?.chatbot?.aiPrompt || ""} 
+                      onChange={(e) => setSettings(s => ({ ...s, chatbot: { ...(s?.chatbot || {}), aiPrompt: e.target.value } }))}
+                      placeholder="Instruksi khusus untuk AI..."
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              {/* ORDER SETTINGS */}
+              <Card className="p-3 border-orange-100 bg-orange-50/30">
+                <div className="text-xs font-semibold mb-3 flex items-center gap-2 uppercase text-orange-800">
+                  <ShoppingBag className="w-3 h-3" /> Pengaturan Order
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">ID Produk</Label>
+                    <Input 
+                      className="bg-white"
+                      value={settings?.checkout?.productId || ""} 
+                      onChange={(e) => setSettings(s => ({ ...s, checkout: { ...(s?.checkout || {}), productId: e.target.value } }))}
+                      placeholder="ID Produk"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Harga Tampil</Label>
+                    <Input 
+                      className="bg-white"
+                      type="number"
+                      value={settings?.checkout?.price || ""} 
+                      onChange={(e) => setSettings(s => ({ ...s, checkout: { ...(s?.checkout || {}), price: parseInt(e.target.value) || 0 } }))}
+                      placeholder="75000"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Pesan Sukses</Label>
+                    <textarea 
+                      className="w-full min-h-[80px] text-xs p-2 border rounded-md bg-white"
+                      value={settings?.checkout?.successMessage || ""} 
+                      onChange={(e) => setSettings(s => ({ ...s, checkout: { ...(s?.checkout || {}), successMessage: e.target.value } }))}
+                      placeholder="Terima kasih! Pesanan Anda sedang diproses..."
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              {/* SECTION INSPECTOR */}
+              {activeSection ? (
+                <Card className="p-3 border-blue-100 bg-blue-50/10">
+                  <div className="text-xs font-semibold mb-3 uppercase text-blue-800">Edit: {activeSection.type}</div>
+                  <SectionInspector
+                    section={activeSection}
+                    onChange={(patch) => updateSectionProps(activeSection.id, patch)}
+                  />
+                </Card>
+              ) : (
+                <div className="text-xs text-muted-foreground text-center py-6 border-2 border-dashed rounded-lg">Pilih section untuk edit</div>
+              )}
+            </div>
           </ScrollArea>
         </div>
       </div>
