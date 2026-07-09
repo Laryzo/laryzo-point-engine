@@ -32,7 +32,7 @@ const Multibeauty = () => {
       const link = (document.querySelector("link[rel*='icon']") || document.createElement('link')) as HTMLLinkElement;
       link.type = 'image/png';
       link.rel = 'shortcut icon';
-      link.href = favicon;
+      link.href = `${favicon}?v=2`;
       document.getElementsByTagName('head')[0].appendChild(link);
       
       if (active.title) {
