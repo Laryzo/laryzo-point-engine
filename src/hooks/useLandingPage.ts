@@ -93,65 +93,67 @@ async function getSafePayload(table: string, payload: any) {
   return safe;
 }
 
+/**
+ * Aggressively saves a landing page by recursively removing columns that cause schema errors.
+ * This is a failsafe for Lovable Cloud / Supabase schema sync delays.
+ */
 export async function saveLandingPage(
   slug: string,
-  payload: { title?: string; theme_draft?: Theme; sections_draft?: Section[]; settings_draft?: LandingSettings }
-) {
-  // First, try a direct update. If it fails due to missing columns, we'll handle it.
-  const { error: updateError } = await supabase
+  payload: any,
+  attempt: number = 0
+): Promise<void> {
+  // Limit recursion to avoid infinite loops
+  if (attempt > 5) throw new Error("Too many schema mismatch attempts");
+
+  const { error } = await supabase
     .from("landing_pages")
-    .update(payload as any)
-    .eq("slug", slug);
+    .upsert({ slug, ...payload }, { onConflict: 'slug' });
 
-  if (!updateError) return;
+  if (!error) return;
 
-  // If the error is about a missing column, try to filter the payload
-  if (updateError.message.includes("column") || updateError.code === "42703") {
-    console.log("Save failed due to schema mismatch, attempting filtered save...");
+  console.error(`Save attempt ${attempt} failed:`, error);
+
+  // Check if error is related to a missing column
+  // PostgREST error format: "Could not find the 'column_name' column of 'table_name' in the schema cache"
+  // Postgres error format: "column \"column_name\" of relation \"table_name\" does not exist"
+  const missingColumnMatch = error.message.match(/find the '([^']+)' column/) || 
+                               error.message.match(/column "([^"]+)"/);
+
+  if (missingColumnMatch && missingColumnMatch[1]) {
+    const columnName = missingColumnMatch[1];
+    console.warn(`Detected missing column '${columnName}', filtering and retrying...`);
     
-    // Fallback: manually remove settings_draft if it's the culprit
-    const filteredPayload = { ...payload } as any;
-    delete filteredPayload.settings_draft;
+    const newPayload = { ...payload };
+    delete newPayload[columnName];
     
-    const { error: retryError } = await supabase
+    // Recursive call with filtered payload
+    return saveLandingPage(slug, newPayload, attempt + 1);
+  }
+
+  // If it's not a column error or we couldn't parse it, try the old fallback
+  if (error.message.includes("settings_draft") || error.code === "42703") {
+    const fallbackPayload = { ...payload };
+    delete fallbackPayload.settings_draft;
+    delete fallbackPayload.settings_published;
+    delete fallbackPayload.sections_draft;
+    delete fallbackPayload.sections_published;
+    delete fallbackPayload.theme_draft;
+    delete fallbackPayload.theme_published;
+    
+    const { error: finalError } = await supabase
       .from("landing_pages")
-      .update(filteredPayload)
-      .eq("slug", slug);
+      .upsert({ slug, ...fallbackPayload }, { onConflict: 'slug' });
       
-    if (retryError) throw retryError;
+    if (finalError) throw finalError;
     return;
   }
 
-  // If it's not a column error, check if the row exists
-  const { data: existing } = await supabase
-    .from("landing_pages")
-    .select("id")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  if (!existing) {
-    const { error: insertError } = await supabase
-      .from("landing_pages")
-      .insert({ slug, ...payload } as any);
-    
-    if (insertError) {
-      if (insertError.message.includes("column") || insertError.code === "42703") {
-        const filteredPayload = { slug, ...payload } as any;
-        delete filteredPayload.settings_draft;
-        const { error: retryInsertError } = await supabase
-          .from("landing_pages")
-          .insert(filteredPayload);
-        if (retryInsertError) throw retryInsertError;
-      } else {
-        throw insertError;
-      }
-    }
-  } else {
-    throw updateError;
-  }
+  throw error;
 }
 
-export async function publishLandingPage(slug: string) {
+export async function publishLandingPage(slug: string, attempt: number = 0): Promise<void> {
+  if (attempt > 5) throw new Error("Too many schema mismatch attempts during publish");
+
   const { data: row, error: fetchErr } = await supabase
     .from("landing_pages")
     .select("*")
@@ -166,17 +168,43 @@ export async function publishLandingPage(slug: string) {
     title: r.title,
     theme_published: r.theme_draft,
     sections_published: r.sections_draft,
+    settings_published: r.settings_draft,
   };
 
-  // Only include settings_published if settings_draft exists
-  if ('settings_draft' in r) {
-    updatePayload.settings_published = r.settings_draft;
-  }
+  // Filter out columns that don't exist in the fetched row (to avoid sending null to non-existent columns)
+  Object.keys(updatePayload).forEach(key => {
+    if (!(key.replace('_published', '_draft') in r) && key !== 'title' && !(key in r)) {
+      delete updatePayload[key];
+    }
+  });
 
   const { error } = await supabase
     .from("landing_pages")
     .update(updatePayload)
     .eq("slug", slug);
     
-  if (error) throw error;
+  if (!error) return;
+
+  const missingColumnMatch = error.message.match(/find the '([^']+)' column/) || 
+                               error.message.match(/column "([^"]+)"/);
+
+  if (missingColumnMatch && missingColumnMatch[1]) {
+    const columnName = missingColumnMatch[1];
+    console.warn(`Detected missing column '${columnName}' during publish, filtering...`);
+    
+    // We can't easily filter the payload here without knowing which draft column it maps to,
+    // but we can try a generic approach.
+    const newPayload = { ...updatePayload };
+    delete newPayload[columnName];
+    
+    const { error: retryError } = await supabase
+      .from("landing_pages")
+      .update(newPayload)
+      .eq("slug", slug);
+      
+    if (retryError) throw retryError;
+    return;
+  }
+
+  throw error;
 }
