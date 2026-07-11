@@ -306,7 +306,6 @@ export default function ChatAssistant({
         <button
           onClick={() => {
             setIsOpen(false);
-            onClose?.();
           }}
           className="hover:bg-white/20 p-1 rounded transition-colors"
         >

@@ -12,7 +12,7 @@ const Multibeauty = () => {
   const isPreview = params.get("preview") === "1";
   const { data, loading } = useLandingPage("multibeauty", isPreview ? "draft" : "published");
   const [live, setLive] = useState<LandingData | null>(null);
-  const [showChat, setShowChat] = useState(true);
+
 
   // Live update via postMessage from builder
   useEffect(() => {
@@ -61,11 +61,10 @@ const Multibeauty = () => {
       <LandingRenderer sections={active.sections} theme={active.theme} previewMode={isPreview} />
       
       {/* Chat Asisten - hanya tampil jika bukan preview mode */}
-      {!isPreview && showChat && active.settings?.chatbot?.enabled !== false && (
+      {!isPreview && active.settings?.chatbot?.enabled !== false && (
         <ChatAssistant
           primaryColor={active.theme?.primary || "#059669"}
           productName={active.title || "Multibeauty Soap"}
-          onClose={() => setShowChat(false)}
           settings={active.settings?.chatbot}
         />
       )}
