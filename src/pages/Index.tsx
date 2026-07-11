@@ -7,9 +7,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
-        <div className="inline-block mb-8 rounded-2xl overflow-hidden shadow-2xl">
-          <img src={laryzoLogo} alt="Laryzo" className="w-80 h-auto block" />
-        </div>
+        <img src={laryzoLogo} alt="Laryzo" className="w-96 h-auto mx-auto mb-8 block" />
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button asChild size="lg">
             <Link to="/portal/login">
