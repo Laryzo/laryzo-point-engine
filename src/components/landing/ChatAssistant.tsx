@@ -265,7 +265,6 @@ export default function ChatAssistant({
         <button
           onClick={() => {
             setIsOpen(false);
-            onClose?.();
           }}
           className="hover:bg-white/20 p-1 rounded transition-colors"
         >
@@ -355,16 +354,11 @@ export default function ChatAssistant({
         {/* Tombol WhatsApp */}
         <button
           onClick={handleWhatsAppClick}
-          disabled={!adminWaNumber}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
-            adminWaNumber
-              ? "bg-green-500 hover:bg-green-600"
-              : "bg-gray-400 cursor-not-allowed"
-          }`}
-          title={adminWaNumber ? "Klik untuk langsung chat via WhatsApp" : "Nomor WhatsApp belum dikonfigurasi"}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors bg-green-500 hover:bg-green-600"
+          title="Klik untuk langsung chat via WhatsApp"
         >
           <Phone className="w-4 h-4" />
-          {adminWaNumber ? "Hubungi via WhatsApp" : "WhatsApp belum tersedia"}
+          Hubungi via WhatsApp
         </button>
       </div>
     </div>
@@ -400,40 +394,20 @@ function generateSmartFallback(message: string): string {
   }
 
   if (lower.match(/(harga|berapa.*biaya|murah|mahal|promo|diskon|paket|hemat)/)) {
-    return `Harga Multibeauty Soap:\n\n📦 Satuan: Rp 75.000 per bar (60g)\n📦 Paket 6 pcs: Rp 450.000 (hemat Rp 75.000!)\n\nSaran saya: ambil paket 6 pcs karena lebih hemat dan cukup buat 6 bulan. Tapi kalau mau coba dulu, beli 1 bar juga boleh kok! 😊\n\nMau order sekarang?`;
+    return `Harga Multibeauty Soap sangat terjangkau dengan kualitas premium! 💎\n\n• Eceran: Rp 20.000 - Rp 35.000 (tergantung promo)\n• Paket Hemat: Mulai dari Rp 100.000 untuk 5 bar\n\nKami sering ada promo kejutan lho! Kamu bisa klik tombol **Hubungi via WhatsApp** di bawah untuk cek harga promo hari ini. 💸`;
   }
 
-  if (lower.match(/(cara.*pakai|bagaimana.*guna|pemakaian|pakai.*berapa|dosis)/)) {
-    return `Cara pakainya gampang banget! 😊\n\n1. Basahi area yang mau dibersihkan\n2. Buat busa dengan tangan atau spons\n3. Usapkan ke wajah, rambut, atau tubuh\n4. ⚡ Diamkan 1-2 menit — ini penting biar bahan aktifnya bekerja!\n5. Bilas sampai bersih\n\nGunakan 2x sehari untuk hasil optimal. Setelah 1-2 minggu pemakaian rutin, kamu bakal ngerasain perbedaannya! 💫`;
+  if (lower.match(/(pakai|cara|guna|aplikasi|berapa.*kali)/)) {
+    return `Cara pakai Multibeauty Soap gampang banget: ✨\n\n1. Basahi sabun dan tangan\n2. Busakan sampai melimpah\n3. Usapkan lembut ke wajah/tubuh\n4. Diamkan 1-2 menit agar nutrisi meresap\n5. Bilas sampai bersih\n\nGunakan 2-3 kali sehari untuk hasil maksimal! Mau coba sekarang?`;
   }
 
-  if (lower.match(/(bahan|kandungan|komposisi|ingredient|terbuat|madu|spirulina|gamat)/)) {
-    return `Multibeauty Soap mengandung 3 bahan alami premium: 🌿\n\n🍯 Madu Murni — pelembap alami kaya antioksidan\n🌱 Spirulina — detoksifikasi kulit & anti-aging\n🌊 Gamat (Teripang) — kolagen tinggi untuk regenerasi\n\nSemua 100% alami, tanpa paraben, sulfat, atau pewarna sintetis. Sudah tersertifikasi BPOM! ✅`;
+  if (lower.match(/(aman|bpom|bahaya|kimia|efek|sensitif|bumil|busui)/)) {
+    return `Tenang saja! Multibeauty Soap 100% AMAN. ✅\n\n• Sudah BPOM Certified\n• Bahan Alami (Madu, Spirulina, Gamat)\n• Tanpa merkuri atau bahan kimia berbahaya\n• Aman untuk ibu hamil & menyusui\n• Cocok untuk semua jenis kulit, termasuk kulit sensitif\n\nAda kekhawatiran khusus tentang kulit kamu?`;
   }
 
-  if (lower.match(/(aman|efek.*samping|bahaya|bpom|alergi|hamil|ibu.*hamil)/)) {
-    return `Keamanan produk kami terjamin! ✅\n\n• Tersertifikasi BPOM\n• Dermatologically tested\n• 100% bahan alami — tanpa paraben, sulfat, pewarna sintetis\n\nAman untuk semua jenis kulit termasuk kulit sensitif, ibu hamil dan menyusui! 🌿`;
+  if (lower.match(/(beli|order|pesan|gimana|toko|shopee|lazada|tokopedia|ongkir|kirim)/)) {
+    return `Wah, pilihan bagus! 😍 Kamu bisa pesan langsung melalui admin kami agar dapat harga terbaik dan konsultasi gratis.\n\nSilakan klik tombol **Hubungi via WhatsApp** di bawah ini ya. Kami siap melayani pengiriman ke seluruh Indonesia! 🚚💨`;
   }
 
-  if (lower.match(/(pesan|order|beli|mau.*beli|cara.*pesan|checkout)/)) {
-    return `Cara pesan mudah banget! 🛒\n\n1. Isi formulir pemesanan di bagian bawah halaman\n2. Admin akan menghubungi via WhatsApp untuk konfirmasi\n3. Lakukan pembayaran (Transfer, E-wallet, COD)\n4. Produk dikirim ke alamat kamu! 📦\n\nPengiriman ke seluruh Indonesia. Mau order sekarang?`;
-  }
-
-  if (lower.match(/(jerawat|bruntusan|komedo|kulit.*berminyak)/)) {
-    return `Untuk jerawat, Multibeauty Soap sangat cocok! 🌿\n\nBahan Madu dan Spirulina punya sifat antibakteri yang bisa mengurangi jerawat, memudarkan bekasnya, dan mencegah tumbuhnya jerawat baru. Coba gunakan 2x sehari dan diamkan 1-2 menit sebelum dibilas. Banyak pelanggan mulai lihat hasil dalam 1-2 minggu! 💫`;
-  }
-
-  if (lower.match(/(kusam|gelap|flek.*hitam|noda|tidak.*merata)/)) {
-    return `Untuk kulit kusam atau flek hitam, Multibeauty Soap adalah solusi yang tepat! 💕\n\nMadu murni melembapkan alami, sementara Spirulina membantu mencerahkan dan mendetoksifikasi. Hasilnya kulit lebih cerah dan merata! Coba gunakan 2x sehari ya. ✨`;
-  }
-
-  if (lower.match(/(usia|anti.*aging|kerutan|keriput|kencang)/)) {
-    return `Multibeauty Soap cocok untuk semua usia! 👨‍👩‍👧‍👦\n\nUntuk anti-aging, bahan Gamat (Teripang) mengandung kolagen tinggi dan CGF yang membantu meningkatkan elastisitas kulit, mengurangi tanda penuaan, dan meregenerasi sel kulit. ✨`;
-  }
-
-  if (lower.match(/(bye|dadah|sampai.*jumpa|goodbye)/)) {
-    return `Dadah! 👋 Semoga hari kamu menyenangkan! Jangan lupa order Multibeauty Soap ya! 😊✨`;
-  }
-
-  return `Pertanyaan menarik! 😊 Saya spesialis di Multibeauty Soap, jadi saya bisa bantu kamu dengan informasi seputar:\n\n• Manfaat produk — 12 manfaat untuk kulit sehat\n• Harga & promo — termasuk paket hemat\n• Cara pakai — langkah-langkah mudah\n• Bahan — komposisi alami yang aman\n• Keamanan — BPOM certified\n• Cara pesan — proses mudah via WhatsApp\n\nMau tahu lebih detail tentang salah satu topik di atas? Atau kamu bisa langsung klik tombol Hubungi via WhatsApp di bawah untuk chat langsung dengan tim kami! 💬`;
+  return `Maaf, saya belum paham pertanyaan itu. 😅\n\nTapi jangan khawatir, tim admin kami siap membantu kamu secara langsung! Silakan klik tombol **Hubungi via WhatsApp** di bawah untuk bicara dengan manusia. 🙏`;
 }
