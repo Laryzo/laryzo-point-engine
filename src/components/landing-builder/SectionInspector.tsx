@@ -339,7 +339,7 @@ export default function SectionInspector({ section, onChange }: Props) {
                 />
               </div>
             ))}
-            <Button type="button" variant="outline" size="sm" onClick={() => onChange({ items: [...(p.items || []), { icon: "✅", title: "Item baru" }] } as any)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => onChange({ items: [...(p.items || []), { icon: "✅", title: "" }] } as any)}>
               <Plus className="w-3 h-3 mr-1" /> Tambah
             </Button>
           </div>
