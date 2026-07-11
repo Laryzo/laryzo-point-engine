@@ -18,7 +18,6 @@ interface ChatAssistantProps {
   settings?: ChatbotSettings;
 }
 
-// Quick reply suggestions yang lebih natural
 const QUICK_REPLIES = [
   "Apa manfaatnya?",
   "Berapa harganya?",
@@ -28,7 +27,6 @@ const QUICK_REPLIES = [
   "Ada promo?",
 ];
 
-// Versi alternatif quick replies untuk variasi
 const QUICK_REPLIES_ALT = [
   "Bisa untuk jerawat?",
   "Ada paket hemat?",
@@ -38,79 +36,47 @@ const QUICK_REPLIES_ALT = [
   "Hubungi WhatsApp",
 ];
 
-// ============================================================
-// NORMALISASI NOMOR — sama dengan pola Fallback PPOB
-// ============================================================
 function normalizePhoneNumber(raw: string): string {
-  // Bersihkan semua karakter non-digit
   const cleaned = raw.replace(/[^0-9]/g, "");
-  
-  // Konversi format lokal (08xx) ke internasional (628xx)
-  if (cleaned.startsWith("0")) {
-    return "62" + cleaned.slice(1);
-  }
-  
-  // Jika sudah 62, langsung return
-  if (cleaned.startsWith("62")) {
-    return cleaned;
-  }
-  
-  // Fallback: tambahkan 62
+  if (cleaned.startsWith("0")) return "62" + cleaned.slice(1);
+  if (cleaned.startsWith("62")) return cleaned;
   return "62" + cleaned;
 }
 
-// ============================================================
-// BUILD WA LINK — menggunakan api.whatsapp.com/send
-// agar langsung buka chat tanpa perlu simpan kontak
-// ============================================================
 function buildWaLink(phoneNumber: string, message?: string): string {
   const phone = normalizePhoneNumber(phoneNumber);
   const text = message || "Halo, saya tertarik dengan produk Anda. Bisa bantu saya?";
-  // api.whatsapp.com/send langsung membuka chat tanpa perlu simpan nomor
   return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
 }
 
-// ============================================================
-// OPEN WHATSAPP — menggunakan window.location untuk lebih reliable
-// ============================================================
 function openWhatsAppDirect(phoneNumber: string, message?: string): void {
   const link = buildWaLink(phoneNumber, message);
-  
-  // Coba dengan window.open terlebih dahulu (lebih kompatibel)
   const win = window.open(link, "_blank", "noopener,noreferrer");
-  
-  // Jika popup blocker mencegah window.open, fallback ke location.assign
   if (!win || win.closed || typeof win.closed === "undefined") {
-    // Fallback: redirect langsung
     window.location.href = link;
   }
 }
 
-// ============================================================
-// FETCH WA NUMBER — mengikuti pola CustomerOrderManual
-// ============================================================
-async function fetchAdminWaNumber(): Promise<string | null> {
+// Read waNumber from landing_pages.settings_published.chatbot.waNumber
+async function fetchWaNumberFromDB(): Promise<string | null> {
   try {
-    // Gunakan Edge Function karena tabel system_settings diproteksi RLS (hanya admin yang bisa baca langsung)
-    const { data, error } = await supabase.functions.invoke("get-landing-settings");
-    
-    if (data?.admin_ppob_wa_number) {
-      const number = String(data.admin_ppob_wa_number).replace(/[^0-9]/g, "");
-      // Simpan ke localStorage untuk cache
-      localStorage.setItem("admin_whatsapp_number", number);
-      return number;
+    const { data } = await supabase
+      .from("landing_pages")
+      .select("settings_published")
+      .eq("slug", "multibeauty")
+      .maybeSingle();
+
+    const waNumber = (data as any)?.settings_published?.chatbot?.waNumber;
+    if (waNumber) {
+      localStorage.setItem("chatbot_wa_number", waNumber);
+      return waNumber;
     }
-    
-    if (error) throw error;
-  } catch (err) {
-    console.error("Error fetching WA number from Edge Function:", err);
+  } catch {
+    // ignore
   }
-  
-  // Fallback: coba dari localStorage
-  const stored = localStorage.getItem("admin_whatsapp_number");
-  if (stored) return stored;
-  
-  return null;
+
+  // Fallback: localStorage cache
+  return localStorage.getItem("chatbot_wa_number");
 }
 
 export default function ChatAssistant({
@@ -136,13 +102,14 @@ export default function ChatAssistant({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Ambil nomor WhatsApp admin — mengikuti pola Fallback PPOB
+  // Load WA number: settings prop first, then DB, then localStorage cache
   useEffect(() => {
     if (settings?.waNumber) {
       setAdminWaNumber(settings.waNumber);
-    } else {
-      fetchAdminWaNumber().then(setAdminWaNumber);
+      localStorage.setItem("chatbot_wa_number", settings.waNumber);
+      return;
     }
+    fetchWaNumberFromDB().then(setAdminWaNumber);
   }, [settings?.waNumber]);
 
   const scrollToBottom = () => {
@@ -159,7 +126,6 @@ export default function ChatAssistant({
     }
   }, [isOpen]);
 
-  // Toggle quick replies setiap 2 conversation turn untuk variasi
   useEffect(() => {
     const userMessages = messages.filter(m => m.role === "user").length;
     setQuickReplyToggle(userMessages % 2);
@@ -171,7 +137,6 @@ export default function ChatAssistant({
     const textToSend = messageText || inputValue.trim();
     if (!textToSend) return;
 
-    // Tambahkan pesan user
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -184,7 +149,6 @@ export default function ChatAssistant({
     setIsLoading(true);
 
     try {
-      // Panggil Edge Function untuk mendapatkan respons AI
       const { data, error } = await supabase.functions.invoke("chat-multibeauty", {
         body: {
           message: userMessage.content,
@@ -212,10 +176,7 @@ export default function ChatAssistant({
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Chat error:", error);
-      
-      // Fallback: gunakan smart local response
       const fallbackMessage = generateSmartFallback(userMessage.content);
-
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -236,36 +197,36 @@ export default function ChatAssistant({
     }
   };
 
-  // Tombol WhatsApp handler — langsung buka chat ke admin
   const handleWhatsAppClick = useCallback(() => {
     if (adminWaNumber) {
       const lastUserMessage = [...messages].reverse().find(m => m.role === "user");
       const context = lastUserMessage?.content || "";
       const waMessage = settings?.waMessage || `Halo, saya tertarik dengan ${productName}. ${context ? `Saya ingin bertanya tentang: ${context}` : ""}`;
-      
       openWhatsAppDirect(adminWaNumber, waMessage);
     } else {
-      // Jika nomor belum tersedia, tampilkan pesan di chat
       const fallbackMsg: Message = {
         id: Date.now().toString(),
         role: "assistant",
-        content: `Nomor WhatsApp admin belum dikonfigurasi. Silakan hubungi kami langsung atau coba lagi nanti. 🙏\n\nNomor WhatsApp akan aktif setelah admin mengkonfigurasi di halaman System Settings → "Fallback PPOB ke WhatsApp Admin".`,
+        content: `Nomor WhatsApp admin belum dikonfigurasi. Silakan hubungi kami langsung atau coba lagi nanti. 🙏`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     }
-  }, [adminWaNumber, messages, productName]);
+  }, [adminWaNumber, messages, productName, settings?.waMessage]);
 
-  // Re-fetch nomor WA ketika chat dibuka (untuk catch update dari admin)
+  // Re-fetch WA number when chat is opened to catch admin updates
   const handleOpenChat = useCallback(() => {
     setIsOpen(true);
-    fetchAdminWaNumber().then(setAdminWaNumber);
-  }, []);
+    if (!settings?.waNumber) {
+      fetchWaNumberFromDB().then((num) => {
+        if (num) setAdminWaNumber(num);
+      });
+    }
+  }, [settings?.waNumber]);
 
   if (!isOpen) {
     return (
       <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-40">
-        {/* Tombol WhatsApp Floating - selalu terlihat */}
         {adminWaNumber && (
           <button
             onClick={handleWhatsAppClick}
@@ -275,8 +236,6 @@ export default function ChatAssistant({
             <Phone className="w-6 h-6" />
           </button>
         )}
-
-        {/* Tombol Chat AI */}
         <button
           onClick={handleOpenChat}
           className="rounded-full shadow-lg hover:shadow-xl transition-all duration-300 p-4 text-white animate-pulse hover:animate-none"
@@ -306,6 +265,7 @@ export default function ChatAssistant({
         <button
           onClick={() => {
             setIsOpen(false);
+            onClose?.();
           }}
           className="hover:bg-white/20 p-1 rounded transition-colors"
         >
@@ -337,7 +297,7 @@ export default function ChatAssistant({
                 {message.content}
               </div>
             </div>
-            
+
             {/* Quick Replies */}
             {message.role === "assistant" && message.quickReplies && (
               <div className="flex flex-wrap gap-2 mt-2 ml-0">
@@ -397,8 +357,8 @@ export default function ChatAssistant({
           onClick={handleWhatsAppClick}
           disabled={!adminWaNumber}
           className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
-            adminWaNumber 
-              ? "bg-green-500 hover:bg-green-600" 
+            adminWaNumber
+              ? "bg-green-500 hover:bg-green-600"
               : "bg-gray-400 cursor-not-allowed"
           }`}
           title={adminWaNumber ? "Klik untuk langsung chat via WhatsApp" : "Nomor WhatsApp belum dikonfigurasi"}
@@ -417,7 +377,6 @@ export default function ChatAssistant({
 function generateSmartFallback(message: string): string {
   const lower = message.toLowerCase().trim();
 
-  // Greeting
   if (lower.match(/^(halo|hai|hi|hello|hey|assalamu|selamat|pagi|siang|sore|malam|permisi)/)) {
     const greetings = [
       "Halo! 👋 Senang kamu bertanya! Saya asisten AI untuk Multibeauty Soap. Ada yang bisa saya bantu?",
@@ -427,7 +386,6 @@ function generateSmartFallback(message: string): string {
     return greetings[Math.floor(Math.random() * greetings.length)];
   }
 
-  // Terima kasih
   if (lower.match(/(terima.?kasih|makasih|thanks|thank.*you)/)) {
     const thanks = [
       "Sama-sama! 😊 Senang bisa membantu. Kalau ada pertanyaan lain, jangan ragu tanya ya!",
@@ -437,117 +395,45 @@ function generateSmartFallback(message: string): string {
     return thanks[Math.floor(Math.random() * thanks.length)];
   }
 
-  // Manfaat
   if (lower.match(/(manfaat|keuntungan|bagus|fungsi|apa.*aja|unggul)/)) {
-    return `Multibeauty Soap punya 12 manfaat luar biasa! ✨
-
-Yang paling populer:
-• Mencerahkan kulit kusam secara alami
-• Mengatasi jerawat dan bekasnya
-• Melembapkan kulit sampai dalam
-• Memudarkan flek hitam & noda
-• Anti-aging & melindungi dari radikal bebas
-
-Semua dari bahan 100% alami — Madu, Spirulina, dan Gamat! 🌿
-
-Ada yang ingin kamu ketahui lebih lanjut?`;
+    return `Multibeauty Soap punya 12 manfaat luar biasa! ✨\n\nYang paling populer:\n• Mencerahkan kulit kusam secara alami\n• Mengatasi jerawat dan bekasnya\n• Melembapkan kulit sampai dalam\n• Memudarkan flek hitam & noda\n• Anti-aging & melindungi dari radikal bebas\n\nSemua dari bahan 100% alami — Madu, Spirulina, dan Gamat! 🌿\n\nAda yang ingin kamu ketahui lebih lanjut?`;
   }
 
-  // Harga
   if (lower.match(/(harga|berapa.*biaya|murah|mahal|promo|diskon|paket|hemat)/)) {
-    return `Harga Multibeauty Soap:
-
-📦 Satuan: Rp 75.000 per bar (60g)
-📦 Paket 6 pcs: Rp 450.000 (hemat Rp 75.000!)
-
-Saran saya: ambil paket 6 pcs karena lebih hemat dan cukup buat 6 bulan. Tapi kalau mau coba dulu, beli 1 bar juga boleh kok! 😊
-
-Mau order sekarang?`;
+    return `Harga Multibeauty Soap:\n\n📦 Satuan: Rp 75.000 per bar (60g)\n📦 Paket 6 pcs: Rp 450.000 (hemat Rp 75.000!)\n\nSaran saya: ambil paket 6 pcs karena lebih hemat dan cukup buat 6 bulan. Tapi kalau mau coba dulu, beli 1 bar juga boleh kok! 😊\n\nMau order sekarang?`;
   }
 
-  // Cara pakai
   if (lower.match(/(cara.*pakai|bagaimana.*guna|pemakaian|pakai.*berapa|dosis)/)) {
-    return `Cara pakainya gampang banget! 😊
-
-1. Basahi area yang mau dibersihkan
-2. Buat busa dengan tangan atau spons
-3. Usapkan ke wajah, rambut, atau tubuh
-4. ⚡ **Diamkan 1-2 menit** — ini penting biar bahan aktifnya bekerja!
-5. Bilas sampai bersih
-
-Gunakan 2x sehari untuk hasil optimal. Setelah 1-2 minggu pemakaian rutin, kamu bakal ngerasain perbedaannya! 💫`;
+    return `Cara pakainya gampang banget! 😊\n\n1. Basahi area yang mau dibersihkan\n2. Buat busa dengan tangan atau spons\n3. Usapkan ke wajah, rambut, atau tubuh\n4. ⚡ Diamkan 1-2 menit — ini penting biar bahan aktifnya bekerja!\n5. Bilas sampai bersih\n\nGunakan 2x sehari untuk hasil optimal. Setelah 1-2 minggu pemakaian rutin, kamu bakal ngerasain perbedaannya! 💫`;
   }
 
-  // Bahan
   if (lower.match(/(bahan|kandungan|komposisi|ingredient|terbuat|madu|spirulina|gamat)/)) {
-    return `Multibeauty Soap mengandung 3 bahan alami premium: 🌿
-
-🍯 **Madu Murni** — pelembap alami kaya antioksidan
-🌱 **Spirulina** — detoksifikasi kulit & anti-aging
-🌊 **Gamat (Teripang)** — kolagen tinggi untuk regenerasi
-
-Semua 100% alami, tanpa paraben, sulfat, atau pewarna sintetis. Sudah tersertifikasi BPOM! ✅`;
+    return `Multibeauty Soap mengandung 3 bahan alami premium: 🌿\n\n🍯 Madu Murni — pelembap alami kaya antioksidan\n🌱 Spirulina — detoksifikasi kulit & anti-aging\n🌊 Gamat (Teripang) — kolagen tinggi untuk regenerasi\n\nSemua 100% alami, tanpa paraben, sulfat, atau pewarna sintetis. Sudah tersertifikasi BPOM! ✅`;
   }
 
-  // Keamanan / BPOM
   if (lower.match(/(aman|efek.*samping|bahaya|bpom|alergi|hamil|ibu.*hamil)/)) {
-    return `Keamanan produk kami terjamin! ✅
-
-• Tersertifikasi BPOM
-• Dermatologically tested
-• 100% bahan alami — tanpa paraben, sulfat, pewarna sintetis
-
-Aman untuk semua jenis kulit termasuk kulit sensitif, ibu hamil dan menyusui! 🌿`;
+    return `Keamanan produk kami terjamin! ✅\n\n• Tersertifikasi BPOM\n• Dermatologically tested\n• 100% bahan alami — tanpa paraben, sulfat, pewarna sintetis\n\nAman untuk semua jenis kulit termasuk kulit sensitif, ibu hamil dan menyusui! 🌿`;
   }
 
-  // Pemesanan
   if (lower.match(/(pesan|order|beli|mau.*beli|cara.*pesan|checkout)/)) {
-    return `Cara pesan mudah banget! 🛒
-
-1. Isi formulir pemesanan di bagian bawah halaman
-2. Admin akan menghubungi via WhatsApp untuk konfirmasi
-3. Lakukan pembayaran (Transfer, E-wallet, COD)
-4. Produk dikirim ke alamat kamu! 📦
-
-Pengiriman ke seluruh Indonesia. Mau order sekarang?`;
+    return `Cara pesan mudah banget! 🛒\n\n1. Isi formulir pemesanan di bagian bawah halaman\n2. Admin akan menghubungi via WhatsApp untuk konfirmasi\n3. Lakukan pembayaran (Transfer, E-wallet, COD)\n4. Produk dikirim ke alamat kamu! 📦\n\nPengiriman ke seluruh Indonesia. Mau order sekarang?`;
   }
 
-  // Jerawat
   if (lower.match(/(jerawat|bruntusan|komedo|kulit.*berminyak)/)) {
-    return `Untuk jerawat, Multibeauty Soap sangat cocok! 🌿
-
-Bahan Madu dan Spirulina punya sifat antibakteri yang bisa mengurangi jerawat, memudarkan bekasnya, dan mencegah tumbuhnya jerawat baru. Coba gunakan 2x sehari dan diamkan 1-2 menit sebelum dibilas. Banyak pelanggan mulai lihat hasil dalam 1-2 minggu! 💫`;
+    return `Untuk jerawat, Multibeauty Soap sangat cocok! 🌿\n\nBahan Madu dan Spirulina punya sifat antibakteri yang bisa mengurangi jerawat, memudarkan bekasnya, dan mencegah tumbuhnya jerawat baru. Coba gunakan 2x sehari dan diamkan 1-2 menit sebelum dibilas. Banyak pelanggan mulai lihat hasil dalam 1-2 minggu! 💫`;
   }
 
-  // Kusam / flek
   if (lower.match(/(kusam|gelap|flek.*hitam|noda|tidak.*merata)/)) {
-    return `Untuk kulit kusam atau flek hitam, Multibeauty Soap adalah solusi yang tepat! 💕
-
-Madu murni melembapkan alami, sementara Spirulina membantu mencerahkan dan mendetoksifikasi. Hasilnya kulit lebih cerah dan merata! Coba gunakan 2x sehari ya. ✨`;
+    return `Untuk kulit kusam atau flek hitam, Multibeauty Soap adalah solusi yang tepat! 💕\n\nMadu murni melembapkan alami, sementara Spirulina membantu mencerahkan dan mendetoksifikasi. Hasilnya kulit lebih cerah dan merata! Coba gunakan 2x sehari ya. ✨`;
   }
 
-  // Anti-aging
   if (lower.match(/(usia|anti.*aging|kerutan|keriput|kencang)/)) {
-    return `Multibeauty Soap cocok untuk semua usia! 👨‍👩‍👧‍👦
-
-Untuk anti-aging, bahan Gamat (Teripang) mengandung kolagen tinggi dan CGF yang membantu meningkatkan elastisitas kulit, mengurangi tanda penuaan, dan meregenerasi sel kulit. ✨`;
+    return `Multibeauty Soap cocok untuk semua usia! 👨‍👩‍👧‍👦\n\nUntuk anti-aging, bahan Gamat (Teripang) mengandung kolagen tinggi dan CGF yang membantu meningkatkan elastisitas kulit, mengurangi tanda penuaan, dan meregenerasi sel kulit. ✨`;
   }
 
-  // Bye
   if (lower.match(/(bye|dadah|sampai.*jumpa|goodbye)/)) {
     return `Dadah! 👋 Semoga hari kamu menyenangkan! Jangan lupa order Multibeauty Soap ya! 😊✨`;
   }
 
-  // Default natural response
-  return `Pertanyaan menarik! 😊 Saya spesialis di Multibeauty Soap, jadi saya bisa bantu kamu dengan informasi seputar:
-
-• **Manfaat produk** — 12 manfaat untuk kulit sehat
-• **Harga & promo** — termasuk paket hemat
-• **Cara pakai** — langkah-langkah mudah
-• **Bahan** — komposisi alami yang aman
-• **Keamanan** — BPOM certified
-• **Cara pesan** — proses mudah via WhatsApp
-
-Mau tahu lebih detail tentang salah satu topik di atas? Atau kamu bisa langsung klik tombol **Hubungi via WhatsApp** di bawah untuk chat langsung dengan tim kami! 💬`;
+  return `Pertanyaan menarik! 😊 Saya spesialis di Multibeauty Soap, jadi saya bisa bantu kamu dengan informasi seputar:\n\n• Manfaat produk — 12 manfaat untuk kulit sehat\n• Harga & promo — termasuk paket hemat\n• Cara pakai — langkah-langkah mudah\n• Bahan — komposisi alami yang aman\n• Keamanan — BPOM certified\n• Cara pesan — proses mudah via WhatsApp\n\nMau tahu lebih detail tentang salah satu topik di atas? Atau kamu bisa langsung klik tombol Hubungi via WhatsApp di bawah untuk chat langsung dengan tim kami! 💬`;
 }
-
