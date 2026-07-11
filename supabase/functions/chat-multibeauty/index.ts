@@ -433,7 +433,7 @@ serve(async (req) => {
   let body: any = {};
   try {
     body = await req.json();
-    const { message, conversationHistory, customPrompt } = body;
+    const { message, conversationHistory, customPrompt, whatsappNumber } = body;
 
     // Check for required fields
     if (!message) {

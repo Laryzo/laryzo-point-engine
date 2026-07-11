@@ -91,20 +91,19 @@ function openWhatsAppDirect(phoneNumber: string, message?: string): void {
 // ============================================================
 async function fetchAdminWaNumber(): Promise<string | null> {
   try {
-    const { data } = await supabase
-      .from("system_settings")
-      .select("value")
-      .eq("key", "admin_ppob_wa_number")
-      .maybeSingle();
+    // Gunakan Edge Function karena tabel system_settings diproteksi RLS (hanya admin yang bisa baca langsung)
+    const { data, error } = await supabase.functions.invoke("get-landing-settings");
     
-    if (data?.value) {
-      const number = String(data.value).replace(/[^0-9]/g, "");
+    if (data?.admin_ppob_wa_number) {
+      const number = String(data.admin_ppob_wa_number).replace(/[^0-9]/g, "");
       // Simpan ke localStorage untuk cache
       localStorage.setItem("admin_whatsapp_number", number);
       return number;
     }
+    
+    if (error) throw error;
   } catch (err) {
-    console.error("Error fetching WA number:", err);
+    console.error("Error fetching WA number from Edge Function:", err);
   }
   
   // Fallback: coba dari localStorage

@@ -46,15 +46,11 @@ const CustomerOrderManual = () => {
     if (!orderId) return;
     const [orderRes, settingsRes] = await Promise.all([
       supabase.from('orders_customer_view').select('*').eq('id', orderId).maybeSingle(),
-      supabase
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'admin_ppob_wa_number')
-        .maybeSingle(),
+      supabase.functions.invoke("get-landing-settings"),
     ]);
     if (orderRes.data) setOrder(orderRes.data as any);
-    if (settingsRes.data?.value) {
-      setAdminWa(String(settingsRes.data.value).replace(/[^0-9]/g, ''));
+    if (settingsRes.data?.admin_ppob_wa_number) {
+      setAdminWa(String(settingsRes.data.admin_ppob_wa_number).replace(/[^0-9]/g, ''));
     }
     setLoading(false);
   }, [orderId]);
