@@ -98,6 +98,7 @@ export default function ChatAssistant({
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [adminWaNumber, setAdminWaNumber] = useState<string | null>(null);
+  const [isWaSuggested, setIsWaSuggested] = useState(false);
   const [quickReplyToggle, setQuickReplyToggle] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +119,21 @@ export default function ChatAssistant({
 
   useEffect(() => {
     scrollToBottom();
+    
+    // Cek apakah asisten menyarankan WhatsApp dalam riwayat pesan
+    const hasWaSuggestion = messages.some(m => 
+      m.role === "assistant" && (
+        m.content.toLowerCase().includes("whatsapp") || 
+        m.content.toLowerCase().includes("hubungi kami") || 
+        m.content.toLowerCase().includes("klik tombol") ||
+        m.content.toLowerCase().includes("tanya admin") ||
+        m.content.toLowerCase().includes("via wa")
+      )
+    );
+    
+    if (hasWaSuggestion) {
+      setIsWaSuggested(true);
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -354,11 +370,16 @@ export default function ChatAssistant({
         {/* Tombol WhatsApp */}
         <button
           onClick={handleWhatsAppClick}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors bg-green-500 hover:bg-green-600"
-          title="Klik untuk langsung chat via WhatsApp"
+          disabled={!isWaSuggested}
+          className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all duration-300 ${
+            isWaSuggested 
+              ? "bg-green-500 hover:bg-green-600 shadow-md scale-100" 
+              : "bg-gray-400 cursor-not-allowed opacity-70 scale-95"
+          }`}
+          title={isWaSuggested ? "Klik untuk langsung chat via WhatsApp" : "Tanyakan cara pemesanan untuk mengaktifkan tombol ini"}
         >
           <Phone className="w-4 h-4" />
-          Hubungi via WhatsApp
+          {isWaSuggested ? "WhatsApp Tersedia" : "WhatsApp Belum Tersedia"}
         </button>
       </div>
     </div>
