@@ -415,7 +415,7 @@ function generateSmartFallback(message: string): string {
   }
 
   if (lower.match(/(harga|berapa.*biaya|murah|mahal|promo|diskon|paket|hemat)/)) {
-    return `Harga Multibeauty Soap sangat terjangkau dengan kualitas premium! 💎\n\n• Eceran: Rp 20.000 - Rp 35.000 (tergantung promo)\n• Paket Hemat: Mulai dari Rp 100.000 untuk 5 bar\n\nKami sering ada promo kejutan lho! Kamu bisa klik tombol **Hubungi via WhatsApp** di bawah untuk cek harga promo hari ini. 💸`;
+    return `Harga Multibeauty Soap sangat terjangkau dengan kualitas premium! 💎\n\n• Eceran: Rp 75.000 per bar (60g)\n• Paket Hemat 6 pcs: Rp 450.000 (hemat Rp 75.000!)\n\nKamu bisa klik tombol **Hubungi via WhatsApp** di bawah untuk order langsung dan cek promo terbaru. 💸`;
   }
 
   if (lower.match(/(pakai|cara|guna|aplikasi|berapa.*kali)/)) {

@@ -1,4 +1,4 @@
-import type { Section, Theme } from "./types";
+import type { Section, Theme, QACategory } from "./types";
 
 // Optional bundled fallbacks
 const imageModules = import.meta.glob("@/assets/multibeauty/*.{png,jpeg,jpg}", {
@@ -375,5 +375,81 @@ export const defaultMultibeautySections: Section[] = [
       copyright: "© {year} Multibeauty. Distribusi via Laryzo.",
       bg: "#052e16",
     },
+  },
+];
+// ============================================================
+// DEFAULT Q&A TEMPLATE — muncul otomatis di Landing Page Builder
+// ============================================================
+export const defaultQAItems: QACategory[] = [
+  {
+    id: "manfaat",
+    name: "Manfaat Produk",
+    keywords: ["manfaat", "keuntungan", "bagus untuk apa", "fungsi", "unggul", "cocok untuk"],
+    answers: [
+      "Multibeauty Soap punya 12 manfaat luar biasa! Yang paling populer: Mencerahkan kulit kusam secara alami, mengatasi jerawat dan bekasnya, melembapkan kulit sampai dalam, memudarkan flek hitam & noda, anti-aging & melindungi dari radikal bebas. Semua dari bahan 100% alami — Madu, Spirulina, dan Gamat! 🌿",
+      "Wah, Multibeauty Soap ini all-in-one banget! Dari mencerahkan, melembapkan, mengatasi jerawat, sampai meredakan gatal-gatal. Semua manfaat ini berasal dari bahan alami tanpa kimia berbahaya. 🌟",
+    ],
+  },
+  {
+    id: "harga",
+    name: "Harga & Promo",
+    keywords: ["harga", "berapa", "murah", "mahal", "promo", "diskon", "paket", "hemat", "biaya"],
+    answers: [
+      "Harga Multibeauty Soap sangat terjangkau! Eceran: Rp 75.000 per bar (60g). Paket Hemat 6 pcs: Rp 450.000 (hemat Rp 75.000!). Dengan paket 6 pcs, cukup untuk 6 bulan perawatan. 🎉",
+      "Untuk harga: 1 bar = Rp 75.000, paket 6 pcs = Rp 450.000. Kalau beli paket 6 pcs, per bar hanya Rp 75.000 tapi dapat gratis 1 bar! Cocok buat stok atau bagi-bagi ke keluarga. 😊",
+    ],
+  },
+  {
+    id: "cara_pakai",
+    name: "Cara Pakai",
+    keywords: ["cara pakai", "bagaimana menggunakan", "pemakaian", "berapa kali", "dosis", "cara guna"],
+    answers: [
+      "Cara pakainya gampang banget! 1. Basahi area yang mau dibersihkan 2. Buat busa 3. Usapkan ke wajah/tubuh 4. ⚡ Diamkan 1-2 menit agar bahan aktif bekerja 5. Bilas sampai bersih. Gunakan 2x sehari (pagi & malam) untuk hasil optimal! ✨",
+      "Basahi sabun dan tangan → Buat busa sampai melimpah → Usapkan lembut ke wajah/tubuh → Diamkan 1-2 menit agar nutrisi meresap → Bilas sampai bersih. Gunakan 2-3 kali sehari untuk hasil maksimal! 💫",
+    ],
+  },
+  {
+    id: "bahan",
+    name: "Bahan & Kandungan",
+    keywords: ["bahan", "kandungan", "komposisi", "terbuat dari", "isi", "madu", "spirulina", "gamat", "ingredient"],
+    answers: [
+      "Multibeauty Soap mengandung 3 bahan alami premium: 🍯 Madu Murni (pelembap alami kaya antioksidan, antibakteri), 🌱 Spirulina (detoksifikasi kulit, anti-aging, mencerahkan), 🌊 Gamat/Teripang (kolagen tinggi, CGF untuk regenerasi sel). Semua 100% alami tanpa paraben, sulfat, atau pewarna sintetis! ✅",
+      "Komposisinya simpel tapi powerful! Madu Murni → melembapkan & antibakteri, Spirulina → detoks & anti-aging, Gamat (Teripang) → regenerasi sel & kolagen. Tiga bahan ini saling melengkapi untuk kulit yang lebih sehat, cerah, dan kenyal! 🌟",
+    ],
+  },
+  {
+    id: "keamanan",
+    name: "Keamanan & Sertifikasi",
+    keywords: ["aman", "efek samping", "bahaya", "bpom", "sertifikat", "alergi", "hamil", "ibu hamil", "sensitif"],
+    answers: [
+      "Tenang saja! Multibeauty Soap 100% AMAN. Sudah BPOM Certified, Dermatologically tested, Hypoallergenic formula. Aman untuk semua jenis kulit termasuk kulit sensitif, ibu hamil & menyusui. Tanpa merkuri atau bahan kimia berbahaya sama sekali! 🛡️",
+      "Keamanan produk kami terjamin! Tersertifikasi BPOM, dermatologically tested, 100% bahan alami — tanpa paraben, sulfat, pewarna sintetis. Cocok untuk semua jenis kulit termasuk kulit sensitif. Jika ada reaksi alergi, hentikan pemakaian dan konsultasikan ke dokter ya. 🙏",
+    ],
+  },
+  {
+    id: "order",
+    name: "Cara Order",
+    keywords: ["pesan", "order", "beli", "mau beli", "cara pesan", "checkout", "keranjang", "toko", "ongkir", "kirim"],
+    answers: [
+      "Cara pesan mudah banget! Isi formulir pemesanan di bagian bawah halaman ini → Admin akan menghubungi via WhatsApp untuk konfirmasi → Lakukan pembayaran (Transfer, E-wallet, atau COD) → Produk dikirim ke alamat kamu! Pengiriman ke seluruh Indonesia. 📦",
+      "Kamu bisa langsung klik tombol 'Pesan Sekarang' di bagian bawah halaman ini, isi data lengkap, dan admin kami akan menghubungi via WhatsApp untuk konfirmasi pesanan. Kami juga punya paket hemat 6 pcs (Rp 450.000) kalau mau stok jangka panjang! 🛒",
+    ],
+  },
+  {
+    id: "testimoni",
+    name: "Testimoni & Review",
+    keywords: ["testimoni", "review", "ulasan", "pengalaman", "kata orang", "hasil nyata", "efek"],
+    answers: [
+      "Ribuan pelanggan sudah merasakan manfaatnya! Kebanyakan mulai ngerasain perubahan dalam 1-2 minggu pemakaian rutin. Dari jerawat berkurang, kulit lebih cerah, sampai luka cepat sembuh — semua testimoni nyata dari pelanggan kami. ⭐",
+      "Ini beberapa testimoni nyata: 'Kulit saya jadi lebih cerah setelah 2 minggu!' — Siti, Jakarta. 'Jerawat saya berkurang drastis!' — Budi, Surabaya. 'Luka bakar cepat sembuh berkat sabun ini!' — Ibu Rina, Bandung. Mau coba sendiri? 😊",
+    ],
+  },
+  {
+    id: "pengiriman",
+    name: "Pengiriman",
+    keywords: ["kirim", "pengiriman", "ongkir", "lama kirim", "resi", "tracking", "sampai mana"],
+    answers: [
+      "Pengiriman kami ke seluruh Indonesia! Estimasi 2-7 hari kerja tergantung wilayah. Kemasan aman dan rapi, resi akan dikirimkan setelah produk diproses. Metode pembayaran: Transfer Bank, E-wallet, dan COD (area tertentu). 📦",
+    ],
   },
 ];

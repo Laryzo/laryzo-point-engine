@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { LandingPageRow, Section, Theme } from "@/lib/landing/types";
-import { defaultMultibeautySections, defaultTheme } from "@/lib/landing/defaults";
+import { defaultMultibeautySections, defaultTheme, defaultQAItems } from "@/lib/landing/defaults";
 
 import type { LandingSettings } from "@/lib/landing/types";
 
@@ -29,7 +29,10 @@ export function useLandingPage(slug: string, mode: "published" | "draft" = "publ
         sections: defaultMultibeautySections,
         theme: defaultTheme,
         title: "Multibeauty Soap",
-        settings: {},
+        settings: {
+          chatbot: { enabled: true, welcomeMessage: "", waNumber: "", aiPrompt: "", qaItems: defaultQAItems },
+          checkout: { productId: "", price: 0, successMessage: "" }
+        },
       });
       setLoading(false);
       return;
@@ -45,10 +48,25 @@ export function useLandingPage(slug: string, mode: "published" | "draft" = "publ
         ? { ...defaultTheme, ...(r.theme_draft || {}) }
         : { ...defaultTheme, ...(r.theme_published || {}) };
 
-    const settings =
+    let settings: LandingSettings =
       mode === "draft"
         ? (r.settings_draft || {})
         : (r.settings_published || {});
+
+    // Ensure qaItems is populated with defaults if not already present
+    if (!settings.chatbot?.qaItems?.length) {
+      settings = {
+        ...settings,
+        chatbot: {
+          ...settings.chatbot,
+          enabled: settings.chatbot?.enabled !== false,
+          welcomeMessage: settings.chatbot?.welcomeMessage || "",
+          waNumber: settings.chatbot?.waNumber || "",
+          aiPrompt: settings.chatbot?.aiPrompt || "",
+          qaItems: defaultQAItems,
+        },
+      };
+    }
 
     setData({
       sections: sections?.length ? sections : defaultMultibeautySections,

@@ -12,7 +12,7 @@ import { Loader as Loader2, Plus, Save, Send, ExternalLink, MessageSquare, Shopp
 import { supabase } from "@/integrations/supabase/client";
 import type { Section, SectionType, Theme, LandingPageRow, LandingSettings } from "@/lib/landing/types";
 import { SECTION_LIBRARY } from "@/lib/landing/types";
-import { defaultMultibeautySections, defaultTheme } from "@/lib/landing/defaults";
+import { defaultMultibeautySections, defaultTheme, defaultQAItems } from "@/lib/landing/defaults";
 import { saveLandingPage, publishLandingPage } from "@/hooks/useLandingPage";
 import SectionList from "@/components/landing-builder/SectionList";
 import SectionInspector from "@/components/landing-builder/SectionInspector";
@@ -50,7 +50,7 @@ export default function LandingBuilder() {
   const [theme, setTheme] = useState<Theme>(defaultTheme);
   const [title, setTitle] = useState("Multibeauty Soap");
   const [settings, setSettings] = useState<LandingSettings>({
-    chatbot: { enabled: true, welcomeMessage: "", waNumber: "", aiPrompt: "" },
+    chatbot: { enabled: true, welcomeMessage: "", waNumber: "", aiPrompt: "", qaItems: defaultQAItems },
     checkout: { productId: "", price: 0, successMessage: "" }
   });
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -71,10 +71,16 @@ export default function LandingBuilder() {
         setSections(r.sections_draft?.length ? r.sections_draft : (r.sections_published?.length ? r.sections_published : defaultMultibeautySections));
         setTheme({ ...defaultTheme, ...(r.theme_draft || r.theme_published || {}) });
         setTitle(r.title || "Multibeauty Soap");
-        setSettings(r.settings_draft || r.settings_published || {
-          chatbot: { enabled: true, welcomeMessage: "", waNumber: "", aiPrompt: "" },
+        const fallbackSettings = {
+          chatbot: { enabled: true, welcomeMessage: "", waNumber: "", aiPrompt: "", qaItems: defaultQAItems },
           checkout: { productId: "", price: 0, successMessage: "" }
-        });
+        };
+        const existingSettings = r.settings_draft || r.settings_published;
+        // Ensure qaItems is populated with defaults if not already present
+        if (existingSettings?.chatbot && !existingSettings.chatbot.qaItems?.length) {
+          existingSettings.chatbot.qaItems = defaultQAItems;
+        }
+        setSettings(existingSettings || fallbackSettings);
       } else {
         setSections(defaultMultibeautySections);
       }
