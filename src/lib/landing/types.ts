@@ -178,12 +178,20 @@ export type Section =
 
 export type SectionType = Section["type"];
 
+export type QACategory = {
+  id: string;
+  name: string;
+  keywords: string[];
+  answers: string[];
+};
+
 export type ChatbotSettings = {
   enabled?: boolean;
   welcomeMessage?: string;
   aiPrompt?: string;
   waNumber?: string;
   waMessage?: string;
+  qaItems?: QACategory[];
 };
 
 export type LandingSettings = {

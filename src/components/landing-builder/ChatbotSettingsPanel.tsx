@@ -20,6 +20,7 @@ import {
   Info,
 } from "lucide-react";
 import type { ChatbotSettings } from "@/lib/landing/types";
+import ChatbotQAEditor from "./ChatbotQAEditor";
 
 const PROMPT_TEMPLATES = [
   {
@@ -228,6 +229,14 @@ export default function ChatbotSettingsPanel({ settings, onChange, primaryColor 
                 System prompt menentukan kepribadian dan gaya AI. Kosongkan untuk menggunakan prompt bawaan yang sudah dioptimasi untuk Multibeauty Soap.
               </p>
             </div>
+          </div>
+
+          {/* Q&A Fallback Editor */}
+          <div className="space-y-2 border-t pt-3">
+            <ChatbotQAEditor
+              qaItems={settings?.qaItems || []}
+              onChange={(qaItems) => onChange({ qaItems })}
+            />
           </div>
 
           {/* Advanced / Stats */}

@@ -84,9 +84,50 @@ BATASAN:
 }
 
 // ============================================================
+// QA FALLBACK MATCHER — cocokkan dengan qaItems dari landing settings
+// ============================================================
+function matchQACategory(message: string, qaItems: any[] = []): string | null {
+  const lower = message.toLowerCase();
+  
+  for (const category of qaItems) {
+    if (!category.keywords || category.keywords.length === 0) continue;
+    
+    for (const keyword of category.keywords) {
+      if (!keyword) continue;
+      // Split by comma and check each keyword variant
+      const keywordVariants = keyword.split(',').map((k) => k.trim().toLowerCase());
+      for (const variant of keywordVariants) {
+        if (variant && lower.includes(variant)) {
+          return category.id;
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
+function getRandomAnswer(categoryId: string, qaItems: any[] = []): string | null {
+  const category = qaItems.find((cat) => cat.id === categoryId);
+  if (!category || !category.answers || category.answers.length === 0) {
+    return null;
+  }
+  return category.answers[Math.floor(Math.random() * category.answers.length)];
+}
+
+// ============================================================
 // FALLBACK RESPONSE GENERATOR — lebih natural dan dinamis
 // ============================================================
-function generateFallbackResponse(message: string): string {
+function generateFallbackResponse(message: string, qaItems: any[] = []): string {
+  // Try to match with QA categories first
+  const matchedCategoryId = matchQACategory(message, qaItems);
+  if (matchedCategoryId) {
+    const answer = getRandomAnswer(matchedCategoryId, qaItems);
+    if (answer) {
+      return answer;
+    }
+  }
+
   const lower = message.toLowerCase();
 
   // --- Topik: Manfaat / kebaikan produk ---
@@ -297,7 +338,7 @@ Kalau ada pertanyaan soal pengiriman, silakan hubungi kami via WhatsApp ya! 💬
   }
 
   // --- Topik: Kulit berminyak / jerawat ---
-  if (lower.match(/(kulit.*berminyak|jerawat|bruntusan|komedo|kemerahan|jerawat.*pasien)/)) {
+  if (lower.match(/(kulit.*berminyak|jerawat|bruntusan|komedo|kemerahan|jerawat.*pasien|pimple)/)) {
     return `Untuk masalah kulit berminyak dan jerawat, Multibeauty Soap sangat cocok! 🌿
 
 Bahan Madu dan Spirulina punya sifat antibakteri yang bisa:
@@ -312,7 +353,7 @@ Ada pertanyaan lain tentang cocok tidaknya untuk jenis kulit kamu?`;
   }
 
   // --- Topik: Kulit kering / kusam ---
-  if (lower.match(/(kulit.*kering|kusam|tidak.*merata|gelap|flek.*hitam|noda)/)) {
+  if (lower.match(/(kulit.*kering|kusam|tidak.*merata|gelap|flek.*hitam|noda|spot)/)) {
     return `Untuk kulit kering atau kusam, Multibeauty Soap adalah solusi yang tepat! 💕
 
 Madu murni di dalamnya bertindak sebagai pelembap alami yang meresap sampai ke dalam kulit, sementara Spirulina membantu mencerahkan dan mendetoksifikasi. Hasilnya:
@@ -328,90 +369,91 @@ Mau order sekarang?`;
   }
 
   // --- Topik: Usia / anti-aging ---
-  if (lower.match(/(usia|anti.?aging|kerutan|keriput|tua|young|pemuda|kencang)/)) {
-    return `Multibeauty Soap cocok untuk semua usia! 👨‍👩‍👧‍👦
+  if (lower.match(/(usia|anti.?aging|kerutan|keriput|tua|young|pemuda|kencang|elastis)/)) {
+    return `Multibeauty Soap cocok untuk semua usia! 🌟
 
-Untuk anti-aging, bahan Gamat (Teripang) mengandung kolagen tinggi dan Cell Growth Factor (CGF) yang membantu:
+Terutama untuk yang mulai khawatir dengan kerutan dan elastisitas kulit. Gamat di dalamnya kaya akan kolagen dan CGF yang membantu:
+
+• Mengurangi kerutan dan garis halus
 • Meningkatkan elastisitas kulit
-• Mengurangi tanda-tanda penuaan dini
-• Meregenerasi sel kulit
-• Membuat kulit tetap kencang dan kenyal
+• Membuat kulit lebih kencang dan kenyal
+• Merangsang regenerasi sel kulit
 
-Spirulina juga punya efek anti-aging dengan melawan radikal bebas. Jadi bukan cuma buat remaja, tapi juga sangat bagus untuk dewasa! ✨
+Spirulina juga punya sifat anti-aging yang kuat untuk melawan radikal bebas. Hasilnya, kulit kamu bakal terlihat lebih muda dan bercahaya! ✨
 
-Ada pertanyaan lain?`;
+Mulai perawatan anti-aging sekarang juga, jangan tunda lagi! 😊`;
   }
 
-  // --- DEFAULT: jawaban natural yang tidak kaku ---
-  const defaultResponses = [
-    `Pertanyaan menarik! 😊 Saya spesialis di Multibeauty Soap, jadi saya bisa bantu kamu dengan informasi seputar:
+  // --- Default fallback ---
+  return `Hmm, pertanyaan yang menarik! 🤔 
 
-• **Manfaat produk** — 12 manfaat untuk kulit sehat
-• **Cara pakai** — langkah-langkah mudah
-• **Harga & promo** — termasuk paket hemat
-• **Bahan** — komposisi alami yang aman
-• **Keamanan** — BPOM certified, aman untuk semua
-• **Cara pesan** — proses mudah via WhatsApp
+Saya mungkin belum punya jawaban spesifik untuk itu, tapi saya tahu kalau Multibeauty Soap punya banyak manfaat untuk kulit kamu!
 
-Mau tahu lebih detail tentang salah satu topik di atas? Atau kamu bisa langsung klik tombol WhatsApp untuk chat dengan tim kami! 💬`,
-    `Saya bisa bantu dengan informasi lengkap tentang Multibeauty Soap! ✨
+Kamu bisa tanya tentang:
+• Manfaat dan keunggulan produk
+• Harga dan paket hemat
+• Cara pakai yang benar
+• Bahan-bahan alami
+• Keamanan dan sertifikasi
+• Cara pesan
 
-Kami bisa bahas soal manfaat, cara pakai, harga, bahan-bahan alami, keamanan produk, atau cara order. Silakan pilih topik yang kamu ingin tahu, atau kalau kamu punya pertanyaan spesifik tentang kulit kamu, saya juga siap bantu! 😊
-
-Untuk konsultasi lebih lanjut, silakan hubungi via WhatsApp ya! 💬`,
-  ];
-
-  return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
+Atau kalau kamu punya pertanyaan lain, hubungi kami langsung via WhatsApp ya! 💬 Kami siap membantu! 😊`;
 }
 
 // ============================================================
-// SEMANTIC MATCHING — lebih pintar dari keyword matching biasa
+// SEMANTIC CATEGORY DETECTOR
 // ============================================================
-function getSemanticCategory(text: string): string | null {
-  const lower = text.toLowerCase().trim();
-  
-  // Greeting
-  if (lower.match(/^(halo|hai|hi|hello|hey|assalamu|selamat|pagi|siang|sore|malam|permisi|salam)/)) return "greeting";
-  
+function getSemanticCategory(message: string): string | null {
+  const lower = message.toLowerCase();
+
   // Manfaat
-  if (lower.match(/(manfaat|keuntungan|bagus|fungsi|apa.*aja|siapa.*cocok|rekomendasi|unggul)/)) return "manfaat";
-  
+  if (lower.match(/(manfaat|keuntungan|bagus|fungsi|manfaat.*kulit|apa.*aja|siapa.*yang.*cocok|rekomendasi)/)) return "manfaat";
+
   // Harga
-  if (lower.match(/(harga|berapa.*biaya|murah|mahal|promo|diskon|paket|hemat|cost|price)/)) return "harga";
-  
+  if (lower.match(/(harga|berapa.*biaya|harga.*berapa|cost|murah|mahal|promo|diskon|paket|hemat)/)) return "harga";
+
   // Cara pakai
-  if (lower.match(/(cara.*pakai|bagaimana.*guna|pemakaian|pakai.*berapa.*kali|dosis|step|langkah)/)) return "cara_pakai";
-  
+  if (lower.match(/(cara.*pakai|bagaimana.*menggunakan|cara.*guna|pemakaian|pakai.*berapa.*kali|dosis)/)) return "cara_pakai";
+
   // Bahan
-  if (lower.match(/(bahan|kandungan|komposisi|ingredient|terbuat|madu|spirulina|gamat|teripang)/)) return "bahan";
-  
-  // Pemesanan
-  if (lower.match(/(pesan|order|beli|mau.*beli|cara.*pesan|checkout|keranjang|order.*sekarang)/)) return "pesan";
-  
+  if (lower.match(/(bahan|kandungan|komposisi|ingredient|terbuat.*dari|apa.*isi|madu|spirulina|gamat)/)) return "bahan";
+
+  // Pesan/order
+  if (lower.match(/(pesan|order|beli|mau.*beli|bagaimana.*pesan|cara.*pesan|checkout|keranjang)/)) return "order";
+
   // Testimoni
-  if (lower.match(/(testimoni|review|ulasan|pengalaman|kata.*orang|hasil.*nyata|efek.*nyata)/)) return "testimoni";
-  
+  if (lower.match(/(testimoni|review|ulasan|pengalaman|kata.*orang|hasil.*nyata|efek)/)) return "testimoni";
+
   // Keamanan
-  if (lower.match(/(aman|efek.*samping|bahaya|sertifikat|bpom|alergi|dokter|hamil|ibu.*hamil|menyusui)/)) return "keamanan";
-  
+  if (lower.match(/(aman|efek.*samping|bahaya|sertifikat|bpom|alergi|dokter|hamil|ibu.*hamil)/)) return "keamanan";
+
   // Pengiriman
-  if (lower.match(/(kirim|pengiriman|ongkir|lama.*kirim|resi|tracking|estimasi)/)) return "pengiriman";
-  
-  // Kulit berminyak / jerawat
-  if (lower.match(/(kulit.*berminyak|jerawat|bruntusan|komedo|kemerahan|pimple)/)) return "jerawat";
-  
-  // Kulit kering / kusam
-  if (lower.match(/(kulit.*kering|kusam|tidak.*merata|gelap|flek.*hitam|noda|spot)/)) return "kusam";
-  
-  // Anti-aging
-  if (lower.match(/(usia|anti.*aging|kerutan|keriput|tua|kencang|elastis)/)) return "anti_aging";
-  
+  if (lower.match(/(kirim|pengiriman|ongkir|lama.*kirim|resi|tracking)/)) return "pengiriman";
+
+  // Greeting
+  if (lower.match(/^(halo|hai|hi|hello|hey|assalamu|selamat|pagi|siang|sore|malam|permisi)/)) return "greeting";
+
   // Terima kasih
-  if (lower.match(/(terima.*kasih|makasih|thanks|thank.*you|nuhun)/)) return "terima_kasih";
-  
+  if (lower.match(/(terima.?kasih|makasih|thanks|thank.*you|nuhun)/)) return "terima_kasih";
+
   // Selamat tinggal
   if (lower.match(/(bye|dadah|sampai.*jumpa|selamat.*tinggal|goodbye)/)) return "selamat_tinggal";
-  
+
+  // Kulit berminyak / jerawat
+  if (lower.match(/(kulit.*berminyak|jerawat|bruntusan|komedo|kemerahan|pimple)/)) return "jerawat";
+
+  // Kulit kering / kusam
+  if (lower.match(/(kulit.*kering|kusam|tidak.*merata|gelap|flek.*hitam|noda|spot)/)) return "kusam";
+
+  // Anti-aging
+  if (lower.match(/(usia|anti.*aging|kerutan|keriput|tua|kencang|elastis)/)) return "anti_aging";
+
+  // Terima kasih
+  if (lower.match(/(terima.*kasih|makasih|thanks|thank.*you|nuhun)/)) return "terima_kasih";
+
+  // Selamat tinggal
+  if (lower.match(/(bye|dadah|sampai.*jumpa|selamat.*tinggal|goodbye)/)) return "selamat_tinggal";
+
   return null;
 }
 
@@ -433,7 +475,7 @@ serve(async (req) => {
   let body: any = {};
   try {
     body = await req.json();
-    const { message, conversationHistory, customPrompt, whatsappNumber } = body;
+    const { message, conversationHistory, customPrompt, whatsappNumber, landingSlug = "multibeauty" } = body;
 
     // Check for required fields
     if (!message) {
@@ -446,13 +488,33 @@ serve(async (req) => {
     // Get system prompt
     const systemPrompt = customPrompt || buildSystemPrompt();
 
+    // Fetch landing page settings to get qaItems
+    let qaItems: any[] = [];
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        const { data: landingData } = await supabase
+          .from("landing_pages")
+          .select("settings_published, settings_draft")
+          .eq("slug", landingSlug)
+          .maybeSingle();
+
+        if (landingData) {
+          const settings = landingData.settings_draft || landingData.settings_published;
+          qaItems = settings?.chatbot?.qaItems || [];
+        }
+      } catch (err) {
+        console.warn("Failed to fetch landing settings:", err);
+      }
+    }
+
     // Cek apakah ada OpenAI API key
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
       console.warn("OpenAI API key not configured, using smart fallback");
-      const fallbackMessage = generateFallbackResponse(message);
-      
-      return new Response(JSON.stringify({ 
+      const fallbackMessage = generateFallbackResponse(message, qaItems);
+
+      return new Response(JSON.stringify({
         message: fallbackMessage,
         category: getSemanticCategory(message),
         whatsappNumber: whatsappNumber || null,
@@ -506,7 +568,7 @@ serve(async (req) => {
       throw new Error("Empty response from OpenAI");
     }
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       message: aiMessage,
       category: getSemanticCategory(message),
       whatsappNumber: whatsappNumber || null,
@@ -516,21 +578,42 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in chat function:", error);
-    
+
     // Fallback ke smart response generator
     try {
-      const { message } = body;
-      const fallbackMessage = generateFallbackResponse(message || "");
-      
-      return new Response(JSON.stringify({ 
+      const { message, landingSlug = "multibeauty" } = body;
+
+      // Fetch landing page settings for qaItems
+      let qaItems: any[] = [];
+      if (supabaseUrl && supabaseKey) {
+        try {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          const { data: landingData } = await supabase
+            .from("landing_pages")
+            .select("settings_published, settings_draft")
+            .eq("slug", landingSlug)
+            .maybeSingle();
+
+          if (landingData) {
+            const settings = landingData.settings_draft || landingData.settings_published;
+            qaItems = settings?.chatbot?.qaItems || [];
+          }
+        } catch (err) {
+          console.warn("Failed to fetch landing settings in fallback:", err);
+        }
+      }
+
+      const fallbackMessage = generateFallbackResponse(message || "", qaItems);
+
+      return new Response(JSON.stringify({
         message: fallbackMessage,
         category: getSemanticCategory(message || ""),
-        whatsappNumber: whatsappNumber || null,
+        whatsappNumber: body.whatsappNumber || null,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (_) {
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         message: `Maaf, ada gangguan teknis. Silakan hubungi kami langsung via WhatsApp ya! 💬
 
 Atau kamu bisa tanyakan tentang:
