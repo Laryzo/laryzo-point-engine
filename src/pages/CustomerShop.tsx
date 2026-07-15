@@ -278,8 +278,24 @@ const CustomerShop = () => {
   };
 
   const getBrandIcon = (brand: string) => {
-    const logoUrl = getBrandLogoUrl(brand);
     const { color } = getBrandMeta(brand);
+    const canonicalBrand = canonicalizePpobBrand(brand);
+    
+    // Try to find a product with image_url for this brand in the current category
+    let productLogoUrl: string | null = null;
+    if (selectedCategory) {
+      const brandProducts = products.filter(p => {
+        if (p.type !== 'ppob' || p.ppob_type !== selectedCategory) return false;
+        return getPpobBrandFromProductName(p.name) === canonicalBrand;
+      });
+      if (brandProducts.length > 0 && brandProducts[0].image_url) {
+        productLogoUrl = brandProducts[0].image_url;
+      }
+    }
+    
+    // Use product logo if available, otherwise fall back to CDN logo
+    const logoUrl = productLogoUrl || getBrandLogoUrl(brand);
+    
     if (logoUrl) {
       return (
         <div
