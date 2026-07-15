@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, RefreshCw, Edit, Trash2, Loader2, Download, Search, Check, ChevronRight, ChevronLeft, Smartphone, CreditCard, Zap, Package } from 'lucide-react';
 import { canonicalizePpobBrand, getPpobBrandFromProductName, getPpobSubBrandFromProductName, brandHasSubMenu } from '@/lib/ppob-brand';
+import { getBrandMeta, getBrandLogoUrl } from '@/lib/ppob-brand-logo';
 
 interface Product {
   id: string;
@@ -572,10 +573,68 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
     return 'PPOB';
   };
 
+  // Brand icon: uses simpleicons CDN for brands with a slug, otherwise a colored initial badge
   const getBrandIcon = (brand: string) => {
-    return <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-      {brand.charAt(0)}
-    </div>;
+    const meta = getBrandMeta(brand);
+    const logoUrl = getBrandLogoUrl(brand);
+
+    if (logoUrl) {
+      return (
+        <div
+          className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `#${meta.color}20` }}
+        >
+          <img
+            src={logoUrl}
+            alt={brand}
+            className="h-6 w-6 object-contain"
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="h-10 w-10 rounded-full flex items-center justify-center font-bold text-white text-lg flex-shrink-0"
+        style={{ backgroundColor: `#${meta.color}` }}
+      >
+        {brand.charAt(0)}
+      </div>
+    );
+  };
+
+  // Product row icon: shows uploaded image_url first, then simpleicons logo, then colored initial
+  const getProductIcon = (product: Product) => {
+    if (product.image_url) {
+      return (
+        <img
+          src={product.image_url}
+          alt={product.name}
+          className="h-8 w-8 rounded object-contain border border-border bg-background flex-shrink-0"
+        />
+      );
+    }
+    const brand = getPpobBrandFromProductName(product.name);
+    const meta = getBrandMeta(brand);
+    const logoUrl = getBrandLogoUrl(brand);
+    if (logoUrl) {
+      return (
+        <div
+          className="h-8 w-8 rounded flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `#${meta.color}20` }}
+        >
+          <img src={logoUrl} alt={brand} className="h-5 w-5 object-contain" />
+        </div>
+      );
+    }
+    return (
+      <div
+        className="h-8 w-8 rounded flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+        style={{ backgroundColor: `#${meta.color}` }}
+      >
+        {brand.charAt(0)}
+      </div>
+    );
   };
 
   const formatCurrency = (value: number) => {
@@ -663,10 +722,10 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                     >
                       <CardContent className="p-4 flex items-center gap-3">
                         {getBrandIcon(brand)}
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <span className="font-medium">{brand}</span>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       </CardContent>
                     </Card>
                   ))}
@@ -688,11 +747,11 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                       onClick={() => handlePpobSubBrandSelect(sub)}
                     >
                       <CardContent className="p-4 flex items-center gap-3">
-                        {getBrandIcon(sub)}
-                        <div className="flex-1">
+                        {getBrandIcon(selectedPpobBrand || sub)}
+                        <div className="flex-1 min-w-0">
                           <span className="font-medium">{selectedPpobBrand} {sub}</span>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       </CardContent>
                     </Card>
                   ))}
@@ -736,7 +795,12 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                       filteredPpobProducts.map((product, index) => (
                         <TableRow key={product.id}>
                           <TableCell className="text-muted-foreground font-medium">{index + 1}</TableCell>
-                          <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getProductIcon(product)}
+                              <span className="font-medium">{product.name}</span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{product.digiflazz_sku || '-'}</TableCell>
                           <TableCell>{formatCurrency(product.cost_price)}</TableCell>
                           <TableCell>{product.point_price.toLocaleString()} poin</TableCell>
