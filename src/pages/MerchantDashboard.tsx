@@ -2033,7 +2033,7 @@ const MerchantDashboard = () => {
             </SidebarGroup>
 
             <div className="mt-auto p-4 border-t">
-              <Button variant="outline" onClick={logout} className="w-full">
+              <Button onClick={logout} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white border-0 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300 font-medium">
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>

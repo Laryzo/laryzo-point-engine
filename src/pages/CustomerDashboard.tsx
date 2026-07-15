@@ -90,7 +90,7 @@ const CustomerDashboard = () => {
             <Coins className="h-6 w-6 text-primary" />
             <span className="font-semibold text-lg">Laryzo Point</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
+          <Button size="sm" onClick={handleLogout} className="bg-gradient-to-r from-red-500 to-red-600 text-white border-0 hover:from-red-600 hover:to-red-700 shadow-md shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300 font-medium">
             <LogOut className="h-4 w-4 mr-2" />
             Keluar
           </Button>

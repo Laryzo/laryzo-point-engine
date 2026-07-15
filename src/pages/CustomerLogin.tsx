@@ -98,7 +98,7 @@ const CustomerLogin = () => {
       <div className="absolute top-[50%] left-[50%] w-[40%] h-[40%] bg-gradient-to-br from-cyan-400/10 to-blue-500/5 rounded-full blur-[120px]" />
       
       <div className="absolute top-4 left-4 z-20">
-        <Button asChild variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-200">
+        <Button asChild size="sm" className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0 hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 font-medium">
           <Link to="/">
             <Home className="w-4 h-4 mr-2" />
             Home

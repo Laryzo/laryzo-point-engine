@@ -79,13 +79,13 @@ const MerchantRegister = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-500/10 via-background to-amber-500/10 p-4 py-12">
       <div className="absolute top-4 left-4 flex gap-2">
-        <Button asChild variant="outline" size="sm">
+        <Button asChild size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 text-white border-0 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all duration-300 font-medium">
           <Link to="/">
             <Home className="w-4 h-4 mr-2" />
             Home
           </Link>
         </Button>
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild size="sm" className="bg-slate-600/80 text-white border-0 hover:bg-slate-700 shadow-md hover:shadow-lg transition-all duration-300 font-medium">
           <Link to="/mitra/login">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali ke Login
