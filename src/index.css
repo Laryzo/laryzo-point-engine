@@ -50,8 +50,8 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Laryzo Dark Mode - Deep Navy & Cyan */
-    --background: 222 47% 11%; /* Deep Navy */
+    /* Laryzo Dark Mode - Deep Navy & Cyan (Matched to Logo) */
+    --background: 240 93% 5%; /* #01011A */
     --foreground: 210 40% 98%;
 
     --card: 222 47% 13%;
