@@ -49,22 +49,26 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="absolute top-4 left-4">
-        <Button asChild variant="outline" size="sm">
+    <div className="min-h-screen flex items-center justify-center bg-[#020617] relative overflow-hidden">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+      
+      <div className="absolute top-4 left-4 z-10">
+        <Button asChild variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
           <Link to="/">
             <Home className="w-4 h-4 mr-2" />
             Home
           </Link>
         </Button>
       </div>
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md border-slate-800 bg-slate-900/50 backdrop-blur-xl shadow-2xl z-10">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-            <LogIn className="w-6 h-6 text-primary-foreground" />
+          <div className="mx-auto mb-4 w-12 h-12 bg-cyan-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+            <LogIn className="w-6 h-6 text-white" />
           </div>
-          <CardTitle className="text-2xl">Laryzo Point Engine</CardTitle>
-          <CardDescription>Admin Dashboard Login</CardDescription>
+          <CardTitle className="text-2xl text-white">Laryzo Point Engine</CardTitle>
+          <CardDescription className="text-slate-400">Admin Dashboard Login</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -89,7 +93,7 @@ const Login = () => {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg shadow-cyan-500/20" disabled={loading}>
               {loading ? "Logging in..." : "Login"}
             </Button>
           </form>
@@ -100,7 +104,7 @@ const Login = () => {
               variant="link"
               size="sm"
               onClick={() => setShowForgotPassword(true)}
-              className="p-0 h-auto font-normal text-sm text-muted-foreground hover:text-primary"
+              className="p-0 h-auto font-normal text-sm text-slate-400 hover:text-cyan-400"
             >
               <HelpCircle className="w-4 h-4 mr-1" />
               Lupa Password atau Email?

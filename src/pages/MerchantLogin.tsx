@@ -42,24 +42,28 @@ const MerchantLogin = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-500/10 via-background to-amber-500/10 p-4">
-      <div className="absolute top-4 left-4">
-        <Button asChild variant="outline" size="sm">
+    <div className="min-h-screen flex items-center justify-center bg-[#020617] relative overflow-hidden p-4">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+
+      <div className="absolute top-4 left-4 z-10">
+        <Button asChild variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
           <Link to="/">
             <Home className="w-4 h-4 mr-2" />
             Home
           </Link>
         </Button>
       </div>
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md border-slate-800 bg-slate-900/50 backdrop-blur-xl shadow-2xl z-10">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 rounded-full bg-orange-500/10">
-              <Store className="h-8 w-8 text-orange-600" />
+            <div className="p-3 rounded-full bg-cyan-500/10 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+              <Store className="h-8 w-8 text-cyan-400" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Laryzo Mitra</CardTitle>
-          <CardDescription>Portal POS untuk Mitra UMKM</CardDescription>
+          <CardTitle className="text-2xl text-white">Laryzo Mitra</CardTitle>
+          <CardDescription className="text-slate-400">Portal POS untuk Mitra UMKM</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -84,14 +88,14 @@ const MerchantLogin = () => {
                 required
               />
             </div>
-            <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading}>
+            <Button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg shadow-cyan-500/20" disabled={loading}>
               {loading ? 'Memproses...' : 'Masuk'}
             </Button>
           </form>
           <div className="text-sm text-center mt-4 space-y-2">
-            <p className="text-muted-foreground">
+            <p className="text-slate-400">
               Belum punya akun mitra?{' '}
-              <Link to="/mitra/register" className="text-orange-600 font-medium hover:underline">
+              <Link to="/mitra/register" className="text-cyan-400 font-medium hover:underline">
                 Daftar di sini
               </Link>
             </p>

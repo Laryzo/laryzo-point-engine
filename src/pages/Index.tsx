@@ -5,24 +5,27 @@ import laryzoLogo from "@/assets/laryzo-logo.png";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center">
-        <img src={laryzoLogo} alt="Laryzo" className="w-96 h-auto mx-auto mb-8 block" />
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button asChild size="lg">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1E293B] via-[#0F172A] to-[#020617] flex items-center justify-center p-4">
+      <div className="text-center animate-in fade-in zoom-in duration-700">
+        <div className="relative mb-12">
+          <div className="absolute -inset-1 bg-gradient-to-r from-cyan-400 to-blue-600 rounded-full blur opacity-20 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+          <img src={laryzoLogo} alt="Laryzo" className="relative w-72 md:w-96 h-auto mx-auto block drop-shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-6 justify-center">
+          <Button asChild size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white border-none shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all hover:scale-105">
             <Link to="/portal/login">
-              Customer
+              Customer Portal
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="border-orange-500 text-orange-600 hover:bg-orange-50">
+          <Button asChild variant="outline" size="lg" className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 backdrop-blur-sm transition-all hover:scale-105">
             <Link to="/mitra/login">
               <Store className="w-4 h-4 mr-2" />
-              Mitra
+              Mitra Login
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
+          <Button asChild variant="ghost" size="lg" className="text-slate-400 hover:text-white hover:bg-white/5 transition-all">
             <Link to="/login">
-              Admin
+              Admin Access
             </Link>
           </Button>
         </div>
