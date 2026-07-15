@@ -18,7 +18,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!admin) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/admin-access" replace />;
   }
 
   return <>{children}</>;

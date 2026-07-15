@@ -22,11 +22,6 @@ const Index = () => {
               Mitra Login
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="lg" className="text-slate-400 hover:text-white hover:bg-white/5 transition-all">
-            <Link to="/login">
-              Admin Access
-            </Link>
-          </Button>
         </div>
       </div>
     </div>

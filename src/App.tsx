@@ -50,7 +50,7 @@ const AdminRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={admin ? <Navigate to="/dashboard" replace /> : <Index />} />
-      <Route path="/login" element={admin ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/admin-access" element={admin ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <Dashboard />
