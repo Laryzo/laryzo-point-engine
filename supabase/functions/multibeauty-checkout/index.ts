@@ -3,7 +3,8 @@ import * as bcrypt from "npm:bcryptjs@3.0.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
 const PRICE_FALLBACK = 75000;
@@ -66,7 +67,7 @@ async function findOpenSlot(supabase: any): Promise<{ parent_id: string; positio
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
@@ -210,7 +211,7 @@ Deno.serve(async (req) => {
     // Fire-and-forget notify admin (do not block on failure)
     try {
       await supabase.functions.invoke("notify-admin-manual-order", {
-        body: { order_id: order.id, source: "multibeauty-landing" },
+        body: { order_id: order.id, source: "multibeauty-landing", order_type: "product" },
       });
     } catch (e) {
       console.warn("notify-admin-manual-order failed:", (e as Error).message);
