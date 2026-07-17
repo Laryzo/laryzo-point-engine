@@ -31,22 +31,22 @@ const Multibeauty = () => {
 
   useEffect(() => {
     if (active) {
-      // Menghapus semua tag link icon yang ada agar tidak konflik
-      const existingLinks = document.querySelectorAll("link[rel*='icon']");
-      existingLinks.forEach(link => link.parentNode?.removeChild(link));
-
-      // Membuat tag link baru untuk favicon Multibeauty
-      const link = document.createElement('link');
+      // Perbarui favicon
+      let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      
       link.type = 'image/png';
-      link.rel = 'shortcut icon';
-      link.href = `${favicon}?v=${Date.now()}`; // Gunakan timestamp agar selalu unik
-      document.getElementsByTagName('head')[0].appendChild(link);
+      link.href = favicon;
       
       if (active.title) {
         document.title = active.title;
       }
     }
-  }, [active]);
+  }, [active, favicon]);
 
   if (loading || !active) {
     return (
