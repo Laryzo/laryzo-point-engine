@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import favicon from "@/assets/multibeauty/favicon.png";
 import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import LandingRenderer from "@/components/landing/LandingRenderer";
@@ -31,22 +30,29 @@ const Multibeauty = () => {
 
   useEffect(() => {
     if (active) {
-      // Perbarui favicon
-      let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
-        document.getElementsByTagName('head')[0].appendChild(link);
-      }
+      const faviconPath = "/multibeauty/favicon.png";
       
-      link.type = 'image/png';
-      link.href = favicon;
+      // Update or create multiple icon link tags for better browser support
+      const rels = ['icon', 'shortcut icon', 'apple-touch-icon'];
+      
+      rels.forEach(rel => {
+        let link = document.querySelector(`link[rel*='${rel}']`) as HTMLLinkElement;
+        
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = rel;
+          document.getElementsByTagName('head')[0].appendChild(link);
+        }
+        
+        link.type = rel === 'apple-touch-icon' ? 'image/png' : 'image/png';
+        link.href = `${faviconPath}?v=${Date.now()}`;
+      });
       
       if (active.title) {
         document.title = active.title;
       }
     }
-  }, [active, favicon]);
+  }, [active]);
 
   if (loading || !active) {
     return (
