@@ -1969,8 +1969,8 @@ const MerchantDashboard = () => {
                 <h2 className="text-lg font-semibold">Laryzo Mitra</h2>
               </div>
               <p className="text-sm text-muted-foreground">{merchant?.business_name || merchant?.name}</p>
-              <Badge variant="outline" className="mt-1 text-xs gap-1 border-sidebar-border text-sidebar-foreground">
-                {isSuperAdmin ? <Shield className="h-3 w-3" /> : <User className="h-3 w-3" />}
+              <Badge variant="outline" className="mt-1 text-[10px] h-5 gap-1 bg-white text-slate-900 border-white font-bold px-2">
+                {isSuperAdmin ? <Shield className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
                 {isSuperAdmin ? 'Pemilik' : 'Karyawan'}
               </Badge>
             </div>
