@@ -12,7 +12,7 @@ const Index = () => {
       <div className="absolute top-[50%] left-[50%] w-[40%] h-[40%] bg-gradient-to-br from-purple-500/10 to-pink-500/5 rounded-full blur-[120px]" />
       
       <div className="relative z-10 text-center max-w-2xl">
-        <div className="relative mb-16">
+        <div className="relative mb-8">
           <img 
             src={laryzoLogo} 
             alt="Laryzo" 
@@ -20,15 +20,6 @@ const Index = () => {
           />
         </div>
         
-        <div className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent mb-4">
-            Laryzo Point Engine
-          </h1>
-          <p className="text-slate-400 text-lg md:text-xl">
-            Platform manajemen poin dan loyalitas untuk UMKM
-          </p>
-        </div>
-
         <div className="flex flex-col sm:flex-row gap-6 justify-center">
           {/* Customer Portal Button */}
           <Button 
@@ -55,13 +46,6 @@ const Index = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/10 to-emerald-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </Link>
           </Button>
-        </div>
-
-        {/* Footer Info */}
-        <div className="mt-16 pt-8 border-t border-slate-700/50">
-          <p className="text-slate-500 text-sm">
-            Kelola poin loyalitas pelanggan Anda dengan mudah dan efisien
-          </p>
         </div>
       </div>
     </div>
