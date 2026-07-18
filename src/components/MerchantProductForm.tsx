@@ -19,6 +19,17 @@ interface MerchantProductFormProps {
 }
 
 const UNIT_OPTIONS = ['pcs', 'kg', 'gram', 'jam', 'menit', 'meter', 'cm', 'liter', 'porsi', 'paket'];
+const CATEGORY_OPTIONS = [
+  'Fashion', 
+  'Elektronik', 
+  'Makanan & Minuman', 
+  'Kesehatan', 
+  'Kecantikan', 
+  'Rumah Tangga', 
+  'Otomotif', 
+  'Hobi & Koleksi', 
+  'Lainnya'
+];
 
 const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSuccess }: MerchantProductFormProps) => {
   const { toast } = useToast();
@@ -31,6 +42,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
     itemType: 'product' as 'product' | 'service',
     unit: 'pcs',
     minQty: '',
+    category: 'Lainnya',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -56,11 +68,12 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         itemType: (product.item_type === 'service' ? 'service' : 'product'),
         unit: product.unit || 'pcs',
         minQty: product.min_qty != null ? String(product.min_qty) : '',
+        category: product.category || 'Lainnya',
       });
       setImagePreview(product.image_url || null);
       setImageFile(null);
     } else if (open && !product) {
-      setForm({ name: '', description: '', costPrice: '', stock: '-1', itemType: 'product', unit: 'pcs', minQty: '' });
+      setForm({ name: '', description: '', costPrice: '', stock: '-1', itemType: 'product', unit: 'pcs', minQty: '', category: 'Lainnya' });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -105,6 +118,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         point_price: 0,
         item_type: form.itemType,
         unit: form.unit,
+        category: form.category,
         allow_qty_decimal: isService,
         min_qty: form.minQty ? Number(form.minQty) : null,
       };
@@ -189,9 +203,20 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Nama {isService ? 'Jasa' : 'Produk'}</Label>
-            <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Nama {isService ? 'Jasa' : 'Produk'}</Label>
+              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Kategori</Label>
+              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">

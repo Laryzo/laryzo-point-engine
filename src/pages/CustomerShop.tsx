@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { canonicalizePpobBrand, getPpobBrandFromProductName, getPpobSubBrandFromProductName, brandHasSubMenu } from '@/lib/ppob-brand';
 import { getBrandLogoUrl, getBrandMeta, getBrandLogoUrlFromProductName, getBrandColorFromProductName } from '@/lib/ppob-brand-logo';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MapLocationPicker from '@/components/MapLocationPicker';
 import PaymentMethodSelector, { calculatePayment, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { 
@@ -105,6 +106,7 @@ const CustomerShop = () => {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [merchantProducts, setMerchantProducts] = useState<any[]>([]);
+  const [selectedMerchantCategory, setSelectedMerchantCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   
@@ -196,6 +198,28 @@ const CustomerShop = () => {
       .order('created_at', { ascending: false });
     setMerchantProducts(data || []);
   };
+
+  const merchantCategories = useMemo(() => {
+    const cats = new Set<string>();
+    merchantProducts.forEach(p => {
+      if (p.category) cats.add(p.category);
+    });
+    return Array.from(cats).sort();
+  }, [merchantProducts]);
+
+  const filteredMerchantProducts = useMemo(() => {
+    let filtered = [...merchantProducts];
+    if (selectedMerchantCategory) {
+      filtered = filtered.filter(p => p.category === selectedMerchantCategory);
+    }
+    if (search) {
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        (p.category && p.category.toLowerCase().includes(search.toLowerCase()))
+      );
+    }
+    return filtered;
+  }, [merchantProducts, selectedMerchantCategory, search]);
 
   // Extract brands from products for current category
   const brandsForCategory = useMemo(() => {
@@ -776,13 +800,53 @@ const CustomerShop = () => {
 
       {/* Merchant Products Section */}
       {merchantProducts.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Store className="h-5 w-5" />
-            Produk Mitra
-          </h2>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Store className="h-5 w-5" />
+              Produk Mitra
+            </h2>
+            {merchantCategories.length > 0 && (
+              <Select value={selectedMerchantCategory || "all"} onValueChange={(v) => setSelectedMerchantCategory(v === "all" ? null : v)}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="Kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kategori</SelectItem>
+                  {merchantCategories.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {merchantCategories.length > 0 && (
+            <ScrollArea className="w-full whitespace-nowrap pb-2">
+              <div className="flex gap-2">
+                <Badge 
+                  variant={selectedMerchantCategory === null ? "default" : "outline"}
+                  className="cursor-pointer px-3 py-1"
+                  onClick={() => setSelectedMerchantCategory(null)}
+                >
+                  Semua
+                </Badge>
+                {merchantCategories.map(c => (
+                  <Badge 
+                    key={c}
+                    variant={selectedMerchantCategory === c ? "default" : "outline"}
+                    className="cursor-pointer px-3 py-1"
+                    onClick={() => setSelectedMerchantCategory(c)}
+                  >
+                    {c}
+                  </Badge>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {merchantProducts.map((mp: any) => {
+          {filteredMerchantProducts.map((mp: any) => {
               const sellingPrice = Number(mp.price) || 0;
               return (
                 <Card
