@@ -41,11 +41,15 @@ const Dashboard = () => {
   });
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState(() => sessionStorage.getItem('laryzo_admin_view') || 'dashboard');
 
   useEffect(() => {
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem('laryzo_admin_view', activeView);
+  }, [activeView]);
 
   const fetchStats = async () => {
     try {
