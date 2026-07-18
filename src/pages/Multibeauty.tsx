@@ -30,6 +30,24 @@ const Multibeauty = () => {
 
   useEffect(() => {
     if (active) {
+      const faviconPath = "/multibeauty/favicon.png";
+      
+      // Update or create multiple icon link tags for better browser support
+      const rels = ['icon', 'shortcut icon', 'apple-touch-icon'];
+      
+      rels.forEach(rel => {
+        let link = document.querySelector(`link[rel*='${rel}']`) as HTMLLinkElement;
+        
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = rel;
+          document.getElementsByTagName('head')[0].appendChild(link);
+        }
+        
+        link.type = rel === 'apple-touch-icon' ? 'image/png' : 'image/png';
+        link.href = `${faviconPath}?v=${Date.now()}`;
+      });
+      
       if (active.title) {
         document.title = active.title;
       }
