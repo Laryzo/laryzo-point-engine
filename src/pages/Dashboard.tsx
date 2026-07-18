@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const Dashboard = () => {
   const { admin, logout } = useAuth();
+  const navigate = useNavigate();
+  const { menu } = useParams();
   const [stats, setStats] = useState({
     totalCustomers: 0,
     totalTransactions: 0,
@@ -41,15 +44,21 @@ const Dashboard = () => {
   });
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
-  const [activeView, setActiveView] = useState(() => sessionStorage.getItem('laryzo_admin_view') || 'dashboard');
+  
+  // Determine active view from URL parameter, fallback to 'dashboard'
+  const activeView = menu || 'dashboard';
 
   useEffect(() => {
     fetchStats();
   }, []);
 
-  useEffect(() => {
-    sessionStorage.setItem('laryzo_admin_view', activeView);
-  }, [activeView]);
+  const handleMenuChange = (view: string) => {
+    if (view === 'dashboard') {
+      navigate('/dashboard');
+    } else {
+      navigate(`/dashboard/${view}`);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -296,7 +305,7 @@ const Dashboard = () => {
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton 
-                      onClick={() => setActiveView('dashboard')}
+                      onClick={() => handleMenuChange('dashboard')}
                       className={activeView === 'dashboard' ? 'bg-accent' : ''}
                     >
                       <Home className="h-4 w-4" />
@@ -306,7 +315,7 @@ const Dashboard = () => {
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
-                        onClick={() => setActiveView('admin')}
+                        onClick={() => handleMenuChange('admin')}
                         className={activeView === 'admin' ? 'bg-accent' : ''}
                       >
                         <Settings className="h-4 w-4" />
@@ -317,7 +326,7 @@ const Dashboard = () => {
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
-                        onClick={() => setActiveView('satellite-api')}
+                        onClick={() => handleMenuChange('satellite-api')}
                         className={activeView === 'satellite-api' ? 'bg-accent' : ''}
                       >
                         <Satellite className="h-4 w-4" />
@@ -328,7 +337,7 @@ const Dashboard = () => {
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
-                        onClick={() => setActiveView('tree')}
+                        onClick={() => handleMenuChange('tree')}
                         className={activeView === 'tree' ? 'bg-accent' : ''}
                       >
                         <TreePine className="h-4 w-4" />
@@ -338,7 +347,7 @@ const Dashboard = () => {
                   )}
                   <SidebarMenuItem>
                     <SidebarMenuButton 
-                      onClick={() => setActiveView('customers')}
+                      onClick={() => handleMenuChange('customers')}
                       className={activeView === 'customers' ? 'bg-accent' : ''}
                     >
                       <List className="h-4 w-4" />
@@ -347,7 +356,7 @@ const Dashboard = () => {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton 
-                      onClick={() => setActiveView('transactions')}
+                      onClick={() => handleMenuChange('transactions')}
                       className={activeView === 'transactions' ? 'bg-accent' : ''}
                     >
                       <Receipt className="h-4 w-4" />
@@ -356,7 +365,7 @@ const Dashboard = () => {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton 
-                      onClick={() => setActiveView('products')}
+                      onClick={() => handleMenuChange('products')}
                       className={activeView === 'products' ? 'bg-accent' : ''}
                     >
                       <Package className="h-4 w-4" />
@@ -366,7 +375,7 @@ const Dashboard = () => {
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
-                        onClick={() => setActiveView('merchants')}
+                        onClick={() => handleMenuChange('merchants')}
                         className={activeView === 'merchants' ? 'bg-accent' : ''}
                       >
                         <Store className="h-4 w-4" />
@@ -376,7 +385,7 @@ const Dashboard = () => {
                   )}
                   <SidebarMenuItem>
                     <SidebarMenuButton 
-                      onClick={() => setActiveView('orders')}
+                      onClick={() => handleMenuChange('orders')}
                       className={activeView === 'orders' ? 'bg-accent' : ''}
                     >
                       <ClipboardList className="h-4 w-4" />
@@ -385,7 +394,7 @@ const Dashboard = () => {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton 
-                      onClick={() => setActiveView('topup-requests')}
+                      onClick={() => handleMenuChange('topup-requests')}
                       className={activeView === 'topup-requests' ? 'bg-accent' : ''}
                     >
                       <Wallet className="h-4 w-4" />
@@ -395,7 +404,7 @@ const Dashboard = () => {
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
-                        onClick={() => setActiveView('point-history')}
+                        onClick={() => handleMenuChange('point-history')}
                         className={activeView === 'point-history' ? 'bg-accent' : ''}
                       >
                         <Coins className="h-4 w-4" />
@@ -405,7 +414,7 @@ const Dashboard = () => {
                   )}
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      onClick={() => setActiveView('landing-builder')}
+                      onClick={() => handleMenuChange('landing-builder')}
                       className={activeView === 'landing-builder' ? 'bg-accent' : ''}
                     >
                       <Layout className="h-4 w-4" />
@@ -415,7 +424,7 @@ const Dashboard = () => {
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
-                        onClick={() => setActiveView('settings')}
+                        onClick={() => handleMenuChange('settings')}
                         className={activeView === 'settings' ? 'bg-accent' : ''}
                       >
                         <Cog className="h-4 w-4" />
@@ -452,8 +461,9 @@ const Dashboard = () => {
                  activeView === 'orders' ? 'Orders' :
                  activeView === 'merchants' ? 'Mitra' :
                  activeView === 'point-history' ? 'Riwayat Poin' :
-                 activeView === 'settings' ? 'Settings' :
+                 activeView === 'topup-requests' ? 'Top Up Saldo' :
                  activeView === 'landing-builder' ? 'Landing Page Builder' :
+                 activeView === 'settings' ? 'Settings' :
                  'Dashboard'}
               </h1>
             </div>

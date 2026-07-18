@@ -56,6 +56,11 @@ const AdminRoutes = () => {
           <Dashboard />
         </ProtectedRoute>
       } />
+      <Route path="/dashboard/:menu" element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      } />
     </Routes>
   );
 };
