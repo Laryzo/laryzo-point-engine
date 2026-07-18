@@ -30,9 +30,30 @@ const Multibeauty = () => {
 
   useEffect(() => {
     if (active) {
+      const originalFavicon = "/favicon.png";
+      const multibeautyFavicon = "/multibeauty/favicon.png";
+      
+      // Update favicon to Multibeauty
+      const updateFavicon = (href: string) => {
+        const rels = ['icon', 'shortcut icon', 'apple-touch-icon'];
+        rels.forEach(rel => {
+          let link = document.querySelector(`link[rel*='${rel}']`) as HTMLLinkElement;
+          if (link) {
+            link.href = `${href}?v=${Date.now()}`;
+          }
+        });
+      };
+
+      updateFavicon(multibeautyFavicon);
+
       if (active.title) {
         document.title = active.title;
       }
+
+      // Cleanup: Reset favicon back to Laryzo when leaving page
+      return () => {
+        updateFavicon(originalFavicon);
+      };
     }
   }, [active]);
 
