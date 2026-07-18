@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins, Wallet, Layout } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import LandingBuilder from '@/pages/LandingBuilder';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
@@ -41,15 +41,15 @@ const Dashboard = () => {
   });
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
-  const [activeView, setActiveView] = useState(() => sessionStorage.getItem('laryzo_admin_view') || 'dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeView = searchParams.get('view') || 'dashboard';
+  const setActiveView = (view: string) => {
+    setSearchParams({ view });
+  };
 
   useEffect(() => {
     fetchStats();
   }, []);
-
-  useEffect(() => {
-    sessionStorage.setItem('laryzo_admin_view', activeView);
-  }, [activeView]);
 
   const fetchStats = async () => {
     try {
@@ -429,7 +429,7 @@ const Dashboard = () => {
 
             <div className="mt-auto p-4 border-t">
               <Button onClick={logout} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white border-0 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300 font-medium">
-                <LogOut className="w-4 h-4 mr-2" />
+                <LogOut className="w-4 w-4 mr-2" />
                 Logout
               </Button>
             </div>
