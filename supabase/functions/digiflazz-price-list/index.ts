@@ -14,10 +14,10 @@ const ALLOWED_ORIGINS = [
 const CACHE_DURATION_MS = 6 * 60 * 60 * 1000
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
-  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed => 
+  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed =>
     origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
   )
-  
+
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -29,7 +29,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 
 function isOriginAllowed(origin: string | null): boolean {
   if (!origin) return false
-  return ALLOWED_ORIGINS.some(allowed => 
+  return ALLOWED_ORIGINS.some(allowed =>
     origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
   )
 }
@@ -72,6 +72,39 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+  // SECURITY: Require admin authentication. This endpoint fetches Digiflazz
+  // credentials from system_settings and mutates product prices, so it must not
+  // be callable by unauthenticated people.
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Unauthorized — admin token required' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+  const token = authHeader.replace('Bearer ', '')
+  const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    global: { headers: { Authorization: authHeader } },
+  })
+  const { data: { user }, error: authError } = await anonClient.auth.getUser(token)
+  if (authError || !user?.email) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Unauthorized — invalid token' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+  const { data: adminRow } = await supabase
+    .from('admins')
+    .select('email, role')
+    .eq('email', user.email.toLowerCase())
+    .single()
+  if (!adminRow) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Forbidden — admin only' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
 
   try {
     const { cmd = 'prepaid', force = false } = await req.json().catch(() => ({}))
@@ -117,8 +150,8 @@ Deno.serve(async (req) => {
         }))
 
         return new Response(
-          JSON.stringify({ 
-            success: true, 
+          JSON.stringify({
+            success: true,
             data: products,
             count: products.length,
             cached: true,
@@ -152,9 +185,9 @@ Deno.serve(async (req) => {
     if (!username || !apiKey) {
       console.error('Digiflazz credentials not configured')
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Kredensial Digiflazz belum dikonfigurasi. Silakan isi di menu Pengaturan Sistem.' 
+        JSON.stringify({
+          success: false,
+          error: 'Kredensial Digiflazz belum dikonfigurasi. Silakan isi di menu Pengaturan Sistem.'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -170,11 +203,11 @@ Deno.serve(async (req) => {
     // Use proxy if configured
     const proxyUrl = Deno.env.get('DIGIFLAZZ_PROXY_URL')
     const proxySecret = Deno.env.get('DIGIFLAZZ_PROXY_SECRET')
-    
-    const digiflazzEndpoint = proxyUrl 
+
+    const digiflazzEndpoint = proxyUrl
       ? `${proxyUrl}/digiflazz/v1/price-list`
       : 'https://api.digiflazz.com/v1/price-list'
-    
+
     const fetchHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
     if (proxyUrl && proxySecret) {
       fetchHeaders['X-Proxy-Secret'] = proxySecret
@@ -196,7 +229,7 @@ Deno.serve(async (req) => {
 
     if (result.data?.rc && result.data.rc !== '00') {
       console.error('Digiflazz API error:', result.data.message)
-      
+
       // If rate limited, try to return cached data
       if (result.data.message?.includes('limitasi')) {
         console.log('Rate limited, attempting to return cached data...')
@@ -225,8 +258,8 @@ Deno.serve(async (req) => {
           }))
 
           return new Response(
-            JSON.stringify({ 
-              success: true, 
+            JSON.stringify({
+              success: true,
               data: products,
               count: products.length,
               cached: true,
@@ -288,9 +321,9 @@ Deno.serve(async (req) => {
       // Update last sync time
       await supabase
         .from('system_settings')
-        .upsert({ 
-          key: 'digiflazz_last_sync', 
-          value: new Date().toISOString() 
+        .upsert({
+          key: 'digiflazz_last_sync',
+          value: new Date().toISOString()
         }, { onConflict: 'key' })
 
       console.log(`Cached ${products.length} products successfully`)
@@ -328,16 +361,16 @@ Deno.serve(async (req) => {
           const newCostPrice = priceMap.get(product.digiflazz_sku)
           if (newCostPrice !== undefined) {
             productsSynced++
-            
+
             const newPointPrice = calculatePointPrice(newCostPrice)
             const costChanged = Number(product.cost_price) !== newCostPrice
             const pointPriceChanged = Number(product.point_price) !== newPointPrice
-            
+
             // Update if either cost_price or point_price changed
             if (costChanged || pointPriceChanged) {
               const { error: updateError } = await supabase
                 .from('products')
-                .update({ 
+                .update({
                   cost_price: newCostPrice,
                   point_price: newPointPrice,
                   updated_at: new Date().toISOString()
@@ -369,8 +402,8 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         data: products,
         count: products.length,
         cached: false,

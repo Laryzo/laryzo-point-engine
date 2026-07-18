@@ -17,6 +17,38 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
+    // SECURITY: Require admin authentication. This endpoint can mutate order status
+    // and trigger point refunds, so it must not be callable by unauthenticated users.
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized — admin token required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user }, error: authError } = await anonClient.auth.getUser(token)
+    if (authError || !user?.email) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized — invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const { data: adminRow } = await supabase
+      .from('admins')
+      .select('email, role')
+      .eq('email', user.email.toLowerCase())
+      .single()
+    if (!adminRow) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Forbidden — admin only' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Get credentials from environment or system_settings
     let username = Deno.env.get('DIGIFLAZZ_USERNAME')
     let apiKey = Deno.env.get('DIGIFLAZZ_API_KEY')
@@ -39,9 +71,9 @@ Deno.serve(async (req) => {
 
     if (!username || !apiKey) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Kredensial Digiflazz belum dikonfigurasi. Silakan isi di menu Pengaturan Sistem.' 
+        JSON.stringify({
+          success: false,
+          error: 'Kredensial Digiflazz belum dikonfigurasi. Silakan isi di menu Pengaturan Sistem.'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -77,7 +109,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`Checking status for order: ${order_id}, ref_id: ${order.ref_id}`)
+    console.log(`Checking status for order: ${order_id}, ref_id: ${order.ref_id}, requested by admin ${user.email}`)
 
     // Create MD5 signature using node:crypto
     const sign = createHash('md5')
@@ -87,11 +119,11 @@ Deno.serve(async (req) => {
     // Check status with Digiflazz (via proxy if configured)
     const proxyUrl = Deno.env.get('DIGIFLAZZ_PROXY_URL')
     const proxySecret = Deno.env.get('DIGIFLAZZ_PROXY_SECRET')
-    
-    const digiflazzEndpoint = proxyUrl 
+
+    const digiflazzEndpoint = proxyUrl
       ? `${proxyUrl}/digiflazz/v1/transaction`
       : 'https://api.digiflazz.com/v1/transaction'
-    
+
     const fetchHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
     if (proxyUrl && proxySecret) {
       fetchHeaders['X-Proxy-Secret'] = proxySecret
@@ -160,7 +192,7 @@ Deno.serve(async (req) => {
           transaction_id: null, // Don't set transaction_id - orders are not in transactions table
           product_code: 'REFUND'
         })
-        
+
         if (refundError) {
           console.error('Error inserting refund to point_history:', refundError)
         } else {
@@ -175,7 +207,7 @@ Deno.serve(async (req) => {
       .eq('id', order_id)
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         status: updateData.status || order.status,
         digiflazz_status: status,

@@ -52,22 +52,66 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Pre-fetch all catalog products referenced in the cart from the database.
+    // Prices/cost are NEVER trusted from the client — only the DB is authoritative.
+    const productIds = items
+      .map((i: any) => i.product_id)
+      .filter((id: any) => id && typeof id === 'string')
+    const productMap = new Map<string, any>()
+    if (productIds.length > 0) {
+      const { data: dbProducts, error: pErr } = await supabase
+        .from('merchant_products')
+        .select('id, name, price, cost_price, stock, unit, merchant_id')
+        .in('id', productIds)
+      if (pErr) throw pErr
+      for (const p of dbProducts || []) {
+        productMap.set(p.id, p)
+      }
+    }
+
     const POINT_PERCENTAGE = 0.01
     const MAX_UPLINE_LEVELS = 10
     const results = []
 
     for (const item of items) {
-      const { product_id, product_name, price, qty, stock, cost_price, unit } = item
+      const { product_id, product_name, qty, unit } = item
       const qtyNum = Number(qty) || 0
-      const priceNum = Number(price) || 0
-      const total = priceNum * qtyNum
-      // Logic: Total Profit = laryzo_fee
-      // For Mitra transactions (like Laundry), Total Profit is (Harga Konsumen - Harga Pokok) * Qty
-      // This is the value shown in "Total Profit" column in Admin Panel
-      const merchantPricePerUnit = Number(cost_price) || 0
-      const merchantRevenue = Math.round(merchantPricePerUnit * qtyNum)
+
+      let dbPricePerUnit = 0
+      let dbCostPerUnit = 0
+      let resolvedName = product_name || 'Produk'
+      let resolvedUnit = unit || null
+      let stockValue: number | null = null
+
+      if (product_id) {
+        const dbProduct = productMap.get(product_id)
+        if (!dbProduct) {
+          throw new Error(`Produk dengan ID ${product_id} tidak ditemukan`)
+        }
+        // Security: ensure the product belongs to this merchant
+        if (dbProduct.merchant_id && dbProduct.merchant_id !== merchantId) {
+          throw new Error(`Akses ditolak: produk ${product_id} bukan milik mitra ini`)
+        }
+        dbPricePerUnit = Number(dbProduct.price) || 0
+        dbCostPerUnit = Number(dbProduct.cost_price) || 0
+        resolvedName = dbProduct.name || product_name || 'Produk'
+        resolvedUnit = dbProduct.unit || unit || null
+        stockValue = typeof dbProduct.stock === 'number' ? dbProduct.stock : null
+      } else {
+        // Ad-hoc / service item: merchant supplies the price, but cost_price must
+        // be zero (no markup margin credited to the merchant themselves).
+        const clientPrice = Number(item.price) || 0
+        if (clientPrice < 0) {
+          throw new Error('Harga tidak boleh negatif')
+        }
+        dbPricePerUnit = clientPrice
+        dbCostPerUnit = 0
+      }
+
+      const total = Math.round(dbPricePerUnit * qtyNum)
+      const merchantRevenue = Math.round(dbCostPerUnit * qtyNum)
       const fee = total - merchantRevenue
-      
+
       const pointsPerLevel = fee * POINT_PERCENTAGE
       const customerPoints = customer_id ? pointsPerLevel : 0
 
@@ -77,46 +121,27 @@ Deno.serve(async (req) => {
         product_id: product_id || null,
         customer_id: customer_id || null,
         customer_name: customerName,
-        product_name,
-        price: priceNum,
+        product_name: resolvedName,
+        price: dbPricePerUnit,
         qty: qtyNum,
         qty_decimal: qtyNum,
-        unit: unit || null,
+        unit: resolvedUnit,
         total,
-        laryzo_fee: fee, // Explicitly use the calculated Total Profit
+        laryzo_fee: fee,
         customer_points_earned: customerPoints,
-        merchant_price: merchantPricePerUnit,
+        merchant_price: dbCostPerUnit,
         notes: notes || null,
       })
-      
-      if (mtError) {
-        console.error('Merchant transactions insert error:', mtError);
-        // Log more details for debugging
-        console.error('Attempted payload:', {
-          merchant_id: merchantId,
-          product_id: product_id || null,
-          customer_id: customer_id || null,
-          customer_name: customerName,
-          product_name,
-          price: priceNum,
-          qty: qtyNum,
-          qty_decimal: qtyNum,
-          unit: unit || null,
-          total,
-          laryzo_fee: fee,
-          customer_points_earned: customerPoints,
-          merchant_price: merchantPricePerUnit,
-          notes: notes || null,
-        });
 
-        // If it's a schema error (column doesn't exist yet), try without the new columns
+      if (mtError) {
+        console.error('Merchant transactions insert error:', mtError)
         if (mtError.code === '42703') {
           const { error: mtErrorRetry } = await supabase.from('merchant_transactions').insert({
             merchant_id: merchantId,
             product_id: product_id || null,
             customer_id: customer_id || null,
-            product_name,
-            price: priceNum,
+            product_name: resolvedName,
+            price: dbPricePerUnit,
             qty: qtyNum,
             total,
             laryzo_fee: fee,
@@ -130,14 +155,13 @@ Deno.serve(async (req) => {
       }
 
       // 2. Insert into main transactions table (so it shows in admin panel)
-      // Harga pokok = harga asli mitra (cost_price), harga konsumen = harga jual setelah markup
-      const hargaPokokMitra = merchantPricePerUnit
-      const hargaKonsumen = priceNum
+      const hargaKonsumen = dbPricePerUnit
+      const hargaPokokMitra = dbCostPerUnit
       const marginPerUnit = hargaKonsumen - hargaPokokMitra
 
       const { data: txData, error: txError } = await supabase.from('transactions').insert({
-        product_code: `MITRA-${product_name.substring(0, 20)}`,
-        product_name: product_name,
+        product_code: `MITRA-${resolvedName.substring(0, 20)}`,
+        product_name: resolvedName,
         product_type: 'Mitra',
         qty: qtyNum,
         margin: marginPerUnit,
@@ -145,11 +169,10 @@ Deno.serve(async (req) => {
         harga_konsumen: hargaKonsumen,
         harga_pokok: hargaPokokMitra,
       }).select('id')
-      
-      const insertedTx = txData && txData.length > 0 ? txData[0] : null;
+
+      const insertedTx = txData && txData.length > 0 ? txData[0] : null
       if (txError || !insertedTx) {
-        console.error('Transaction insert error:', txError);
-        // Continue even if main transactions table fails, but log it
+        console.error('Transaction insert error:', txError)
       }
 
       // 3. Distribute points if customer is selected
@@ -157,8 +180,7 @@ Deno.serve(async (req) => {
         const pointRecords: any[] = []
 
         if (insertedTx) {
-          // Basis points from Total Profit (fee)
-          const pointsFromProfit = fee * POINT_PERCENTAGE;
+          const pointsFromProfit = fee * POINT_PERCENTAGE
 
           const selfCustomer = customerMap.get(customer_id)
           if (selfCustomer && !selfCustomer.points_blocked) {
@@ -167,8 +189,8 @@ Deno.serve(async (req) => {
               from_customer: customer_id,
               to_customer: customer_id,
               level: 0,
-              points: pointsFromProfit, // 1% for customer
-              product_code: `MITRA-${product_name.substring(0, 20)}`,
+              points: pointsFromProfit,
+              product_code: `MITRA-${resolvedName.substring(0, 20)}`,
             })
           }
 
@@ -184,8 +206,8 @@ Deno.serve(async (req) => {
                 from_customer: customer_id,
                 to_customer: current.parent_id,
                 level,
-                points: pointsFromProfit, // 1% for each upline
-                product_code: `MITRA-${product_name.substring(0, 20)}`,
+                points: pointsFromProfit,
+                product_code: `MITRA-${resolvedName.substring(0, 20)}`,
               })
             }
             currentCustomerId = current.parent_id
@@ -200,14 +222,14 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 4. Update stock (only for catalog products with finite stock, skip ad-hoc & services)
-      if (product_id && typeof stock === 'number' && stock >= 0) {
+      // 4. Update stock — only for catalog products with finite stock, using DB-verified value
+      if (product_id && stockValue !== null && stockValue >= 0) {
         await supabase.from('merchant_products')
-          .update({ stock: Math.max(0, stock - Math.ceil(qtyNum)) })
+          .update({ stock: Math.max(0, stockValue - Math.ceil(qtyNum)) })
           .eq('id', product_id)
       }
 
-      results.push({ product_name, total })
+      results.push({ product_name: resolvedName, total })
     }
 
     return new Response(JSON.stringify({ success: true, results }), {

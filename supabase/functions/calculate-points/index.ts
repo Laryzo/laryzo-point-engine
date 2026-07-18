@@ -10,10 +10,10 @@ const ALLOWED_ORIGINS = [
 ]
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
-  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed => 
+  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed =>
     origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
   )
-  
+
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -25,7 +25,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 
 function isOriginAllowed(origin: string | null): boolean {
   if (!origin) return false
-  return ALLOWED_ORIGINS.some(allowed => 
+  return ALLOWED_ORIGINS.some(allowed =>
     origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
   )
 }
@@ -69,7 +69,40 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Starting point calculation...');
+    // SECURITY: Require admin authentication before allowing a full recalculation.
+    // This endpoint deletes all point_history rows and rewrites them — without
+    // auth any anonymous caller could wipe and rewrite customer points.
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized — admin token required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user }, error: authError } = await anonClient.auth.getUser(token)
+    if (authError || !user?.email) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized — invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const { data: adminRow } = await supabase
+      .from('admins')
+      .select('email, role')
+      .eq('email', user.email.toLowerCase())
+      .single()
+    if (!adminRow) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden — admin only' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log(`Starting point calculation, requested by admin ${user.email}...`);
 
     // 1. Clear existing point_history (trigger will auto-subtract from customers.points)
     // Then reset customer points to 0 to ensure clean slate
@@ -119,7 +152,7 @@ Deno.serve(async (req) => {
       // This matches the "Total Profit" column shown in the Admin Panel
       const profitPerUnit = (Number(transaction.harga_konsumen) || 0) - (Number(transaction.harga_pokok) || 0);
       const totalProfit = Math.round(profitPerUnit * (Number(transaction.qty) || 1));
-      
+
       // Basis calculation: 1% from Total Profit
       const pointsFromProfit = totalProfit * POINT_PERCENTAGE;
 
@@ -147,7 +180,7 @@ Deno.serve(async (req) => {
 
         const parentId = currentCustomer.parent_id;
         const parentCustomer = customerMap.get(parentId);
-        
+
         // Skip if parent is blocked
         if (parentCustomer?.points_blocked) {
           currentCustomerId = parentId;
@@ -192,7 +225,8 @@ Deno.serve(async (req) => {
       transactions_processed: transactions?.length || 0,
       point_records_created: pointHistoryRecords.length,
       customers_updated_via_trigger: true,
-      formula: '1% profit per level (0-10), max 11% total per transaction'
+      formula: '1% profit per level (0-10), max 11% total per transaction',
+      requested_by: user.email,
     };
 
     console.log('Point calculation completed:', summary);
