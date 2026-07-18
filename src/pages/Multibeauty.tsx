@@ -31,15 +31,19 @@ const Multibeauty = () => {
   useEffect(() => {
     if (active) {
       const originalFavicon = "/favicon.png";
+      // Use absolute path to ensure it loads on both laryzo.biz.id/multibeauty and multibeautysoap.biz.id
       const multibeautyFavicon = "/multibeauty/favicon.png";
       
       // Update favicon to Multibeauty
       const updateFavicon = (href: string) => {
         const rels = ['icon', 'shortcut icon', 'apple-touch-icon'];
+        // Ensure path is absolute from root
+        const absoluteHref = href.startsWith('http') ? href : window.location.origin + href;
+        
         rels.forEach(rel => {
           let link = document.querySelector(`link[rel*='${rel}']`) as HTMLLinkElement;
           if (link) {
-            link.href = `${href}?v=${Date.now()}`;
+            link.href = `${absoluteHref}?v=${Date.now()}`;
           }
         });
       };

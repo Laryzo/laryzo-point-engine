@@ -131,22 +131,30 @@ const MerchantRoutes = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Suspense fallback={<LoadingFallback />}>
-          <Routes>
-            {/* Public landing pages */}
-            <Route path="/multibeauty" element={<Multibeauty />} />
-            {/* Admin Routes */}
-            <Route path="/*" element={
-              <AuthProvider>
-                <AdminRoutes />
-              </AuthProvider>
-            } />
+const App = () => {
+  const hostname = window.location.hostname;
+  const isMultibeautyDomain = hostname === "multibeautysoap.biz.id" || hostname.includes("multibeautysoap");
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              {/* Public landing pages */}
+              {isMultibeautyDomain ? (
+                <Route path="/" element={<Multibeauty />} />
+              ) : (
+                <Route path="/multibeauty" element={<Multibeauty />} />
+              )}
+              {/* Admin Routes */}
+              <Route path="/*" element={
+                <AuthProvider>
+                  <AdminRoutes />
+                </AuthProvider>
+              } />
             {/* Customer Portal Routes */}
             <Route path="/portal/*" element={
               <CustomerAuthProvider>
