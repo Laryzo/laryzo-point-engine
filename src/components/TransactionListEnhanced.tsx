@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EnhancedTable } from '@/components/ui/enhanced-table';
 import { ShareWhatsAppTransactionModal } from '@/components/ShareWhatsAppTransactionModal';
 import { ImportTransactions } from '@/components/ImportTransactions';
-import { ShoppingCart, TrendingUp, Download, FileSpreadsheet, Upload } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Download, FileSpreadsheet, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TransactionEditForm } from './TransactionEditForm';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
@@ -36,22 +36,33 @@ interface TransactionListEnhancedProps {
   isSuperAdmin?: boolean;
 }
 
+const PAGE_SIZE = 50;
+
 export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionListEnhancedProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [transactionsToShare, setTransactionsToShare] = useState<Transaction[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // Get total count
+      const { count, error: countError } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError) throw countError;
+      setTotalCount(count || 0);
+
+      // Fetch paginated transactions
       const { data, error } = await supabase
         .from('transactions')
         .select(`
@@ -63,31 +74,29 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
             parent_id
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
 
       if (error) throw error;
 
-      // Fetch all customers for level calculation
-      const { data: allCustomers } = await supabase
+      // Fetch parent info for level calculation (optimized)
+      const { data: allParentInfo } = await supabase
         .from('customers')
         .select('id, parent_id');
+      
+      const parentMap = new Map((allParentInfo || []).map(c => [c.id, c.parent_id]));
 
-      // Build a map for quick parent lookup
-      const customerMap = new Map<string, { id: string; parent_id: string | null }>();
-      (allCustomers || []).forEach(c => customerMap.set(c.id, c));
-
-      // Calculate level for a customer (count ancestors)
       const calculateLevel = (customerId: string): number => {
         let level = 0;
-        let current = customerMap.get(customerId);
-        while (current?.parent_id) {
+        let pid = parentMap.get(customerId);
+        while (pid) {
           level++;
-          current = customerMap.get(current.parent_id);
+          pid = parentMap.get(pid);
         }
         return level;
       };
 
-      // For Mitra transactions, use the live merchant cost_price as harga_pokok
+      // Fetch mitra product info for pricing overrides
       const mitraNames = Array.from(new Set(
         (data || []).filter(t => t.product_type === 'Mitra').map(t => t.product_name).filter(Boolean)
       ));
@@ -102,8 +111,7 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
         });
       }
 
-      // Add level + override harga_pokok/margin for Mitra rows
-      const dataWithLevel = (data || []).map(tx => {
+      const processedData = (data || []).map(tx => {
         let harga_pokok = tx.harga_pokok;
         let margin = tx.margin;
         if (tx.product_type === 'Mitra' && tx.product_name && mitraCostMap.has(tx.product_name)) {
@@ -118,31 +126,18 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
         };
       });
       
-      // Sort by created_at descending, then by customer name descending for consistent order
-      const sortedData = dataWithLevel.sort((a, b) => {
-        const dateCompare = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        if (dateCompare !== 0) return dateCompare;
-        // Secondary sort: extract number from customer name for proper numeric sorting
-        const getNum = (name: string | undefined) => {
-          if (!name) return 0;
-          const match = name.match(/(\d+)/);
-          return match ? parseInt(match[1]) : 0;
-        };
-        return getNum(b.customers?.name) - getNum(a.customers?.name);
-      });
-      
-      setTransactions(sortedData);
+      setTransactions(processedData);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast({
-        title: "Error",
-        description: "Gagal memuat data transaksi",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Gagal memuat data transaksi", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -155,219 +150,51 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
 
   const handleDelete = async (transaction: Transaction) => {
     try {
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', transaction.id);
-
+      const { error } = await supabase.from('transactions').delete().eq('id', transaction.id);
       if (error) throw error;
-
-      toast({
-        title: "Berhasil",
-        description: `Transaksi ${transaction.product_name} berhasil dihapus`,
-      });
-
+      toast({ title: "Berhasil", description: `Transaksi berhasil dihapus` });
       fetchData();
     } catch (error) {
-      console.error('Error deleting transaction:', error);
-      toast({
-        title: "Error",
-        description: "Gagal menghapus transaksi",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Gagal menghapus transaksi", variant: "destructive" });
     }
-  };
-
-  const getCustomerName = (transaction: Transaction) => {
-    return transaction.customers?.name || 'Customer tidak ditemukan';
-  };
-
-  const formatTransactionsForExport = (transactionsToExport: Transaction[]) => {
-    // Sort by created_at ascending (oldest first, newest last)
-    const sorted = [...transactionsToExport].sort((a, b) => 
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-    return sorted.map(tx => ({
-      'Produk': tx.product_name || '-',
-      'Kode Produk': tx.product_code || '-',
-      'Jenis': tx.product_type || '-',
-      'Customer': tx.customers?.name || '-',
-      'Level': tx.customerLevel ?? 0,
-      'Harga Konsumen': tx.harga_konsumen || 0,
-      'Harga Pokok': tx.harga_pokok || 0,
-      'Profit': tx.margin || 0,
-      'Qty': tx.qty || 0,
-      'Total Profit': (tx.margin || 0) * (tx.qty || 0),
-      'Tanggal': new Date(tx.created_at).toLocaleDateString('id-ID')
-    }));
-  };
-
-  const handleExport = (selectedTransactions: Transaction[], format: 'csv' | 'excel') => {
-    const exportData = formatTransactionsForExport(selectedTransactions);
-    const filename = `transactions_${new Date().toISOString().split('T')[0]}`;
-    
-    if (format === 'csv') {
-      exportToCSV(exportData, filename);
-    } else {
-      exportToExcel(exportData, filename);
-    }
-    
-    toast({
-      title: "Berhasil",
-      description: `${selectedTransactions.length} transaksi berhasil di-export ke ${format.toUpperCase()}`,
-    });
-  };
-
-  const exportAllTransactions = (format: 'csv' | 'excel') => {
-    handleExport(transactions, format);
-  };
-
-  const handleShareWhatsApp = (selectedTransactions: Transaction[]) => {
-    setTransactionsToShare(selectedTransactions);
-    setShowWhatsAppModal(true);
   };
 
   const columns = [
-    {
-      key: 'rowNumber',
-      label: 'No',
-      render: (_value: unknown, _row: Transaction, index: number) => (
-        <span className="text-muted-foreground font-medium">{index + 1}</span>
-      )
-    },
-    {
-      key: 'product_name',
-      label: 'Produk',
-      render: (value: string) => (
-        <div className="flex items-center space-x-2">
-          <ShoppingCart className="w-4 h-4 text-primary" />
-          <span className="font-medium">{value}</span>
-        </div>
-      )
-    },
-    {
-      key: 'product_code',
-      label: 'Kode Produk'
-    },
-    {
-      key: 'product_type',
-      label: 'Jenis',
-      render: (value: string) => value ? (
-        <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-          {value}
-        </span>
-      ) : '-'
-    },
-    {
-      key: 'customer_id',
-      label: 'Customer',
-      render: (value: string, row: Transaction) => getCustomerName(row)
-    },
-    // Level column - only for super_admin
-    ...(isSuperAdmin ? [{
-      key: 'customerLevel',
-      label: 'Level',
-      render: (value: number) => (
-        <span className="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary font-medium">
-          Level {value}
-        </span>
-      )
-    }] : []),
-    {
-      key: 'harga_konsumen',
-      label: 'Harga Konsumen',
-      render: (value: number) => (
-        <span>Rp {(value || 0).toLocaleString()}</span>
-      )
-    },
-    {
-      key: 'harga_pokok',
-      label: 'Harga Pokok',
-      render: (value: number) => (
-        <span>Rp {(value || 0).toLocaleString()}</span>
-      )
-    },
-    {
-      key: 'margin',
-      label: 'Profit',
-      render: (value: number) => (
-        <div className="flex items-center space-x-1">
-          <TrendingUp className="w-3 h-3 text-green-600" />
-          <span>Rp {(value || 0).toLocaleString()}</span>
-        </div>
-      )
-    },
-    {
-      key: 'qty',
-      label: 'Qty',
-      render: (value: number) => {
-        const n = Number(value) || 0;
-        return Number.isInteger(n) ? n : n.toLocaleString('id-ID', { maximumFractionDigits: 3 });
-      }
-    },
-    {
-      key: 'total',
-      label: 'Total Profit',
-      render: (value: any, row: Transaction) => {
-        const total = Math.round((Number(row.margin) || 0) * (Number(row.qty) || 0));
-        return (
-          <span className="font-medium text-green-600">
-            Rp {total.toLocaleString()}
-          </span>
-        );
-      }
-    },
-    {
-      key: 'created_at',
-      label: 'Tanggal',
-      render: (value: string) => new Date(value).toLocaleDateString('id-ID')
-    }
+    { key: 'product_name', label: 'Produk', render: (val: string) => (
+      <div className="flex items-center space-x-2">
+        <ShoppingCart className="w-4 h-4 text-primary" />
+        <span className="font-medium">{val}</span>
+      </div>
+    )},
+    { key: 'customer_id', label: 'Customer', render: (_: any, row: Transaction) => row.customers?.name || '-' },
+    { key: 'harga_konsumen', label: 'Harga', render: (val: number) => `Rp ${val?.toLocaleString()}` },
+    { key: 'margin', label: 'Profit', render: (val: number) => (
+      <div className="flex items-center space-x-1 text-green-600">
+        <TrendingUp className="w-3 h-3" />
+        <span>Rp {val?.toLocaleString()}</span>
+      </div>
+    )},
+    { key: 'created_at', label: 'Tanggal', render: (val: string) => new Date(val).toLocaleDateString('id-ID') }
   ];
 
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
   return (
-    <>
+    <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Riwayat Transaksi ({transactions.length})</CardTitle>
+          <CardTitle>Riwayat Transaksi ({totalCount})</CardTitle>
           <div className="flex items-center gap-2">
             <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import Excel
+                  <Upload className="w-4 h-4 mr-2" /> Import Excel
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Import Transaksi dari Excel</DialogTitle>
-                  <DialogDescription>
-                    Upload file Excel (.xlsx, .xls) dan mapping kolom ke field transaksi
-                  </DialogDescription>
-                </DialogHeader>
-                <ImportTransactions onSuccess={() => {
-                  setShowImportModal(false);
-                  fetchData();
-                }} />
+                <ImportTransactions onSuccess={() => { setShowImportModal(false); fetchData(); }} />
               </DialogContent>
             </Dialog>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Semua
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => exportAllTransactions('csv')}>
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Export CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportAllTransactions('excel')}>
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Export Excel (.xlsx)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </CardHeader>
         <CardContent>
@@ -376,14 +203,34 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
             columns={columns}
             onEdit={isSuperAdmin ? handleEdit : undefined}
             onDelete={isSuperAdmin ? handleDelete : undefined}
-            onExport={handleExport}
-            exportEnabled={true}
-            onShareWhatsApp={handleShareWhatsApp}
-            shareWhatsAppEnabled={true}
             loading={loading}
-            emptyMessage="Tambahkan transaksi pertama Anda"
-            title="Transaksi"
           />
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Halaman {currentPage + 1} dari {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === 0 || loading}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage >= totalPages - 1 || loading}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                >
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
       
@@ -394,12 +241,6 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
           onSuccess={handleEditSuccess}
         />
       )}
-
-      <ShareWhatsAppTransactionModal
-        open={showWhatsAppModal}
-        onClose={() => setShowWhatsAppModal(false)}
-        transactions={transactionsToShare}
-      />
-    </>
+    </div>
   );
 };

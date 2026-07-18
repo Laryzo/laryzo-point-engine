@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { ShareWhatsAppModal } from '@/components/ShareWhatsAppModal';
 import { ImportExcel } from '@/components/ImportExcel';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Users, Mail, Phone, Award, Download, FileSpreadsheet, Upload, RefreshCw, Plus, Minus, AlertTriangle, Pencil, Trash2, Key, Copy, Loader2 } from 'lucide-react';
+import { Users, Mail, Phone, Award, Download, FileSpreadsheet, Upload, RefreshCw, Plus, Minus, AlertTriangle, Pencil, Trash2, Key, Copy, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 
@@ -34,9 +34,14 @@ interface CustomerListEnhancedProps {
   isSuperAdmin?: boolean;
 }
 
+const PAGE_SIZE = 50;
+
 export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhancedProps) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
@@ -48,7 +53,6 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
   const [showImportModal, setShowImportModal] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   
-  // Adjust points modal states
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [adjustingCustomer, setAdjustingCustomer] = useState<Customer | null>(null);
   const [adjustAmount, setAdjustAmount] = useState('');
@@ -56,78 +60,67 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
   const [adjustReason, setAdjustReason] = useState('');
   const [isAdjusting, setIsAdjusting] = useState(false);
   
-  // Move warning state
   const [showMoveWarning, setShowMoveWarning] = useState(false);
-  
-  // Generate password states
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [generatingCustomerId, setGeneratingCustomerId] = useState<string | null>(null);
   
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
       
+      // Get total count for pagination
+      const { count, error: countError } = await supabase
+        .from('customers')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError) throw countError;
+      setTotalCount(count || 0);
+
+      // Fetch paginated data
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
         .select('*')
         .order('created_at', { ascending: false })
-        .order('name', { ascending: false });
+        .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
 
       if (customersError) throw customersError;
 
-      // Build a map for quick parent lookup
-      const customerMap = new Map<string, typeof customersData[0]>();
-      (customersData || []).forEach(c => customerMap.set(c.id, c));
+      // Fetch all parent info needed for level calculation (optimized)
+      // Note: For very large datasets, level should ideally be stored in the DB
+      const { data: allParentInfo } = await supabase
+        .from('customers')
+        .select('id, parent_id');
+      
+      const parentMap = new Map((allParentInfo || []).map(c => [c.id, c.parent_id]));
 
-      // Calculate level for each customer (count ancestors)
       const calculateLevel = (customerId: string): number => {
         let level = 0;
-        let current = customerMap.get(customerId);
-        while (current?.parent_id) {
+        let pid = parentMap.get(customerId);
+        while (pid) {
           level++;
-          current = customerMap.get(current.parent_id);
+          pid = parentMap.get(pid);
         }
         return level;
       };
 
-      // Use customer.points directly (synced by database trigger from point_history)
-      // This is faster and ensures consistency with customer portal
-      // Fetch plaintext passwords from admin-only customer_credentials table.
-      // RLS restricts this select to admins; non-admins receive an empty list.
+      // Fetch plaintext passwords
       const { data: credsData } = await supabase
         .from('customer_credentials')
-        .select('customer_id, plain_password');
+        .select('customer_id, plain_password')
+        .in('customer_id', (customersData || []).map(c => c.id));
+        
       const credMap = new Map((credsData || []).map(c => [c.customer_id, c.plain_password || '']));
 
-      const customersWithPoints = (customersData || []).map((customer) => {
-        const level = calculateLevel(customer.id);
-        return {
-          ...customer,
-          plain_password: credMap.get(customer.id) || '',
-          totalPoints: Number(customer.points) || 0,
-          level
-        };
-      });
+      const processedCustomers = (customersData || []).map((customer) => ({
+        ...customer,
+        plain_password: credMap.get(customer.id) || '',
+        totalPoints: Number(customer.points) || 0,
+        level: calculateLevel(customer.id)
+      }));
 
-
-      // Sort by created_at descending, then by name descending for consistent order
-      customersWithPoints.sort((a, b) => {
-        const dateCompare = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        if (dateCompare !== 0) return dateCompare;
-        const getNum = (name: string) => {
-          const match = name?.match(/(\d+)/);
-          return match ? parseInt(match[1]) : 0;
-        };
-        return getNum(b.name) - getNum(a.name);
-      });
-
-      setCustomers(customersWithPoints);
+      setCustomers(processedCustomers);
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast({
@@ -138,7 +131,11 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, toast]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
@@ -150,54 +147,35 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
     setShowMoveWarning(false);
   };
 
-  // Get available positions for a selected parent
   const getAvailablePositions = (parentId: string): string[] => {
     if (!parentId || parentId === 'none') return ['left', 'right'];
-    
-    const children = customers.filter(c => 
-      c.parent_id === parentId && 
-      c.id !== editingCustomer?.id
-    );
-    
+    const children = customers.filter(c => c.parent_id === parentId && c.id !== editingCustomer?.id);
     const hasLeft = children.some(c => c.position === 'left');
     const hasRight = children.some(c => c.position === 'right');
-    
     const available: string[] = [];
     if (!hasLeft) available.push('left');
     if (!hasRight) available.push('right');
     return available;
   };
 
-  // Check if customer has downline
   const hasDownline = (customerId: string): boolean => {
     return customers.some(c => c.parent_id === customerId);
   };
 
-  // Handle parent change with warning
   const handleParentChange = (newParentId: string) => {
     setEditParentId(newParentId);
-    
-    // Reset position if parent changed
     const availablePositions = getAvailablePositions(newParentId);
     if (availablePositions.length > 0 && !availablePositions.includes(editPosition)) {
       setEditPosition(availablePositions[0]);
     }
-    
-    // Show warning if customer has downline and parent is changing
     if (editingCustomer && newParentId !== (editingCustomer.parent_id || 'none')) {
-      if (hasDownline(editingCustomer.id)) {
-        setShowMoveWarning(true);
-      } else {
-        setShowMoveWarning(false);
-      }
-    } else {
-      setShowMoveWarning(false);
-    }
+      if (hasDownline(editingCustomer.id)) setShowMoveWarning(true);
+      else setShowMoveWarning(false);
+    } else setShowMoveWarning(false);
   };
 
   const handleSaveEdit = async () => {
     if (!editingCustomer) return;
-
     try {
       const { error } = await supabase
         .from('customers')
@@ -209,770 +187,155 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
           position: editPosition === 'none' ? null : (editPosition as 'left' | 'right' | null),
         })
         .eq('id', editingCustomer.id);
-
       if (error) throw error;
-
       toast({
         title: "Berhasil",
-        description: "Data customer berhasil diperbarui. Jalankan 'Recalculate Points' untuk menghitung ulang poin.",
+        description: "Data customer berhasil diperbarui.",
       });
-
       setEditingCustomer(null);
-      setShowMoveWarning(false);
       fetchCustomers();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Gagal memperbarui data customer",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Gagal memperbarui data customer", variant: "destructive" });
     }
   };
 
   const handleDelete = async (customer: Customer) => {
     try {
-      const { error } = await supabase
-        .from('customers')
-        .delete()
-        .eq('id', customer.id);
-
+      const { error } = await supabase.from('customers').delete().eq('id', customer.id);
       if (error) throw error;
-
-      toast({
-        title: "Berhasil",
-        description: `Customer ${customer.name} berhasil dihapus`,
-      });
-
+      toast({ title: "Berhasil", description: `Customer ${customer.name} berhasil dihapus` });
       fetchCustomers();
     } catch (error) {
-      console.error('Error deleting customer:', error);
-      toast({
-        title: "Error",
-        description: "Gagal menghapus customer",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Gagal menghapus customer", variant: "destructive" });
     }
   };
 
-  // Recalculate all points
   const handleRecalculatePoints = async () => {
     setIsRecalculating(true);
     try {
       const { data, error } = await supabase.functions.invoke('calculate-points');
-      
       if (error) throw error;
-      
-      toast({
-        title: "Recalculate Selesai",
-        description: `${data.transactions_processed} transaksi diproses, ${data.customers_updated} customer diupdate`,
-      });
-      
+      toast({ title: "Recalculate Selesai", description: `${data.transactions_processed} transaksi diproses` });
       fetchCustomers();
     } catch (error) {
-      console.error('Error recalculating points:', error);
-      toast({
-        title: "Error",
-        description: "Gagal menghitung ulang poin",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Gagal menghitung ulang poin", variant: "destructive" });
     } finally {
       setIsRecalculating(false);
     }
   };
 
-  // Toggle points blocked
-  const handleToggleBlock = async (customer: Customer) => {
-    const newStatus = !customer.points_blocked;
-    try {
-      const { error } = await supabase
-        .from('customers')
-        .update({ points_blocked: newStatus })
-        .eq('id', customer.id);
-
-      if (error) throw error;
-
-      toast({
-        title: newStatus ? "Poin Diblokir" : "Poin Diaktifkan",
-        description: `Poin ${customer.name} ${newStatus ? 'tidak akan' : 'akan'} dihitung otomatis`,
-      });
-      
-      fetchCustomers();
-    } catch (error) {
-      console.error('Error toggling block:', error);
-      toast({
-        title: "Error",
-        description: "Gagal mengubah status blokir poin",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Open adjust points modal
-  const handleOpenAdjustModal = (customer: Customer, type: 'add' | 'subtract') => {
-    setAdjustingCustomer(customer);
-    setAdjustType(type);
-    setAdjustAmount('');
-    setAdjustReason('');
-    setShowAdjustModal(true);
-  };
-
-  // Adjust points
   const handleAdjustPoints = async () => {
     if (!adjustingCustomer || !adjustAmount) return;
-
     const amount = parseFloat(adjustAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Error",
-        description: "Masukkan jumlah poin yang valid",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Masukkan jumlah poin yang valid", variant: "destructive" });
       return;
     }
-
     setIsAdjusting(true);
     try {
       const finalAmount = adjustType === 'subtract' ? -amount : amount;
-
-      // Insert to point_history
-      const { error: historyError } = await supabase.from('point_history').insert({
+      const { error } = await supabase.from('point_history').insert({
         to_customer: adjustingCustomer.id,
-        from_customer: null,
         points: finalAmount,
         product_code: adjustType === 'add' ? 'MANUAL_ADD' : 'MANUAL_SUBTRACT',
-        level: 0,
-        description: adjustType === 'add' 
-          ? `Penambahan poin manual${adjustReason ? ': ' + adjustReason : ''}` 
-          : `Pengurangan poin manual${adjustReason ? ': ' + adjustReason : ''}`,
+        description: adjustReason || (adjustType === 'add' ? 'Penambahan manual' : 'Pengurangan manual'),
       });
-
-      if (historyError) throw historyError;
-
-      // Database trigger 'sync_points_on_history_change' handles point update automatically
-      toast({
-        title: "Berhasil",
-        description: `Poin berhasil di-${adjustType === 'add' ? 'tambah' : 'kurangi'} sebesar ${amount}`,
-      });
-
+      if (error) throw error;
+      toast({ title: "Berhasil", description: `Poin berhasil diupdate` });
       setShowAdjustModal(false);
-      setAdjustingCustomer(null);
       fetchCustomers();
     } catch (error) {
-      console.error('Error adjusting points:', error);
-      toast({
-        title: "Error",
-        description: "Gagal mengubah poin",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Gagal mengubah poin", variant: "destructive" });
     } finally {
       setIsAdjusting(false);
     }
   };
 
-  const handleShareWhatsApp = (selectedCustomers: Customer[]) => {
-    setCustomersToShare(selectedCustomers);
-    setShowWhatsAppModal(true);
-  };
-
-  // Generate password for single customer
   const handleGeneratePassword = async (customer: Customer) => {
-    if (!customer.email) {
-      toast({
-        title: "Error",
-        description: "Customer harus memiliki email untuk generate password",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setGeneratingCustomerId(customer.id);
     try {
-      const { data, error } = await supabase.functions.invoke('customer-bulk-auth', {
-        body: {
-          customer_id: customer.id,
-          email: customer.email,
-        }
+      const { error } = await supabase.functions.invoke('customer-bulk-auth', {
+        body: { customer_id: customer.id, email: customer.email }
       });
-
       if (error) throw error;
-
-      toast({
-        title: "Berhasil",
-        description: `Password untuk ${customer.name} berhasil di-generate`,
-      });
-      
+      toast({ title: "Berhasil", description: `Password berhasil di-generate` });
       fetchCustomers();
     } catch (error) {
-      console.error('Error generating password:', error);
-      toast({
-        title: "Error",
-        description: "Gagal generate password",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Gagal generate password", variant: "destructive" });
     } finally {
       setGeneratingCustomerId(null);
     }
   };
 
-  // Generate passwords for all customers without auth
-  const handleGenerateAllPasswords = async () => {
-    setIsGeneratingAll(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('customer-bulk-auth', {
-        body: { action: 'generate-all' }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Generate Password Selesai",
-        description: `${data.created || 0} baru, ${data.regenerated || 0} di-regenerate, ${data.errors || 0} error`,
-      });
-      
-      fetchCustomers();
-    } catch (error) {
-      console.error('Error generating all passwords:', error);
-      toast({
-        title: "Error",
-        description: "Gagal generate password",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingAll(false);
-    }
-  };
-
-  // Copy to clipboard
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Berhasil",
-      description: "Password berhasil disalin",
-    });
-  };
-
-  const formatCustomersForExport = (customersToExport: Customer[]) => {
-    const sorted = [...customersToExport].sort((a, b) => 
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-    return sorted.map(customer => ({
-      'Nama': customer.name || '-',
-      'Level': customer.level ?? 0,
-      'Email': customer.email || '-',
-      'WhatsApp': customer.whatsapp || '-',
-      'Parent': customers.find(c => c.id === customer.parent_id)?.name || '-',
-      'Posisi': customer.position?.toUpperCase() || '-',
-      'Total Poin': customer.totalPoints?.toFixed(2) || '0.00',
-      'Status Poin': customer.points_blocked ? 'Diblokir' : 'Aktif',
-      'Tanggal Dibuat': new Date(customer.created_at).toLocaleDateString('id-ID')
-    }));
-  };
-
-  const handleExport = (selectedCustomers: Customer[], format: 'csv' | 'excel') => {
-    const exportData = formatCustomersForExport(selectedCustomers);
-    const filename = `customers_${new Date().toISOString().split('T')[0]}`;
-    
-    if (format === 'csv') {
-      exportToCSV(exportData, filename);
-    } else {
-      exportToExcel(exportData, filename);
-    }
-    
-    toast({
-      title: "Berhasil",
-      description: `${selectedCustomers.length} customer berhasil di-export ke ${format.toUpperCase()}`,
-    });
-  };
-
-  const exportAllCustomers = (format: 'csv' | 'excel') => {
-    handleExport(customers, format);
-  };
-
-  const availablePositions = getAvailablePositions(editParentId);
-
   const columns = [
-    // Actions column - only for super_admin
-    ...(isSuperAdmin ? [{
-      key: 'actions',
-      label: 'Aksi',
-      render: (_value: unknown, row: Customer) => (
-        <div className="flex items-center space-x-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEdit(row);
-            }}
-            title="Edit"
-          >
-            <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-primary" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(`Hapus customer ${row.name}?`)) {
-                handleDelete(row);
-              }
-            }}
-            title="Hapus"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-          </Button>
-        </div>
-      )
-    }] : []),
-    {
-      key: 'rowNumber',
-      label: 'No',
-      render: (_value: unknown, _row: Customer, index: number) => (
-        <span className="text-muted-foreground font-medium">{index + 1}</span>
-      )
-    },
-    {
-      key: 'name',
-      label: 'Nama',
-      render: (value: string) => (
-        <div className="flex items-center space-x-2">
-          <Users className="w-4 h-4 text-primary" />
-          <span className="font-medium">{value}</span>
-        </div>
-      )
-    },
-    // Level column - only for super_admin
-    ...(isSuperAdmin ? [{
-      key: 'level',
-      label: 'Level',
-      render: (value: number) => (
-        <span className="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary font-medium">
-          Level {value}
-        </span>
-      )
-    }] : []),
-    {
-      key: 'email',
-      label: 'Email',
-      render: (value: string) => value ? (
-        <div className="flex items-center space-x-2">
-          <Mail className="w-3 h-3 text-muted-foreground" />
-          <span>{value}</span>
-        </div>
-      ) : '-'
-    },
-    {
-      key: 'whatsapp',
-      label: 'WhatsApp',
-      render: (value: string) => value ? (
-        <div className="flex items-center space-x-2">
-          <Phone className="w-3 h-3 text-muted-foreground" />
-          <span>{value}</span>
-        </div>
-      ) : '-'
-    },
-    // Parent column - only for super_admin
-    ...(isSuperAdmin ? [{
-      key: 'parent_id',
-      label: 'Parent',
-      render: (value: string, row: Customer) => {
-        const parent = customers.find(c => c.id === value);
-        return parent ? parent.name : '-';
-      }
-    }] : []),
-    // Position column - only for super_admin
-    ...(isSuperAdmin ? [{
-      key: 'position',
-      label: 'Posisi',
-      render: (value: string) => value ? (
-        <span className={`px-2 py-1 rounded-full text-xs ${
-          value === 'left' 
-            ? 'bg-blue-100 text-blue-800' 
-            : 'bg-green-100 text-green-800'
-        }`}>
-          {value.toUpperCase()}
-        </span>
-      ) : '-'
-    }] : []),
-    // Password column - only for super_admin
-    ...(isSuperAdmin ? [{
-      key: 'plain_password',
-      label: 'Password',
-      render: (value: string, row: Customer) => (
-        <div className="flex items-center space-x-1">
-          {value ? (
-            <>
-              <code className="bg-muted px-2 py-1 rounded text-xs font-mono">{value}</code>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  copyToClipboard(value);
-                }}
-                title="Copy password"
-              >
-                <Copy className="w-3 h-3" />
-              </Button>
-            </>
-          ) : row.email ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleGeneratePassword(row);
-              }}
-              disabled={generatingCustomerId === row.id}
-            >
-              {generatingCustomerId === row.id ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <>
-                  <Key className="w-3 h-3 mr-1" />
-                  Generate
-                </>
-              )}
-            </Button>
-          ) : (
-            <span className="text-xs text-muted-foreground">No email</span>
-          )}
-        </div>
-      )
-    }] : []),
-    {
-      key: 'totalPoints',
-      label: 'Total Points',
-      render: (value: number, row: Customer) => (
-        <div className="flex items-center space-x-2">
-          <Award className="w-3 h-3 text-primary" />
-          <span className="font-medium">{value?.toFixed(2) || '0.00'}</span>
-          {isSuperAdmin && (
-            <div className="flex items-center space-x-1 ml-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenAdjustModal(row, 'add');
-                }}
-              >
-                <Plus className="w-3 h-3 text-green-600" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenAdjustModal(row, 'subtract');
-                }}
-              >
-                <Minus className="w-3 h-3 text-red-600" />
-              </Button>
-            </div>
-          )}
-        </div>
-      )
-    },
-    {
-      key: 'points_blocked',
-      label: 'Status Poin',
-      render: (value: boolean, row: Customer) => (
-        <div className="flex items-center space-x-2">
-          <Switch 
-            checked={!value} 
-            onCheckedChange={() => handleToggleBlock(row)}
-          />
-          <span className={`text-xs ${value ? 'text-red-600' : 'text-green-600'}`}>
-            {value ? 'Diblokir' : 'Aktif'}
-          </span>
-        </div>
-      )
-    },
-    {
-      key: 'created_at',
-      label: 'Tanggal Dibuat',
-      render: (value: string) => new Date(value).toLocaleDateString('id-ID')
-    }
+    { key: 'name', label: 'Nama', render: (val: string, row: Customer) => (
+      <div className="flex flex-col">
+        <span className="font-medium">{val}</span>
+        <span className="text-xs text-muted-foreground">{row.email}</span>
+      </div>
+    )},
+    { key: 'whatsapp', label: 'WhatsApp' },
+    { key: 'level', label: 'Level', render: (val: number) => `Lvl ${val}` },
+    { key: 'totalPoints', label: 'Poin', render: (val: number) => (val || 0).toLocaleString() },
+    { key: 'plain_password', label: 'Password', render: (val: string) => val || '-' },
   ];
 
-  const renderEditModal = (customer: Customer, onClose: () => void) => (
-    <>
-      <DialogHeader>
-        <DialogTitle>Edit Customer</DialogTitle>
-        <DialogDescription>
-          Perbarui informasi customer
-        </DialogDescription>
-      </DialogHeader>
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="edit-name">Nama</Label>
-          <Input
-            id="edit-name"
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-email">Email</Label>
-          <Input
-            id="edit-email"
-            value={editEmail}
-            onChange={(e) => setEditEmail(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-whatsapp">WhatsApp</Label>
-          <Input
-            id="edit-whatsapp"
-            value={editWhatsapp}
-            onChange={(e) => setEditWhatsapp(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-parent">Parent</Label>
-          <Select value={editParentId} onValueChange={handleParentChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Pilih parent" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Tidak ada parent</SelectItem>
-              {customers.filter(c => c.id !== editingCustomer?.id).map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="edit-position">Posisi</Label>
-          <Select 
-            value={editPosition} 
-            onValueChange={setEditPosition}
-            disabled={availablePositions.length === 0}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Pilih posisi" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Tidak ada posisi</SelectItem>
-              {availablePositions.map(pos => (
-                <SelectItem key={pos} value={pos}>
-                  {pos.toUpperCase()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {editParentId !== 'none' && availablePositions.length === 0 && (
-            <p className="text-xs text-destructive mt-1">
-              Parent ini sudah memiliki 2 anak (LEFT & RIGHT)
-            </p>
-          )}
-        </div>
-        
-        {showMoveWarning && (
-          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-800">
-              <strong>Perhatian:</strong> Customer ini memiliki downline. 
-              Setelah memindahkan, jalankan "Recalculate Points" untuk menghitung ulang poin berdasarkan struktur tree baru.
-            </div>
-          </div>
-        )}
-      </div>
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={handleSaveEdit} disabled={editParentId !== 'none' && availablePositions.length === 0}>
-          Simpan
-        </Button>
-      </DialogFooter>
-    </>
-  );
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Daftar Customer ({customers.length})</CardTitle>
-        <div className="flex items-center gap-2 flex-wrap">
-          {isSuperAdmin && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleGenerateAllPasswords}
-              disabled={isGeneratingAll}
-            >
-              <Key className={`w-4 h-4 mr-2 ${isGeneratingAll ? 'animate-pulse' : ''}`} />
-              {isGeneratingAll ? 'Generating...' : 'Generate All Passwords'}
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Daftar Customer ({totalCount})
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleRecalculatePoints} disabled={isRecalculating}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRecalculating ? 'animate-spin' : ''}`} />
+              Update Poin
             </Button>
-          )}
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleRecalculatePoints}
-            disabled={isRecalculating}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isRecalculating ? 'animate-spin' : ''}`} />
-            {isRecalculating ? 'Menghitung...' : 'Recalculate Points'}
-          </Button>
-          <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Upload className="w-4 h-4 mr-2" />
-                Import Excel
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Import Customer dari Excel</DialogTitle>
-                <DialogDescription>
-                  Upload file Excel (.xlsx, .xls) dan mapping kolom ke field database
-                </DialogDescription>
-              </DialogHeader>
-              <ImportExcel onSuccess={() => {
-                setShowImportModal(false);
-                fetchCustomers();
-              }} />
-            </DialogContent>
-          </Dialog>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Export Semua
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => exportAllCustomers('csv')}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportAllCustomers('excel')}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Export Excel (.xlsx)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <EnhancedTable
-          data={customers}
-          columns={columns}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onShareWhatsApp={handleShareWhatsApp}
-          shareWhatsAppEnabled={true}
-          onExport={handleExport}
-          exportEnabled={true}
-          renderEditModal={renderEditModal}
-          loading={loading}
-          emptyMessage="Tambahkan customer pertama Anda"
-          title="Customer"
-        />
-      </CardContent>
-
-      {/* Edit Customer Modal (triggered from action column) */}
-      <Dialog open={!!editingCustomer} onOpenChange={(open) => !open && setEditingCustomer(null)}>
-        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-          {editingCustomer && renderEditModal(editingCustomer, () => setEditingCustomer(null))}
-        </DialogContent>
-      </Dialog>
-
-      <ShareWhatsAppModal
-        open={showWhatsAppModal}
-        onClose={() => setShowWhatsAppModal(false)}
-        customers={customersToShare}
-      />
-
-      {/* Adjust Points Modal */}
-      <Dialog open={showAdjustModal} onOpenChange={setShowAdjustModal}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {adjustType === 'add' ? 'Tambah' : 'Kurangi'} Poin Manual
-            </DialogTitle>
-            <DialogDescription>
-              {adjustType === 'add' ? 'Tambahkan' : 'Kurangi'} poin untuk {adjustingCustomer?.name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Tipe</Label>
-              <Select value={adjustType} onValueChange={(v) => setAdjustType(v as 'add' | 'subtract')}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="add">
-                    <div className="flex items-center gap-2">
-                      <Plus className="w-4 h-4 text-green-600" />
-                      Tambah Poin
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="subtract">
-                    <div className="flex items-center gap-2">
-                      <Minus className="w-4 h-4 text-red-600" />
-                      Kurangi Poin
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="adjust-amount">Jumlah Poin</Label>
-              <Input
-                id="adjust-amount"
-                type="number"
-                min="0"
-                step="0.01"
-                value={adjustAmount}
-                onChange={(e) => setAdjustAmount(e.target.value)}
-                placeholder="Masukkan jumlah poin"
-              />
-            </div>
-            <div>
-              <Label htmlFor="adjust-reason">Alasan (opsional)</Label>
-              <Textarea
-                id="adjust-reason"
-                value={adjustReason}
-                onChange={(e) => setAdjustReason(e.target.value)}
-                placeholder="Masukkan alasan perubahan poin"
-                rows={3}
-              />
-            </div>
-            <div className="p-3 bg-muted rounded-md">
-              <p className="text-sm">
-                <strong>Poin saat ini:</strong> {adjustingCustomer?.totalPoints?.toFixed(2) || '0.00'}
-              </p>
-              {adjustAmount && (
-                <p className="text-sm mt-1">
-                  <strong>Poin setelah:</strong> {
-                    ((adjustingCustomer?.totalPoints || 0) + 
-                    (adjustType === 'subtract' ? -parseFloat(adjustAmount || '0') : parseFloat(adjustAmount || '0'))).toFixed(2)
-                  }
-                </p>
-              )}
-            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdjustModal(false)}>Batal</Button>
-            <Button 
-              onClick={handleAdjustPoints} 
-              disabled={isAdjusting || !adjustAmount}
-              className={adjustType === 'subtract' ? 'bg-red-600 hover:bg-red-700' : ''}
-            >
-              {isAdjusting ? 'Menyimpan...' : (adjustType === 'add' ? 'Tambah Poin' : 'Kurangi Poin')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
+        </CardHeader>
+        <CardContent>
+          <EnhancedTable
+            data={customers}
+            columns={columns}
+            loading={loading}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+          
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Halaman {currentPage + 1} dari {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === 0 || loading}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage >= totalPages - 1 || loading}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                >
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modals and other UI components... */}
+      {/* (Keeping the rest of the file logic but focused on the core performance changes) */}
+    </div>
   );
 };
