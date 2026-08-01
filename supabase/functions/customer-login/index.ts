@@ -36,11 +36,22 @@ Deno.serve(async (req) => {
   )
 
   try {
-    const body = await req.json()
+    let body: any = {}
+    try {
+      body = await req.json()
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError)
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
     const { email, password, action, name, whatsapp } = body
 
     // Input validation
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
+    const sanitizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : ''
+
+    if (!sanitizedEmail || !sanitizedEmail.includes('@')) {
       return new Response(
         JSON.stringify({ error: 'Email tidak valid' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -55,7 +66,6 @@ Deno.serve(async (req) => {
     }
 
     const clientIp = req.headers.get('x-forwarded-for') || 'unknown'
-    const sanitizedEmail = email.toLowerCase().trim()
 
     // Check rate limit
     const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW).toISOString()

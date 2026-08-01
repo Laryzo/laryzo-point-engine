@@ -150,7 +150,7 @@ const CustomerLogin = () => {
                     type="email"
                     placeholder="email@example.com"
                     value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.value)}
+                    onChange={(e) => setLoginEmail(e.target.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30 transition-all duration-200"
                   />
@@ -161,7 +161,7 @@ const CustomerLogin = () => {
                     id="login-password"
                     placeholder="••••••••"
                     value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.value)}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30"
                   />
@@ -185,7 +185,7 @@ const CustomerLogin = () => {
                     type="text"
                     placeholder={t('Nama Anda', 'Your Name')}
                     value={regName}
-                    onChange={(e) => setRegName(e.value)}
+                    onChange={(e) => setRegName(e.target.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30 transition-all duration-200"
                   />
@@ -197,7 +197,7 @@ const CustomerLogin = () => {
                     type="email"
                     placeholder="email@example.com"
                     value={regEmail}
-                    onChange={(e) => setRegEmail(e.value)}
+                    onChange={(e) => setRegEmail(e.target.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30 transition-all duration-200"
                   />
@@ -209,7 +209,7 @@ const CustomerLogin = () => {
                     type="tel"
                     placeholder={t('08xxxxxxxxxx', '08xxxxxxxxxx')}
                     value={regWhatsapp}
-                    onChange={(e) => setRegWhatsapp(e.value)}
+                    onChange={(e) => setRegWhatsapp(e.target.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30 transition-all duration-200"
                   />
@@ -220,7 +220,7 @@ const CustomerLogin = () => {
                     id="reg-password"
                     placeholder={t('Minimal 6 karakter', 'Min. 6 characters')}
                     value={regPassword}
-                    onChange={(e) => setRegPassword(e.value)}
+                    onChange={(e) => setRegPassword(e.target.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30"
                   />
@@ -231,7 +231,7 @@ const CustomerLogin = () => {
                     id="reg-confirm"
                     placeholder={t('Ulangi password', 'Repeat password')}
                     value={regConfirmPassword}
-                    onChange={(e) => setRegConfirmPassword(e.value)}
+                    onChange={(e) => setRegConfirmPassword(e.target.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30"
                   />
