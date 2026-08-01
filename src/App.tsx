@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CustomerAuthProvider, useCustomerAuth } from "@/hooks/useCustomerAuth";
+import { CartProvider } from "@/hooks/useCart";
 import { MerchantAuthProvider, useMerchantAuth } from "@/hooks/useMerchantAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CustomerProtectedRoute } from "@/components/CustomerProtectedRoute";
@@ -32,6 +33,10 @@ const MerchantDashboard = lazy(() => import("./pages/MerchantDashboard"));
 const MerchantRegister = lazy(() => import("./pages/MerchantRegister"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Multibeauty = lazy(() => import("./pages/Multibeauty"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const MerchantPage = lazy(() => import("./pages/MerchantPage"));
+const CustomerCart = lazy(() => import("./pages/CustomerCart"));
+const CustomerCheckout = lazy(() => import("./pages/CustomerCheckout"));
 
 const queryClient = new QueryClient();
 
@@ -81,11 +86,32 @@ const CustomerPortalRoutes = () => {
           <CustomerShop />
         </CustomerProtectedRoute>
       } />
+      <Route path="product/:id" element={
+        <CustomerProtectedRoute>
+          <ProductDetail />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="merchant/:id" element={
+        <CustomerProtectedRoute>
+          <MerchantPage />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="cart" element={
+        <CustomerProtectedRoute>
+          <CustomerCart />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="checkout" element={
+        <CustomerProtectedRoute>
+          <CustomerCheckout />
+        </CustomerProtectedRoute>
+      } />
       <Route path="orders" element={
         <CustomerProtectedRoute>
           <CustomerOrders />
         </CustomerProtectedRoute>
       } />
+
       <Route path="orders/:orderId/manual" element={
         <CustomerProtectedRoute>
           <CustomerOrderManual />
@@ -163,7 +189,9 @@ const App = () => {
             {/* Customer Portal Routes */}
             <Route path="/portal/*" element={
               <CustomerAuthProvider>
-                <CustomerPortalRoutes />
+                <CartProvider>
+                  <CustomerPortalRoutes />
+                </CartProvider>
               </CustomerAuthProvider>
             } />
             {/* Merchant/Mitra Routes */}
