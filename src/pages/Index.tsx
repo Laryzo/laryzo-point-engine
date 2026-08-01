@@ -52,15 +52,17 @@ const Index = () => {
       <div className="absolute top-[50%] left-[50%] w-[40%] h-[40%] bg-gradient-to-br from-purple-500/10 to-pink-500/5 rounded-full blur-[120px]" />
       
       <div className="relative z-10 text-center max-w-2xl">
-        <div className="relative mb-8 flex flex-col items-center">
-          <img 
-            src={laryzoLogo} 
-            alt="Laryzo" 
-            className="relative w-72 md:w-96 h-auto block drop-shadow-[0_0_30px_rgba(6,182,212,0.4)]" 
-          />
-          <p className="-mt-12 md:-mt-16 text-white/80 font-sans font-light tracking-[0.2em] text-[10px] md:text-xs uppercase animate-fade-in relative z-10">
-            {content[lang].motto}
-          </p>
+        <div className="relative mb-12 flex flex-col items-center">
+          <div className="relative">
+            <img 
+              src={laryzoLogo} 
+              alt="Laryzo" 
+              className="w-72 md:w-96 h-auto block drop-shadow-[0_0_30px_rgba(6,182,212,0.4)]" 
+            />
+            <p className="absolute bottom-[18%] left-1/2 -translate-x-1/2 w-full text-white/80 font-sans font-light tracking-[0.2em] text-[10px] md:text-xs uppercase animate-fade-in z-10 whitespace-nowrap">
+              {content[lang].motto}
+            </p>
+          </div>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-6 justify-center">
