@@ -65,7 +65,7 @@ const Index = () => {
               We use absolute positioning with a calculated top percentage to place the motto 
               exactly under the visual logo content, ignoring the transparent box.
             */}
-            <p className="absolute top-[58.5%] left-1/2 -translate-x-1/2 w-full text-white/80 font-sans font-light tracking-[0.2em] text-[10px] md:text-xs uppercase animate-fade-in z-20 whitespace-nowrap pointer-events-none">
+            <p className="absolute top-[61%] left-1/2 -translate-x-1/2 w-full text-white/80 font-sans font-light tracking-[0.2em] text-[10px] md:text-xs uppercase animate-fade-in z-20 whitespace-nowrap pointer-events-none">
               {content[lang].motto}
             </p>
           </div>
