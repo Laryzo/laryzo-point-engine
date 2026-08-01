@@ -406,6 +406,7 @@ export type Database = {
       merchant_products: {
         Row: {
           allow_qty_decimal: boolean
+          category: string
           cost_price: number | null
           created_at: string
           description: string | null
@@ -424,6 +425,7 @@ export type Database = {
         }
         Insert: {
           allow_qty_decimal?: boolean
+          category?: string
           cost_price?: number | null
           created_at?: string
           description?: string | null
@@ -442,6 +444,7 @@ export type Database = {
         }
         Update: {
           allow_qty_decimal?: boolean
+          category?: string
           cost_price?: number | null
           created_at?: string
           description?: string | null

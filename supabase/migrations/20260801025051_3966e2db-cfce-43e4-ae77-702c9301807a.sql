@@ -1,0 +1,1 @@
+ALTER TABLE public.merchant_products ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'Lainnya';
