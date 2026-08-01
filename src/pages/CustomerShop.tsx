@@ -198,7 +198,27 @@ const CustomerShop = () => {
       // Hide service items from online shop — services require physical measurement at the merchant POS
       .or('item_type.is.null,item_type.eq.product')
       .order('created_at', { ascending: false });
-    setMerchantProducts(data || []);
+    
+    if (data) {
+      // Fallback for missing merchant data due to RLS/Join issues
+      const enrichedData = await Promise.all(data.map(async (p: any) => {
+        const mData = Array.isArray(p.merchants) ? p.merchants[0] : p.merchants;
+        if (!mData && p.merchant_id) {
+          const { data: separateMerchant } = await supabase
+            .from('merchants')
+            .select('business_name, name, latitude, longitude')
+            .eq('id', p.merchant_id)
+            .maybeSingle();
+          if (separateMerchant) {
+            return { ...p, merchants: separateMerchant };
+          }
+        }
+        return p;
+      }));
+      setMerchantProducts(enrichedData);
+    } else {
+      setMerchantProducts([]);
+    }
   };
 
   const merchantCategories = useMemo(() => {

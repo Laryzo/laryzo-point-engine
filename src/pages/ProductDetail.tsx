@@ -23,13 +23,31 @@ const ProductDetail = () => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('merchant_products')
         .select('*, merchants(id, business_name, name, latitude, longitude, logo_url)')
         .eq('id', id as string)
         .eq('is_active', true)
         .maybeSingle();
-      setProduct(data || null);
+      
+      if (data) {
+        // Fallback: If merchants join failed (RLS or other issues), try fetching separately
+        const mData = Array.isArray(data.merchants) ? data.merchants[0] : data.merchants;
+        if (!mData && data.merchant_id) {
+          const { data: separateMerchant } = await supabase
+            .from('merchants')
+            .select('id, business_name, name, latitude, longitude, logo_url')
+            .eq('id', data.merchant_id)
+            .maybeSingle();
+          if (separateMerchant) {
+            data.merchants = separateMerchant;
+          }
+        }
+        setProduct(data);
+      } else {
+        setProduct(null);
+      }
+      
       setLoading(false);
     };
     if (id) load();
