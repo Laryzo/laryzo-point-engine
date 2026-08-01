@@ -110,10 +110,11 @@ Deno.serve(async (req) => {
         stockValue = typeof dbProduct.stock === 'number' ? dbProduct.stock : null
       } else {
         // Ad-hoc / service item: merchant supplies the price, but cost_price must
-        // be zero (no markup margin credited to the merchant themselves).
+        // be zero (no markup margin credited to the merchant themselves) and the
+        // amount is clamped to a sane maximum.
         const clientPrice = Number(item.price) || 0
-        if (clientPrice < 0) {
-          throw new Error('Harga tidak boleh negatif')
+        if (!Number.isFinite(clientPrice) || clientPrice < 0 || clientPrice > MAX_ADHOC_PRICE) {
+          throw new Error('Harga item manual tidak valid')
         }
         dbPricePerUnit = clientPrice
         dbCostPerUnit = 0
@@ -121,7 +122,9 @@ Deno.serve(async (req) => {
 
       const total = Math.round(dbPricePerUnit * qtyNum)
       const merchantRevenue = Math.round(dbCostPerUnit * qtyNum)
-      const fee = total - merchantRevenue
+      // Profit that earns points is clamped and can never be negative.
+      const fee = Math.max(0, Math.min(total - merchantRevenue, MAX_POINTABLE_PROFIT_PER_ITEM))
+
 
       const pointsPerLevel = fee * POINT_PERCENTAGE
       const customerPoints = customer_id ? pointsPerLevel : 0
