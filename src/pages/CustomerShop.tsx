@@ -852,26 +852,7 @@ const CustomerShop = () => {
                 <Card
                   key={mp.id}
                   className="overflow-hidden cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
-                  onClick={() => {
-                    setSelectedProduct({
-                      id: mp.id,
-                      name: mp.name,
-                      description: mp.description || '',
-                      type: 'merchant',
-                      ppob_type: '',
-                      point_price: sellingPrice,
-                      requires_input: '',
-                      image_url: mp.image_url || '',
-                      stock: mp.stock,
-                      requires_shipping: false,
-                    } as Product);
-                    // Store merchant GPS for auto distance calculation
-                    if (mp.merchants?.latitude && mp.merchants?.longitude) {
-                      setSelectedMerchantCoords({ lat: Number(mp.merchants.latitude), lng: Number(mp.merchants.longitude) });
-                    } else {
-                      setSelectedMerchantCoords(null);
-                    }
-                  }}
+                  onClick={() => navigate(`/portal/product/${mp.id}`)}
                 >
                   <CardContent className="p-0">
                     {mp.image_url ? (
@@ -887,12 +868,23 @@ const CustomerShop = () => {
                         <Coins className="h-3 w-3" />
                         <span>{formatNumber(sellingPrice)} poin</span>
                       </div>
-                      <Badge variant="outline" className="text-[10px] mt-1">
-                        {mp.merchants?.business_name || mp.merchants?.name || 'Mitra'}
-                      </Badge>
+                      {mp.merchant_id ? (
+                        <button
+                          className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/portal/merchant/${mp.merchant_id}`); }}
+                        >
+                          <Store className="h-3 w-3" />
+                          {mp.merchants?.business_name || mp.merchants?.name || 'Mitra'}
+                        </button>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] mt-1">
+                          {mp.merchants?.business_name || mp.merchants?.name || 'Mitra'}
+                        </Badge>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
+
               );
             })}
           </div>
