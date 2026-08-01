@@ -421,7 +421,6 @@ export type Database = {
           stock: number
           unit: string
           updated_at: string
-          category: string | null
         }
         Insert: {
           allow_qty_decimal?: boolean
@@ -440,7 +439,6 @@ export type Database = {
           stock?: number
           unit?: string
           updated_at?: string
-          category?: string | null
         }
         Update: {
           allow_qty_decimal?: boolean
@@ -459,7 +457,6 @@ export type Database = {
           stock?: number
           unit?: string
           updated_at?: string
-          category?: string | null
         }
         Relationships: [
           {
