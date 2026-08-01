@@ -188,7 +188,9 @@ const App = () => {
             {/* Customer Portal Routes */}
             <Route path="/portal/*" element={
               <CustomerAuthProvider>
-                <CustomerPortalRoutes />
+                <CartProvider>
+                  <CustomerPortalRoutes />
+                </CartProvider>
               </CustomerAuthProvider>
             } />
             {/* Merchant/Mitra Routes */}
