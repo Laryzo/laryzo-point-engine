@@ -325,10 +325,43 @@ Deno.serve(async (req) => {
     console.log('Created transaction:', transaction.id)
 
     // Distribute points (1% to customer, 1% to each upline up to 10 levels)
-    const margin = requestData.transaction_data.margin
+    //
+    // SECURITY: the caller-supplied margin is never trusted as-is. When the
+    // product exists in our own catalog we use the authoritative margin
+    // (point_price - cost_price); otherwise the caller's value is clamped to a
+    // conservative per-unit ceiling so a compromised API key cannot mint
+    // unlimited loyalty points.
+    const MAX_UNVERIFIED_MARGIN_PER_UNIT = 50000
+    const requestedMargin = requestData.transaction_data.margin
+    let margin = requestedMargin
+
+    const { data: catalogProduct } = await supabase
+      .from('products')
+      .select('cost_price, point_price')
+      .or(`digiflazz_sku.eq.${requestData.transaction_data.product_code},name.eq.${requestData.transaction_data.product_name}`)
+      .limit(1)
+      .maybeSingle()
+
+    if (catalogProduct) {
+      const authoritativeMargin = Math.max(
+        0,
+        (Number(catalogProduct.point_price) || 0) - (Number(catalogProduct.cost_price) || 0)
+      )
+      margin = Math.min(requestedMargin, authoritativeMargin)
+      if (margin !== requestedMargin) {
+        console.warn('Satellite margin clamped to catalog margin', { requestedMargin, margin })
+      }
+    } else {
+      margin = Math.min(requestedMargin, MAX_UNVERIFIED_MARGIN_PER_UNIT)
+      if (margin !== requestedMargin) {
+        console.warn('Satellite margin clamped to unverified ceiling', { requestedMargin, margin })
+      }
+    }
+
     const qty = requestData.transaction_data.qty || 1
     const totalMargin = margin * qty
     const pointPercentage = 0.01 // 1%
+
     const distributedPoints: Array<{
       customer_id: string
       customer_name: string
