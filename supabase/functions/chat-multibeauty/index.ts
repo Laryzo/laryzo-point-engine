@@ -548,12 +548,15 @@ serve(async (req) => {
       { role: "system", content: systemPrompt },
     ];
 
-    // Tambahkan conversation history
+    // Tambahkan conversation history (sanitized — only user/assistant turns)
     if (conversationHistory && Array.isArray(conversationHistory)) {
-      // Batasi history agar tidak terlalu panjang (max 5 pesan terakhir)
-      const recentHistory = conversationHistory.slice(-10);
+      const recentHistory = conversationHistory
+        .slice(-10)
+        .filter((m: any) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+        .map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 1000) }));
       messages.push(...recentHistory);
     }
+
 
     messages.push({ role: "user", content: message });
 
