@@ -76,6 +76,11 @@ Deno.serve(async (req) => {
     for (const item of items) {
       const { product_id, product_name, qty, unit } = item
       const qtyNum = Number(qty) || 0
+      // Server-side input validation: quantities must be sane, positive numbers.
+      if (!Number.isFinite(qtyNum) || qtyNum <= 0 || qtyNum > MAX_QTY) {
+        throw new Error('Jumlah item tidak valid')
+      }
+
 
       let dbPricePerUnit = 0
       let dbCostPerUnit = 0
