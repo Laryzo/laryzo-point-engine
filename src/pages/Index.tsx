@@ -1,50 +1,20 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Store, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useLanguage } from "@/context/LanguageContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import laryzoLogoId from "@/assets/laryzo-logo-id.png";
 import laryzoLogoEn from "@/assets/laryzo-logo-en.png";
 
 const Index = () => {
-  const [lang, setLang] = useState<"ID" | "EN">("ID");
-
-  const content = {
-    ID: {
-      customerPortal: "Customer Portal",
-      mitraLogin: "Mitra Login",
-      logo: laryzoLogoId,
-    },
-    EN: {
-      customerPortal: "Customer Portal",
-      mitraLogin: "Partner Login",
-      logo: laryzoLogoEn,
-    },
-  };
+  const { lang, t } = useLanguage();
+  const logo = lang === "ID" ? laryzoLogoId : laryzoLogoEn;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Language Switcher */}
-      <div className="absolute top-6 right-6 z-20 flex items-center gap-2 bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-full p-1 shadow-xl">
-        <button
-          onClick={() => setLang("ID")}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-            lang === "ID"
-              ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/30"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          ID
-        </button>
-        <button
-          onClick={() => setLang("EN")}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-            lang === "EN"
-              ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/30"
-              : "text-slate-400 hover:text-slate-200 opacity-50"
-          }`}
-        >
-          EN
-        </button>
+      <div className="absolute top-6 right-6 z-20">
+        <LanguageSwitcher />
       </div>
 
       {/* Decorative Background Elements */}
@@ -57,7 +27,7 @@ const Index = () => {
         <div className="relative flex flex-col items-center mb-8 md:mb-12">
           <div className="relative">
             <img 
-              src={content[lang].logo} 
+              src={logo} 
               alt="Laryzo" 
               className="w-72 md:w-96 h-auto block drop-shadow-[0_0_30px_rgba(6,182,212,0.4)]" 
             />
@@ -73,7 +43,7 @@ const Index = () => {
           >
             <Link to="/portal/login" className="flex items-center justify-center gap-3">
               <Users className="w-5 h-5 transition-transform group-hover:scale-110" />
-              <span>{content[lang].customerPortal}</span>
+              <span>{t("Customer Portal", "Customer Portal")}</span>
               <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </Link>
           </Button>
@@ -86,7 +56,7 @@ const Index = () => {
           >
             <Link to="/mitra/login" className="flex items-center justify-center gap-3">
               <Store className="w-5 h-5 transition-transform group-hover:scale-110" />
-              <span>{content[lang].mitraLogin}</span>
+              <span>{t("Mitra Login", "Partner Login")}</span>
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/10 to-emerald-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </Link>
           </Button>

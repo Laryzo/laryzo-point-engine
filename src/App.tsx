@@ -13,6 +13,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CustomerProtectedRoute } from "@/components/CustomerProtectedRoute";
 import { MerchantProtectedRoute } from "@/components/MerchantProtectedRoute";
 import { Loader2 } from "lucide-react";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 // Lazy load all pages
 const Index = lazy(() => import("./pages/Index"));
@@ -173,6 +174,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Suspense fallback={<LoadingFallback />}>
+          <LanguageProvider>
             <Routes>
               {/* Public landing pages */}
               {isMultibeautyDomain ? (
@@ -202,6 +204,7 @@ const App = () => {
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>
+        </LanguageProvider>
         </Suspense>
       </BrowserRouter>
     </TooltipProvider>

@@ -9,11 +9,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Store, Home, ArrowLeft } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const MerchantRegister = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -42,13 +44,13 @@ const MerchantRegister = () => {
       if (error) {
         console.error('Edge Function invocation error:', error);
         toast({
-          title: 'Pendaftaran Gagal',
-          description: error.message || 'Terjadi kesalahan saat mendaftar',
+          title: t('Pendaftaran Gagal', 'Registration Failed'),
+          description: error.message || t('Terjadi kesalahan saat mendaftar', 'An error occurred during registration'),
           variant: 'destructive',
         });
       } else if (data?.error) {
         toast({
-          title: 'Pendaftaran Gagal',
+          title: t('Pendaftaran Gagal', 'Registration Failed'),
           description: data.error,
           variant: 'destructive',
         });
@@ -59,16 +61,16 @@ const MerchantRegister = () => {
           console.log('Session received, but redirecting to login for clean state');
         }
         toast({
-          title: 'Pendaftaran Berhasil',
-          description: 'Akun mitra Anda telah dibuat. Silakan login.',
+          title: t('Pendaftaran Berhasil', 'Registration Successful'),
+          description: t('Akun mitra Anda telah dibuat. Silakan login.', 'Your partner account has been created. Please login.'),
         });
         navigate('/mitra/login');
       }
     } catch (err) {
       console.error('Registration exception:', err);
       toast({
-        title: 'Kesalahan Sistem',
-        description: 'Gagal menghubungi server',
+        title: t('Kesalahan Sistem', 'System Error'),
+        description: t('Gagal menghubungi server', 'Failed to contact server'),
         variant: 'destructive',
       });
     } finally {
@@ -82,17 +84,19 @@ const MerchantRegister = () => {
         <Button asChild size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 text-white border-0 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all duration-300 font-medium">
           <Link to="/">
             <Home className="w-4 h-4 mr-2" />
-            Home
+            {t('Home', 'Home')}
           </Link>
         </Button>
         <Button asChild size="sm" className="bg-slate-600/80 text-white border-0 hover:bg-slate-700 shadow-md hover:shadow-lg transition-all duration-300 font-medium">
           <Link to="/mitra/login">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali ke Login
+            {t('Kembali ke Login', 'Back to Login')}
           </Link>
         </Button>
       </div>
-      
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -100,24 +104,24 @@ const MerchantRegister = () => {
               <Store className="h-8 w-8 text-orange-600" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Daftar Mitra Laryzo</CardTitle>
-          <CardDescription>Bergabunglah sebagai mitra UMKM dan mulai kelola poin pelanggan Anda</CardDescription>
+          <CardTitle className="text-2xl">{t('Daftar Mitra Laryzo', 'Register as Laryzo Partner')}</CardTitle>
+          <CardDescription>{t('Bergabunglah sebagai mitra UMKM dan mulai kelola poin pelanggan Anda', 'Join as an SME partner and start managing customer points')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nama Lengkap</Label>
+                <Label htmlFor="name">{t('Nama Lengkap', 'Full Name')}</Label>
                 <Input
                   id="name"
-                  placeholder="Nama Anda"
+                  placeholder={t('Nama Anda', 'Your Name')}
                   value={formData.name}
                   onChange={handleChange}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="whatsapp">No. WhatsApp</Label>
+                <Label htmlFor="whatsapp">{t('No. WhatsApp', 'WhatsApp No.')}</Label>
                 <Input
                   id="whatsapp"
                   placeholder="08123456789"
@@ -129,7 +133,7 @@ const MerchantRegister = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t('Email', 'Email')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -141,7 +145,7 @@ const MerchantRegister = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('Password', 'Password')}</Label>
               <PasswordInput
                 id="password"
                 placeholder="••••••••"
@@ -152,23 +156,23 @@ const MerchantRegister = () => {
             </div>
 
             <div className="border-t pt-4 mt-4">
-              <h3 className="text-sm font-medium mb-3">Informasi Bisnis</h3>
+              <h3 className="text-sm font-medium mb-3">{t('Informasi Bisnis', 'Business Information')}</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="business_name">Nama Bisnis / Toko</Label>
+                  <Label htmlFor="business_name">{t('Nama Bisnis / Toko', 'Business / Store Name')}</Label>
                   <Input
                     id="business_name"
-                    placeholder="Nama Toko Anda"
+                    placeholder={t('Nama Toko Anda', 'Your Store Name')}
                     value={formData.business_name}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="business_address">Alamat Bisnis</Label>
+                  <Label htmlFor="business_address">{t('Alamat Bisnis', 'Business Address')}</Label>
                   <Textarea
                     id="business_address"
-                    placeholder="Alamat lengkap toko"
+                    placeholder={t('Alamat lengkap toko', 'Full store address')}
                     value={formData.business_address}
                     onChange={handleChange}
                     rows={3}
@@ -178,14 +182,14 @@ const MerchantRegister = () => {
             </div>
 
             <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading}>
-              {loading ? 'Mendaftarkan...' : 'Daftar Sekarang'}
+              {loading ? t('Mendaftarkan...', 'Registering...') : t('Daftar Sekarang', 'Register Now')}
             </Button>
           </form>
           
           <div className="text-sm text-center mt-6">
-            <span className="text-muted-foreground">Sudah punya akun? </span>
+            <span className="text-muted-foreground">{t('Sudah punya akun? ', 'Already have an account? ')}</span>
             <Link to="/mitra/login" className="text-orange-600 font-medium hover:underline">
-              Masuk di sini
+              {t('Masuk di sini', 'Login here')}
             </Link>
           </div>
         </CardContent>

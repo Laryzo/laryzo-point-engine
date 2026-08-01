@@ -9,10 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { Coins, Home } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const CustomerLogin = () => {
   const navigate = useNavigate();
   const { login, register } = useCustomerAuth();
+  const { t } = useLanguage();
   
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -33,14 +36,14 @@ const CustomerLogin = () => {
     
     if (result.error) {
       toast({
-        title: 'Login Gagal',
+        title: t('Login Gagal', 'Login Failed'),
         description: result.error,
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Login Berhasil',
-        description: 'Selamat datang kembali!',
+        title: t('Login Berhasil', 'Login Successful'),
+        description: t('Selamat datang kembali!', 'Welcome back!'),
       });
       navigate('/portal');
     }
@@ -53,8 +56,8 @@ const CustomerLogin = () => {
     
     if (regPassword !== regConfirmPassword) {
       toast({
-        title: 'Error',
-        description: 'Password tidak cocok',
+        title: t('Error', 'Error'),
+        description: t('Password tidak cocok', 'Passwords do not match'),
         variant: 'destructive',
       });
       return;
@@ -62,8 +65,8 @@ const CustomerLogin = () => {
 
     if (regPassword.length < 6) {
       toast({
-        title: 'Error',
-        description: 'Password minimal 6 karakter',
+        title: t('Error', 'Error'),
+        description: t('Password minimal 6 karakter', 'Password must be at least 6 characters'),
         variant: 'destructive',
       });
       return;
@@ -75,14 +78,14 @@ const CustomerLogin = () => {
     
     if (result.error) {
       toast({
-        title: 'Registrasi Gagal',
+        title: t('Registrasi Gagal', 'Registration Failed'),
         description: result.error,
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Registrasi Berhasil',
-        description: 'Akun Anda telah dibuat!',
+        title: t('Registrasi Berhasil', 'Registration Successful'),
+        description: t('Akun Anda telah dibuat!', 'Your account has been created!'),
       });
       navigate('/portal');
     }
@@ -92,7 +95,7 @@ const CustomerLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 relative overflow-hidden">
-      {/* Decorative Background Elements - Tema Warna Baru */}
+      {/* Decorative Background Elements */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-gradient-to-br from-emerald-500/20 to-teal-500/10 rounded-full blur-[150px]" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-gradient-to-tl from-indigo-500/20 to-purple-500/10 rounded-full blur-[150px]" />
       <div className="absolute top-[50%] left-[50%] w-[40%] h-[40%] bg-gradient-to-br from-cyan-400/10 to-blue-500/5 rounded-full blur-[120px]" />
@@ -101,9 +104,12 @@ const CustomerLogin = () => {
         <Button asChild size="sm" className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0 hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 font-medium">
           <Link to="/">
             <Home className="w-4 h-4 mr-2" />
-            Home
+            {t('Home', 'Home')}
           </Link>
         </Button>
+      </div>
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher />
       </div>
 
       <Card className="w-full max-w-md border-slate-700 bg-slate-800/60 backdrop-blur-2xl shadow-2xl z-10 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300">
@@ -116,7 +122,7 @@ const CustomerLogin = () => {
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
             Laryzo Point
           </CardTitle>
-          <CardDescription className="text-slate-400 mt-2">Customer Portal - Kelola Poin Anda</CardDescription>
+          <CardDescription className="text-slate-400 mt-2">{t('Customer Portal - Kelola Poin Anda', 'Customer Portal - Manage Your Points')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
@@ -125,37 +131,37 @@ const CustomerLogin = () => {
                 value="login"
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all duration-200"
               >
-                Masuk
+                {t('Masuk', 'Login')}
               </TabsTrigger>
               <TabsTrigger 
                 value="register"
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all duration-200"
               >
-                Daftar
+                {t('Daftar', 'Register')}
               </TabsTrigger>
             </TabsList>
             
             <TabsContent value="login" className="mt-6">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email" className="text-slate-300">Email</Label>
+                  <Label htmlFor="login-email" className="text-slate-300">{t('Email', 'Email')}</Label>
                   <Input
                     id="login-email"
                     type="email"
                     placeholder="email@example.com"
                     value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
+                    onChange={(e) => setLoginEmail(e.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30 transition-all duration-200"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="login-password" className="text-slate-300">Password</Label>
+                  <Label htmlFor="login-password" className="text-slate-300">{t('Password', 'Password')}</Label>
                   <PasswordInput
                     id="login-password"
                     placeholder="••••••••"
                     value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
+                    onChange={(e) => setLoginPassword(e.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30"
                   />
@@ -165,7 +171,7 @@ const CustomerLogin = () => {
                   className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-200"
                   disabled={loginLoading}
                 >
-                  {loginLoading ? 'Memproses...' : 'Masuk'}
+                  {loginLoading ? t('Memproses...', 'Processing...') : t('Masuk', 'Login')}
                 </Button>
               </form>
             </TabsContent>
@@ -173,59 +179,59 @@ const CustomerLogin = () => {
             <TabsContent value="register" className="mt-6">
               <form onSubmit={handleRegister} className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="reg-name" className="text-slate-300">Nama Lengkap</Label>
+                  <Label htmlFor="reg-name" className="text-slate-300">{t('Nama Lengkap', 'Full Name')}</Label>
                   <Input
                     id="reg-name"
                     type="text"
-                    placeholder="Nama Anda"
+                    placeholder={t('Nama Anda', 'Your Name')}
                     value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
+                    onChange={(e) => setRegName(e.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30 transition-all duration-200"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reg-email" className="text-slate-300">Email</Label>
+                  <Label htmlFor="reg-email" className="text-slate-300">{t('Email', 'Email')}</Label>
                   <Input
                     id="reg-email"
                     type="email"
                     placeholder="email@example.com"
                     value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
+                    onChange={(e) => setRegEmail(e.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30 transition-all duration-200"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reg-whatsapp" className="text-slate-300">WhatsApp</Label>
+                  <Label htmlFor="reg-whatsapp" className="text-slate-300">{t('WhatsApp', 'WhatsApp')}</Label>
                   <Input
                     id="reg-whatsapp"
                     type="tel"
-                    placeholder="08xxxxxxxxxx"
+                    placeholder={t('08xxxxxxxxxx', '08xxxxxxxxxx')}
                     value={regWhatsapp}
-                    onChange={(e) => setRegWhatsapp(e.target.value)}
+                    onChange={(e) => setRegWhatsapp(e.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30 transition-all duration-200"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reg-password" className="text-slate-300">Password</Label>
+                  <Label htmlFor="reg-password" className="text-slate-300">{t('Password', 'Password')}</Label>
                   <PasswordInput
                     id="reg-password"
-                    placeholder="Minimal 6 karakter"
+                    placeholder={t('Minimal 6 karakter', 'Min. 6 characters')}
                     value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
+                    onChange={(e) => setRegPassword(e.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reg-confirm" className="text-slate-300">Konfirmasi Password</Label>
+                  <Label htmlFor="reg-confirm" className="text-slate-300">{t('Konfirmasi Password', 'Confirm Password')}</Label>
                   <PasswordInput
                     id="reg-confirm"
-                    placeholder="Ulangi password"
+                    placeholder={t('Ulangi password', 'Repeat password')}
                     value={regConfirmPassword}
-                    onChange={(e) => setRegConfirmPassword(e.target.value)}
+                    onChange={(e) => setRegConfirmPassword(e.value)}
                     required
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/30"
                   />
@@ -235,7 +241,7 @@ const CustomerLogin = () => {
                   className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-200"
                   disabled={regLoading}
                 >
-                  {regLoading ? 'Memproses...' : 'Daftar'}
+                  {regLoading ? t('Memproses...', 'Processing...') : t('Daftar', 'Register')}
                 </Button>
               </form>
             </TabsContent>

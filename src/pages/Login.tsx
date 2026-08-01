@@ -11,6 +11,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, HelpCircle, Home } from 'lucide-react';
 import AdminRegister from '@/components/AdminRegister';
 import { ForgotPasswordModal } from '@/components/ForgotPasswordModal';
+import { useLanguage } from '@/context/LanguageContext';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -19,6 +21,7 @@ const Login = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { login, isFirstAdmin } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   // Show admin register if no admins exist
   if (isFirstAdmin) {
@@ -33,14 +36,14 @@ const Login = () => {
     
     if (error) {
       toast({
-        title: "Login Failed",
+        title: t("Login Gagal", "Login Failed"),
         description: error,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Login Successful",
-        description: "Welcome to Laryzo Point Engine",
+        title: t("Login Berhasil", "Login Successful"),
+        description: t("Selamat datang di Laryzo Point Engine", "Welcome to Laryzo Point Engine"),
       });
       navigate('/dashboard');
     }
@@ -58,22 +61,25 @@ const Login = () => {
         <Button asChild size="sm" className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white border-0 hover:from-cyan-600 hover:to-blue-600 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all duration-300 font-medium">
           <Link to="/">
             <Home className="w-4 h-4 mr-2" />
-            Home
+            {t("Home", "Home")}
           </Link>
         </Button>
+      </div>
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher />
       </div>
       <Card className="w-full max-w-md border-slate-800 bg-slate-900/50 backdrop-blur-xl shadow-2xl z-10">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-12 h-12 bg-cyan-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
             <LogIn className="w-6 h-6 text-white" />
           </div>
-          <CardTitle className="text-2xl text-white">Laryzo Point Engine</CardTitle>
-          <CardDescription className="text-slate-400">Admin Dashboard Login</CardDescription>
+          <CardTitle className="text-2xl text-white">{t("Laryzo Point Engine", "Laryzo Point Engine")}</CardTitle>
+          <CardDescription className="text-slate-400">{t("Login Admin Dashboard", "Admin Dashboard Login")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("Email", "Email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -84,17 +90,17 @@ const Login = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("Password", "Password")}</Label>
               <PasswordInput
                 id="password"
-                placeholder="Enter your password"
+                placeholder={t("Masukkan password", "Enter your password")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
             <Button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg shadow-cyan-500/20" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
+              {loading ? t("Memproses...", "Logging in...") : t("Masuk", "Login")}
             </Button>
           </form>
           
@@ -107,7 +113,7 @@ const Login = () => {
               className="p-0 h-auto font-normal text-sm text-slate-400 hover:text-cyan-400"
             >
               <HelpCircle className="w-4 h-4 mr-1" />
-              Lupa Password atau Email?
+              {t("Lupa Password atau Email?", "Forgot Password or Email?")}
             </Button>
           </div>
           
