@@ -102,6 +102,7 @@ interface PhoneHistoryItem {
 const CustomerShop = () => {
   const navigate = useNavigate();
   const { customer, refreshCustomer } = useCustomerAuth();
+  const { count: cartCount } = useCart();
   const { toast } = useToast();
   
   const [products, setProducts] = useState<Product[]>([]);
