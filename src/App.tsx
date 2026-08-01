@@ -32,6 +32,10 @@ const MerchantDashboard = lazy(() => import("./pages/MerchantDashboard"));
 const MerchantRegister = lazy(() => import("./pages/MerchantRegister"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Multibeauty = lazy(() => import("./pages/Multibeauty"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const MerchantPage = lazy(() => import("./pages/MerchantPage"));
+const CustomerCart = lazy(() => import("./pages/CustomerCart"));
+const CustomerCheckout = lazy(() => import("./pages/CustomerCheckout"));
 
 const queryClient = new QueryClient();
 
