@@ -149,7 +149,6 @@ Deno.serve(async (req) => {
       }
     } else {
 
-    } else {
       // Placement
       const slot = await findOpenSlot(supabase);
       if (!slot) throw new Error("Tidak dapat menempatkan akun di jaringan. Silakan hubungi admin.");
