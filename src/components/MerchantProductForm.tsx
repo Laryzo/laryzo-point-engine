@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { ImagePlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -43,6 +44,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
     unit: 'pcs',
     minQty: '',
     category: 'Lainnya',
+    isActive: true,
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -69,11 +71,12 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         unit: product.unit || 'pcs',
         minQty: product.min_qty != null ? String(product.min_qty) : '',
         category: product.category || 'Lainnya',
+        isActive: product.is_active ?? true,
       });
       setImagePreview(product.image_url || null);
       setImageFile(null);
     } else if (open && !product) {
-      setForm({ name: '', description: '', costPrice: '', stock: '-1', itemType: 'product', unit: 'pcs', minQty: '', category: 'Lainnya' });
+      setForm({ name: '', description: '', costPrice: '', stock: '-1', itemType: 'product', unit: 'pcs', minQty: '', category: 'Lainnya', isActive: true });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -121,6 +124,7 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
         category: form.category,
         allow_qty_decimal: isService,
         min_qty: form.minQty ? Number(form.minQty) : null,
+        is_active: form.isActive,
       };
 
       if (isEdit) {
@@ -267,6 +271,19 @@ const MerchantProductForm = ({ open, onOpenChange, merchantId, product, onSucces
               <Input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} required />
             </div>
           )}
+
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+            <div className="space-y-0.5">
+              <Label className="text-base">Status Produk</Label>
+              <p className="text-xs text-muted-foreground">
+                {form.isActive ? 'Produk dapat dilihat oleh customer' : 'Produk disembunyikan dari customer'}
+              </p>
+            </div>
+            <Switch 
+              checked={form.isActive} 
+              onCheckedChange={(checked) => setForm({ ...form, isActive: checked })}
+            />
+          </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan'}

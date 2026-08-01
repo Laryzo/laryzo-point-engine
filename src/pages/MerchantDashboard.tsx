@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import MerchantProductForm from '@/components/MerchantProductForm';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { getAppFeePercent, computeSellingPrice, estimateCostFromPrice } from '@/lib/app-fee';
 
@@ -732,6 +733,30 @@ const MerchantDashboard = () => {
     }
   };
 
+  const toggleProductStatus = async (product: any) => {
+    try {
+      const { error } = await supabase
+        .from('merchant_products')
+        .update({ is_active: !product.is_active })
+        .eq('id', product.id);
+      
+      if (error) throw error;
+      
+      toast({ 
+        title: product.is_active ? 'Produk Dinonaktifkan' : 'Produk Diaktifkan',
+        description: `Produk "${product.name}" berhasil ${product.is_active ? 'dinonaktifkan' : 'diaktifkan'}.`
+      });
+      
+      fetchProducts();
+    } catch (error: any) {
+      toast({ 
+        title: 'Gagal mengubah status', 
+        description: error.message, 
+        variant: 'destructive' 
+      });
+    }
+  };
+
   const renderPOS = () => (
     <div className="p-4 md:p-6 space-y-6">
       {/* Daily Stats */}
@@ -1179,9 +1204,16 @@ const MerchantDashboard = () => {
               <TableCell>Rp {Number(p.price).toLocaleString()}</TableCell>
               <TableCell>{p.stock < 0 ? '∞' : p.stock}</TableCell>
               <TableCell>
-                <Badge variant={p.is_active ? 'default' : 'secondary'}>
-                  {p.is_active ? 'Aktif' : 'Nonaktif'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    checked={p.is_active} 
+                    onCheckedChange={() => toggleProductStatus(p)}
+                    disabled={!isSuperAdmin}
+                  />
+                  <Badge variant={p.is_active ? 'default' : 'secondary'}>
+                    {p.is_active ? 'Aktif' : 'Nonaktif'}
+                  </Badge>
+                </div>
               </TableCell>
               {isSuperAdmin && (
                 <TableCell>
