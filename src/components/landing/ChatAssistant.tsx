@@ -60,13 +60,13 @@ function openWhatsAppDirect(phoneNumber: string, message?: string): void {
 // Read waNumber from landing_pages.settings_published.chatbot.waNumber
 async function fetchWaNumberFromDB(): Promise<string | null> {
   try {
-    const { data } = await supabase
-      .from("landing_pages")
-      .select("settings_published")
-      .eq("slug", "multibeauty")
-      .maybeSingle();
+    const { data } = await (supabase as any).rpc("get_landing_page_published", {
+      page_slug: "multibeauty",
+    });
+    const row = Array.isArray(data) ? data[0] : data;
 
-    const waNumber = (data as any)?.settings_published?.chatbot?.waNumber;
+    const waNumber = (row as any)?.settings_published?.chatbot?.waNumber;
+
     if (waNumber) {
       localStorage.setItem("chatbot_wa_number", waNumber);
       return waNumber;
