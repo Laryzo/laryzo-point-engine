@@ -85,11 +85,32 @@ const CustomerPortalRoutes = () => {
           <CustomerShop />
         </CustomerProtectedRoute>
       } />
+      <Route path="product/:id" element={
+        <CustomerProtectedRoute>
+          <ProductDetail />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="merchant/:id" element={
+        <CustomerProtectedRoute>
+          <MerchantPage />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="cart" element={
+        <CustomerProtectedRoute>
+          <CustomerCart />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="checkout" element={
+        <CustomerProtectedRoute>
+          <CustomerCheckout />
+        </CustomerProtectedRoute>
+      } />
       <Route path="orders" element={
         <CustomerProtectedRoute>
           <CustomerOrders />
         </CustomerProtectedRoute>
       } />
+
       <Route path="orders/:orderId/manual" element={
         <CustomerProtectedRoute>
           <CustomerOrderManual />
