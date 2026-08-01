@@ -58,7 +58,7 @@ const Index = () => {
             alt="Laryzo" 
             className="relative w-72 md:w-96 h-auto block drop-shadow-[0_0_30px_rgba(6,182,212,0.4)]" 
           />
-          <p className="mt-4 text-white/80 font-sans font-light tracking-[0.2em] text-sm md:text-base uppercase animate-fade-in">
+          <p className="-mt-3 md:-mt-5 text-white/80 font-sans font-light tracking-[0.2em] text-sm md:text-base uppercase animate-fade-in relative z-10">
             {content[lang].motto}
           </p>
         </div>
