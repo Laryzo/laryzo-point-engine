@@ -71,7 +71,13 @@ Deno.serve(async (req) => {
 
     const POINT_PERCENTAGE = 0.01
     const MAX_UPLINE_LEVELS = 10
+    // Sane server-side limits so a compromised merchant account cannot fabricate
+    // huge ad-hoc amounts and mint unlimited loyalty points.
+    const MAX_QTY = 10000
+    const MAX_ADHOC_PRICE = 50_000_000
+    const MAX_POINTABLE_PROFIT_PER_ITEM = 50_000_000
     const results = []
+
 
     for (const item of items) {
       const { product_id, product_name, qty, unit } = item
