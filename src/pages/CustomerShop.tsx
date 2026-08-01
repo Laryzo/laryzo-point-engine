@@ -1031,8 +1031,17 @@ const CustomerShop = () => {
             <Button variant="ghost" size="icon" onClick={handleBack}>
               {menuLevel === 'main' ? <ArrowLeft className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
             </Button>
-            <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
+            <h1 className="text-xl font-semibold flex-1">{getPageTitle()}</h1>
+            <Button variant="outline" size="icon" className="relative" onClick={() => navigate('/portal/cart')}>
+              <ShoppingCart className="h-4 w-4" />
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] rounded-full h-5 min-w-5 px-1 flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </Button>
           </div>
+
           
           {/* Points Display */}
           <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
