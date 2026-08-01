@@ -173,7 +173,9 @@ export default function ChatAssistant({
             content: m.content,
           })),
           whatsappNumber: adminWaNumber || null,
-          customPrompt: settings?.aiPrompt,
+          // System prompt is resolved server-side from the stored landing page
+          // settings — never sent from the browser.
+
         },
       });
 
