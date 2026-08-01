@@ -4,20 +4,17 @@
 DROP POLICY IF EXISTS "Customers can read merchants" ON public.merchants;
 DROP POLICY IF EXISTS "Allow authenticated to read merchants" ON public.merchants;
 
--- Allow all authenticated users to read merchant information
--- Merchant names and basic info are not sensitive and needed for the shop to function
-CREATE POLICY "Allow authenticated to read merchants"
-ON public.merchants
-FOR SELECT
-TO authenticated
-USING (true);
+-- Drop ALL existing policies on merchants to start fresh
+DROP POLICY IF EXISTS "Admins manage merchants" ON public.merchants;
+DROP POLICY IF EXISTS "Merchants read own" ON public.merchants;
+DROP POLICY IF EXISTS "No anon access merchants" ON public.merchants;
+DROP POLICY IF EXISTS "Customers can read merchants" ON public.merchants;
+DROP POLICY IF EXISTS "Allow authenticated to read merchants" ON public.merchants;
+DROP POLICY IF EXISTS "Allow anon to read merchants" ON public.merchants;
 
--- Also allow anon to read if they are browsing the shop (if applicable)
-CREATE POLICY "Allow anon to read merchants"
-ON public.merchants
-FOR SELECT
-TO anon
-USING (true);
+-- Recreate policies
+CREATE POLICY "Admins manage merchants" ON public.merchants FOR ALL TO authenticated USING (is_authenticated_admin());
+CREATE POLICY "Allow public read merchants" ON public.merchants FOR SELECT TO public USING (true);
 
 -- Ensure the roles have select permission on the table
 GRANT SELECT ON public.merchants TO authenticated, anon;
