@@ -18,11 +18,25 @@ export function useLandingPage(slug: string, mode: "published" | "draft" = "publ
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: row, error } = await supabase
-      .from("landing_pages")
-      .select("*")
-      .eq("slug", slug)
-      .maybeSingle();
+
+    // Published mode is used by public visitors: read only published fields via
+    // the dedicated accessor. Draft mode (builder) reads the table directly and
+    // is restricted to admins by row-level security.
+    let row: any = null;
+    let error: any = null;
+    if (mode === "draft") {
+      const res = await supabase
+        .from("landing_pages")
+        .select("*")
+        .eq("slug", slug)
+        .maybeSingle();
+      row = res.data;
+      error = res.error;
+    } else {
+      const res = await (supabase as any).rpc("get_landing_page_published", { page_slug: slug });
+      error = res.error;
+      row = Array.isArray(res.data) ? res.data[0] : res.data;
+    }
 
     if (error || !row) {
       setData({
@@ -39,6 +53,7 @@ export function useLandingPage(slug: string, mode: "published" | "draft" = "publ
     }
 
     const r = row as any as LandingPageRow;
+
     const sections =
       mode === "draft"
         ? (r.sections_draft?.length ? r.sections_draft : r.sections_published)
