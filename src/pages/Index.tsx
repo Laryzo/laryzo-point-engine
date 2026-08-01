@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Store, Users, Globe } from "lucide-react";
+import { Store, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import laryzoLogo from "@/assets/laryzo-logo-transparent.png";
 
@@ -52,21 +52,26 @@ const Index = () => {
       <div className="absolute top-[50%] left-[50%] w-[40%] h-[40%] bg-gradient-to-br from-purple-500/10 to-pink-500/5 rounded-full blur-[120px]" />
       
       <div className="relative z-10 text-center max-w-2xl">
-        <div className="relative mb-0 flex flex-col items-center">
-          <img 
-            src={laryzoLogo} 
-            alt="Laryzo" 
-            className="w-72 md:w-96 h-auto block drop-shadow-[0_0_30px_rgba(6,182,212,0.4)]" 
-          />
-          <p 
-            className="text-white/80 font-sans font-light tracking-[0.2em] text-[10px] md:text-xs uppercase animate-fade-in z-10 whitespace-nowrap relative"
-            style={{ transform: 'translateY(-70px)' }}
-          >
-            {content[lang].motto}
-          </p>
+        {/* Logo and Motto Container */}
+        <div className="relative flex flex-col items-center mb-[-40px] md:mb-[-60px]">
+          <div className="relative">
+            <img 
+              src={laryzoLogo} 
+              alt="Laryzo" 
+              className="w-72 md:w-96 h-auto block drop-shadow-[0_0_30px_rgba(6,182,212,0.4)]" 
+            />
+            {/* 
+              Technical Override: The logo image is 1024x1024 with massive transparent padding.
+              We use absolute positioning with a calculated top percentage to place the motto 
+              exactly under the visual logo content, ignoring the transparent box.
+            */}
+            <p className="absolute top-[58.5%] left-1/2 -translate-x-1/2 w-full text-white/80 font-sans font-light tracking-[0.2em] text-[10px] md:text-xs uppercase animate-fade-in z-20 whitespace-nowrap pointer-events-none">
+              {content[lang].motto}
+            </p>
+          </div>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-6 justify-center">
+        <div className="flex flex-col sm:flex-row gap-6 justify-center relative z-30">
           {/* Customer Portal Button */}
           <Button 
             asChild 
