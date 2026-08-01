@@ -35,7 +35,8 @@ const ProductDetail = () => {
     if (id) load();
   }, [id]);
 
-  const merchantName = product?.merchants?.business_name || product?.merchants?.name || 'Mitra';
+  const merchantData = Array.isArray(product?.merchants) ? product.merchants[0] : product?.merchants;
+  const merchantName = merchantData?.business_name || merchantData?.name || 'Mitra';
   const price = Number(product?.price || 0);
   const stock = Number(product?.stock || 0);
   const maxQty = stock > 0 ? stock : 1;
@@ -51,8 +52,8 @@ const ProductDetail = () => {
         stock,
         merchant_id: product.merchant_id || null,
         merchant_name: merchantName,
-        merchant_lat: product.merchants?.latitude ? Number(product.merchants.latitude) : null,
-        merchant_lng: product.merchants?.longitude ? Number(product.merchants.longitude) : null,
+        merchant_lat: merchantData?.latitude ? Number(merchantData.latitude) : null,
+        merchant_lng: merchantData?.longitude ? Number(merchantData.longitude) : null,
       },
       qty
     );

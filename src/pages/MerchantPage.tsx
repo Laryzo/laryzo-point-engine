@@ -59,7 +59,8 @@ const MerchantPage = () => {
     );
   }
 
-  const merchantName = merchant.business_name || merchant.name || 'Mitra';
+  const merchantData = Array.isArray(merchant) ? merchant[0] : merchant;
+  const merchantName = merchantData?.business_name || merchantData?.name || 'Mitra';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -83,8 +84,8 @@ const MerchantPage = () => {
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-5">
         <Card>
           <CardContent className="p-4 flex gap-4 items-center">
-            {merchant.logo_url ? (
-              <img src={merchant.logo_url} alt={merchantName} className="h-16 w-16 rounded-xl object-cover" />
+            {merchantData.logo_url ? (
+              <img src={merchantData.logo_url} alt={merchantName} className="h-16 w-16 rounded-xl object-cover" />
             ) : (
               <div className="h-16 w-16 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Store className="h-7 w-7 text-primary" />
@@ -92,8 +93,8 @@ const MerchantPage = () => {
             )}
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold truncate">{merchantName}</h2>
-              {merchant.name && merchant.business_name && (
-                <p className="text-xs text-muted-foreground truncate">Pemilik: {merchant.name}</p>
+              {merchantData.name && merchantData.business_name && (
+                <p className="text-xs text-muted-foreground truncate">Pemilik: {merchantData.name}</p>
               )}
               <div className="flex items-center gap-2 mt-1">
                 <span className="flex items-center gap-1 text-sm font-medium text-amber-600">
@@ -103,7 +104,7 @@ const MerchantPage = () => {
                 <Badge variant="outline" className="text-[10px]">
                   {products.length} produk
                 </Badge>
-                {merchant.is_active && (
+                {merchantData.is_active && (
                   <Badge className="text-[10px]" variant="secondary">
                     Aktif
                   </Badge>
@@ -113,11 +114,11 @@ const MerchantPage = () => {
           </CardContent>
         </Card>
 
-        {merchant.business_address && (
+        {merchantData.business_address && (
           <Card>
             <CardContent className="p-4 flex gap-2 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>{merchant.business_address}</span>
+              <span>{merchantData.business_address}</span>
             </CardContent>
           </Card>
         )}

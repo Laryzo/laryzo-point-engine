@@ -876,11 +876,11 @@ const CustomerShop = () => {
                           onClick={(e) => { e.stopPropagation(); navigate(`/portal/merchant/${mp.merchant_id}`); }}
                         >
                           <Store className="h-3 w-3" />
-                          {mp.merchants?.business_name || mp.merchants?.name || 'Mitra'}
+                          {(Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.business_name || (Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.name || 'Mitra'}
                         </button>
                       ) : (
                         <Badge variant="outline" className="text-[10px] mt-1">
-                          {mp.merchants?.business_name || mp.merchants?.name || 'Mitra'}
+                          {(Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.business_name || (Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.name || 'Mitra'}
                         </Badge>
                       )}
                     </div>
