@@ -71,11 +71,22 @@ Deno.serve(async (req) => {
 
     const POINT_PERCENTAGE = 0.01
     const MAX_UPLINE_LEVELS = 10
+    // Sane server-side limits so a compromised merchant account cannot fabricate
+    // huge ad-hoc amounts and mint unlimited loyalty points.
+    const MAX_QTY = 10000
+    const MAX_ADHOC_PRICE = 50_000_000
+    const MAX_POINTABLE_PROFIT_PER_ITEM = 50_000_000
     const results = []
+
 
     for (const item of items) {
       const { product_id, product_name, qty, unit } = item
       const qtyNum = Number(qty) || 0
+      // Server-side input validation: quantities must be sane, positive numbers.
+      if (!Number.isFinite(qtyNum) || qtyNum <= 0 || qtyNum > MAX_QTY) {
+        throw new Error('Jumlah item tidak valid')
+      }
+
 
       let dbPricePerUnit = 0
       let dbCostPerUnit = 0
@@ -99,10 +110,11 @@ Deno.serve(async (req) => {
         stockValue = typeof dbProduct.stock === 'number' ? dbProduct.stock : null
       } else {
         // Ad-hoc / service item: merchant supplies the price, but cost_price must
-        // be zero (no markup margin credited to the merchant themselves).
+        // be zero (no markup margin credited to the merchant themselves) and the
+        // amount is clamped to a sane maximum.
         const clientPrice = Number(item.price) || 0
-        if (clientPrice < 0) {
-          throw new Error('Harga tidak boleh negatif')
+        if (!Number.isFinite(clientPrice) || clientPrice < 0 || clientPrice > MAX_ADHOC_PRICE) {
+          throw new Error('Harga item manual tidak valid')
         }
         dbPricePerUnit = clientPrice
         dbCostPerUnit = 0
@@ -110,7 +122,9 @@ Deno.serve(async (req) => {
 
       const total = Math.round(dbPricePerUnit * qtyNum)
       const merchantRevenue = Math.round(dbCostPerUnit * qtyNum)
-      const fee = total - merchantRevenue
+      // Profit that earns points is clamped and can never be negative.
+      const fee = Math.max(0, Math.min(total - merchantRevenue, MAX_POINTABLE_PROFIT_PER_ITEM))
+
 
       const pointsPerLevel = fee * POINT_PERCENTAGE
       const customerPoints = customer_id ? pointsPerLevel : 0

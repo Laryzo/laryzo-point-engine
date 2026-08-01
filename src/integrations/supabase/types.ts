@@ -1239,6 +1239,16 @@ export type Database = {
     Functions: {
       get_current_customer_id: { Args: never; Returns: string }
       get_current_merchant_id: { Args: never; Returns: string }
+      get_landing_page_published: {
+        Args: { page_slug: string }
+        Returns: {
+          sections_published: Json
+          settings_published: Json
+          slug: string
+          theme_published: Json
+          title: string
+        }[]
+      }
       increment_customer_points: {
         Args: { customer_uuid: string; points_to_add: number }
         Returns: boolean

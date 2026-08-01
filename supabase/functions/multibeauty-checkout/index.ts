@@ -115,18 +115,40 @@ Deno.serve(async (req) => {
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
-      // Refresh address + location so ojol delivery is accurate
-      await supabase
-        .from("customers")
-        .update({
-          address,
-          latitude,
-          longitude,
-          whatsapp: whatsapp,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", customerId);
+      // SECURITY: an unauthenticated caller must NOT be able to overwrite the
+      // stored profile of an existing customer just by knowing their email.
+      // The submitted address / coordinates are recorded on the ORDER only.
+      // The saved profile is refreshed only when the caller proves they are that
+      // customer with a valid session token.
+      let callerOwnsAccount = false;
+      const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.slice("Bearer ".length).trim();
+        const anon = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!
+        );
+        const { data: userData } = await anon.auth.getUser(token);
+        const callerEmail = userData?.user?.email?.toLowerCase().trim();
+        if (callerEmail && callerEmail === email) callerOwnsAccount = true;
+      }
+
+      if (callerOwnsAccount) {
+        await supabase
+          .from("customers")
+          .update({
+            address,
+            latitude,
+            longitude,
+            whatsapp: whatsapp,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", customerId);
+      } else {
+        console.log("Existing customer order from unauthenticated caller — profile left unchanged");
+      }
     } else {
+
       // Placement
       const slot = await findOpenSlot(supabase);
       if (!slot) throw new Error("Tidak dapat menempatkan akun di jaringan. Silakan hubungi admin.");

@@ -60,12 +60,22 @@ const handler = async (req: Request): Promise<Response> => {
     )
   }
 
+  // SECURITY: this endpoint must never reveal whether an email belongs to an
+  // admin account. Every non-validation outcome returns the exact same response.
+  const genericResponse = () => new Response(
+    JSON.stringify({
+      success: true,
+      message: 'Jika email terdaftar, token reset telah dikirim ke email tersebut.',
+    }),
+    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+
   try {
     const { email }: RequestBody = await req.json();
 
-    if (!email) {
+    if (!email || typeof email !== 'string' || email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return new Response(
-        JSON.stringify({ error: 'Email is required' }),
+        JSON.stringify({ error: 'Email tidak valid' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -73,22 +83,20 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if admin exists
-    const { data: admin, error: adminError } = await supabase
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check if admin exists — but never disclose the result to the caller.
+    const { data: admin } = await supabase
       .from('admins')
       .select('id, email, name')
-      .eq('email', email)
-      .single();
+      .eq('email', normalizedEmail)
+      .maybeSingle();
 
-    if (adminError || !admin) {
-      return new Response(
-        JSON.stringify({ error: 'Admin not found' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    if (!admin) {
+      console.log('Reset requested for non-admin email (generic response returned)');
+      return genericResponse();
     }
+
 
     // Generate random 6-digit token
     const token = Math.floor(100000 + Math.random() * 900000).toString();
@@ -102,26 +110,20 @@ const handler = async (req: Request): Promise<Response> => {
       .upsert({
         admin_id: admin.id,
         token,
-        email,
+        email: normalizedEmail,
         expires_at: expiresAt,
         used: false
       });
 
     if (tokenError) {
       console.error('Error storing token:', tokenError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate reset token' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      return genericResponse();
     }
 
     // Send email with token
     const emailResponse = await resend.emails.send({
       from: "Laryzo <no-reply@laryzo.biz.id>",
-      to: [email],
+      to: [normalizedEmail],
       subject: "Reset Password - Laryzo Point Engine",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -146,39 +148,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (emailResponse.error) {
       console.error('Email error:', emailResponse.error);
-      return new Response(
-        JSON.stringify({ error: 'Failed to send reset email' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      return genericResponse();
     }
 
-    console.log('Reset token sent successfully:', emailResponse);
+    console.log('Reset token sent successfully');
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Reset token sent to email',
-        expires_at: expiresAt 
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    return genericResponse();
+
 
   } catch (error: any) {
     console.error('Error in auth-reset-request function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Permintaan tidak dapat diproses' }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }
+
 };
 
 serve(handler);
