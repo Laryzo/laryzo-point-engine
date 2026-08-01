@@ -110,26 +110,20 @@ const handler = async (req: Request): Promise<Response> => {
       .upsert({
         admin_id: admin.id,
         token,
-        email,
+        email: normalizedEmail,
         expires_at: expiresAt,
         used: false
       });
 
     if (tokenError) {
       console.error('Error storing token:', tokenError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate reset token' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      return genericResponse();
     }
 
     // Send email with token
     const emailResponse = await resend.emails.send({
       from: "Laryzo <no-reply@laryzo.biz.id>",
-      to: [email],
+      to: [normalizedEmail],
       subject: "Reset Password - Laryzo Point Engine",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -154,28 +148,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (emailResponse.error) {
       console.error('Email error:', emailResponse.error);
-      return new Response(
-        JSON.stringify({ error: 'Failed to send reset email' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      return genericResponse();
     }
 
-    console.log('Reset token sent successfully:', emailResponse);
+    console.log('Reset token sent successfully');
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Reset token sent to email',
-        expires_at: expiresAt 
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    return genericResponse();
+
 
   } catch (error: any) {
     console.error('Error in auth-reset-request function:', error);
