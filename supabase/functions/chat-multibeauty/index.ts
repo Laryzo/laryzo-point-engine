@@ -475,21 +475,34 @@ serve(async (req) => {
   let body: any = {};
   try {
     body = await req.json();
-    const { message, conversationHistory, customPrompt, whatsappNumber, landingSlug = "multibeauty" } = body;
+    // SECURITY: customPrompt is intentionally NOT read from the request body.
+    // Accepting it would let any visitor replace the system prompt and use this
+    // endpoint as a free, unrestricted LLM proxy on our AI bill.
+    const { message, conversationHistory, whatsappNumber, landingSlug = "multibeauty" } = body;
 
-    // Check for required fields
-    if (!message) {
+    // Check for required fields + basic input validation
+    if (!message || typeof message !== "string" || message.trim().length === 0) {
       return new Response(JSON.stringify({ error: "Message is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (message.length > 1000) {
+      return new Response(JSON.stringify({ error: "Message too long (max 1000 characters)" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (typeof landingSlug !== "string" || landingSlug.length > 100) {
+      return new Response(JSON.stringify({ error: "Invalid landing slug" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    // Get system prompt
-    const systemPrompt = customPrompt || buildSystemPrompt();
-
-    // Fetch landing page settings to get qaItems
+    // Fetch landing page settings to get qaItems and the admin-configured prompt
     let qaItems: any[] = [];
+    let storedPrompt = "";
     if (supabaseUrl && supabaseKey) {
       try {
         const supabase = createClient(supabaseUrl, supabaseKey);
@@ -502,11 +515,18 @@ serve(async (req) => {
         if (landingData) {
           const settings = landingData.settings_draft || landingData.settings_published;
           qaItems = settings?.chatbot?.qaItems || [];
+          const p = settings?.chatbot?.aiPrompt;
+          if (typeof p === "string" && p.trim().length > 0) storedPrompt = p.slice(0, 8000);
         }
       } catch (err) {
         console.warn("Failed to fetch landing settings:", err);
       }
     }
+
+    // System prompt always comes from the server: the admin-stored prompt if set,
+    // otherwise the built-in product prompt.
+    const systemPrompt = storedPrompt || buildSystemPrompt();
+
 
     // Cek apakah ada OpenAI API key
     const apiKey = Deno.env.get("OPENAI_API_KEY");
