@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CustomerAuthProvider, useCustomerAuth } from "@/hooks/useCustomerAuth";
+import { CartProvider } from "@/hooks/useCart";
 import { MerchantAuthProvider, useMerchantAuth } from "@/hooks/useMerchantAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CustomerProtectedRoute } from "@/components/CustomerProtectedRoute";
