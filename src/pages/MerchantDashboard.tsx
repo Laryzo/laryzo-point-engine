@@ -22,7 +22,11 @@ const formatShippingCost = (cost: number) => `Rp ${cost.toLocaleString('id-ID')}
 const MerchantDashboard = () => {
   const { merchant, logout } = useMerchantAuth();
   const { toast } = useToast();
-  const [activeView, setActiveView] = useState('pos');
+  const [activeView, setActiveView] = useState(() => sessionStorage.getItem('laryzo_merchant_view') || 'pos');
+
+  useEffect(() => {
+    sessionStorage.setItem('laryzo_merchant_view', activeView);
+  }, [activeView]);
   const [products, setProducts] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [cart, setCart] = useState<{ product: any; qty: number; priceOverride?: number; nameOverride?: string }[]>([]);
