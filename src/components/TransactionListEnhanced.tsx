@@ -329,6 +329,13 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
           onSuccess={handleEditSuccess}
         />
       )}
+
+      <ShareWhatsAppTransactionModal
+        open={showWhatsAppModal}
+        onClose={() => { setShowWhatsAppModal(false); setTransactionsToShare([]); }}
+        transactions={transactionsToShare}
+      />
+
     </div>
   );
 };
