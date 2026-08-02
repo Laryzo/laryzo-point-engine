@@ -267,30 +267,191 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
     }
   };
 
+  const handleGenerateAll = async () => {
+    setIsGeneratingAll(true);
+    try {
+      const { error } = await supabase.functions.invoke('customer-bulk-auth', {
+        body: { action: 'generate-all' }
+      });
+      if (error) throw error;
+      toast({ title: "Berhasil", description: "Password semua customer berhasil di-generate" });
+      fetchCustomers();
+    } catch (error) {
+      toast({ title: "Error", description: "Gagal generate password semua customer", variant: "destructive" });
+    } finally {
+      setIsGeneratingAll(false);
+    }
+  };
+
+  const handleToggleBlock = async (customer: Customer) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ points_blocked: !customer.points_blocked })
+        .eq('id', customer.id);
+      if (error) throw error;
+      toast({
+        title: "Berhasil",
+        description: !customer.points_blocked ? 'Poin customer diblokir' : 'Blokir poin dibuka',
+      });
+      fetchCustomers();
+    } catch (error) {
+      toast({ title: "Error", description: "Gagal mengubah status poin", variant: "destructive" });
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Disalin", description: "Password disalin ke clipboard" });
+  };
+
+  const buildExportRows = (rows: Customer[]) =>
+    rows.map((c) => ({
+      Nama: c.name || '',
+      Email: c.email || '',
+      WhatsApp: c.whatsapp || '',
+      Level: c.level ?? 0,
+      Poin: c.totalPoints ?? 0,
+      Password: c.plain_password || '',
+      'Status Poin': c.points_blocked ? 'Diblokir' : 'Aktif',
+      'Tanggal Daftar': c.created_at ? new Date(c.created_at).toLocaleDateString('id-ID') : '',
+    }));
+
+  const handleExport = (items: Customer[], format: 'csv' | 'excel') => {
+    const rows = buildExportRows(items.length > 0 ? items : customers);
+    if (rows.length === 0) {
+      toast({ title: "Tidak ada data", description: "Tidak ada data untuk diexport", variant: "destructive" });
+      return;
+    }
+    const filename = `customers-${new Date().toISOString().slice(0, 10)}`;
+    if (format === 'csv') exportToCSV(rows, filename);
+    else exportToExcel(rows, filename);
+  };
+
+  const uplineName = (parentId: string | null) => {
+    if (!parentId) return '-';
+    return customers.find(c => c.id === parentId)?.name || 'Upline lain';
+  };
+
   const columns = [
     { key: 'name', label: 'Nama', render: (val: string, row: Customer) => (
       <div className="flex flex-col">
         <span className="font-medium">{val}</span>
-        <span className="text-xs text-muted-foreground">{row.email}</span>
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <Mail className="w-3 h-3" />{row.email || '-'}
+        </span>
       </div>
     )},
-    { key: 'whatsapp', label: 'WhatsApp' },
-    { key: 'level', label: 'Level', render: (val: number) => `Lvl ${val}` },
-    { key: 'totalPoints', label: 'Poin', render: (val: number) => (val || 0).toLocaleString() },
-    { key: 'plain_password', label: 'Password', render: (val: string) => val || '-' },
+    { key: 'whatsapp', label: 'WhatsApp', render: (val: string) => (
+      <span className="flex items-center gap-1 whitespace-nowrap">
+        <Phone className="w-3 h-3 text-muted-foreground" />{val || '-'}
+      </span>
+    )},
+    { key: 'level', label: 'Level', render: (val: number) => `Lvl ${val ?? 0}` },
+    { key: 'parent_id', label: 'Upline / Posisi', render: (val: string | null, row: Customer) => (
+      <div className="flex flex-col text-xs">
+        <span>{uplineName(val)}</span>
+        <span className="text-muted-foreground capitalize">{row.position || '-'}</span>
+      </div>
+    )},
+    { key: 'totalPoints', label: 'Poin', render: (val: number, row: Customer) => (
+      <div className="flex items-center gap-2">
+        <span className="flex items-center gap-1">
+          <Award className="w-3 h-3 text-muted-foreground" />{(val || 0).toLocaleString('id-ID')}
+        </span>
+        {isSuperAdmin && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2"
+            onClick={() => {
+              setAdjustingCustomer(row);
+              setAdjustAmount('');
+              setAdjustType('add');
+              setAdjustReason('');
+              setShowAdjustModal(true);
+            }}
+          >
+            <Plus className="w-3 h-3" />
+          </Button>
+        )}
+      </div>
+    )},
+    { key: 'points_blocked', label: 'Status Poin', render: (val: boolean, row: Customer) => (
+      <div className="flex items-center gap-2">
+        <Switch checked={!val} onCheckedChange={() => handleToggleBlock(row)} disabled={!isSuperAdmin} />
+        <span className="text-xs text-muted-foreground">{val ? 'Diblokir' : 'Aktif'}</span>
+      </div>
+    )},
+    { key: 'plain_password', label: 'Password', render: (val: string, row: Customer) => (
+      <div className="flex items-center gap-1">
+        <span className="font-mono text-xs">{val || '-'}</span>
+        {val && (
+          <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => copyToClipboard(val)}>
+            <Copy className="w-3 h-3" />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1"
+          title="Generate / reset password"
+          disabled={!row.email || generatingCustomerId === row.id}
+          onClick={() => handleGeneratePassword(row)}
+        >
+          {generatingCustomerId === row.id
+            ? <Loader2 className="w-3 h-3 animate-spin" />
+            : <Key className="w-3 h-3" />}
+        </Button>
+      </div>
+    )},
+    { key: 'created_at', label: 'Tanggal Daftar', render: (val: string) => (
+      <span className="text-xs whitespace-nowrap">
+        {val ? new Date(val).toLocaleDateString('id-ID') : '-'}
+      </span>
+    )},
   ];
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const availablePositions = getAvailablePositions(editParentId);
 
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
             Daftar Customer ({totalCount})
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <ImportExcel onSuccess={fetchCustomers} />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport([], 'excel')}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" /> Export ke Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport([], 'csv')}>
+                  <Download className="w-4 h-4 mr-2" /> Export ke CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {isSuperAdmin && (
+              <Button variant="outline" size="sm" onClick={handleGenerateAll} disabled={isGeneratingAll}>
+                {isGeneratingAll
+                  ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  : <Key className="w-4 h-4 mr-2" />}
+                Generate Password Semua
+              </Button>
+            )}
+
             <Button variant="outline" size="sm" onClick={handleRecalculatePoints} disabled={isRecalculating}>
               <RefreshCw className={`w-4 h-4 mr-2 ${isRecalculating ? 'animate-spin' : ''}`} />
               Update Poin
@@ -302,8 +463,17 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
             data={customers}
             columns={columns}
             loading={loading}
+            title="Customer"
             onEdit={handleEdit}
             onDelete={handleDelete}
+            exportEnabled
+            onExport={(items, format) => handleExport(items as Customer[], format)}
+            shareWhatsAppEnabled
+            onShareWhatsApp={(items) => {
+              setCustomersToShare(items as Customer[]);
+              setShowWhatsAppModal(true);
+            }}
+            searchableColumns={['name', 'email', 'whatsapp']}
           />
           
           {totalPages > 1 && (
@@ -334,8 +504,139 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
         </CardContent>
       </Card>
 
-      {/* Modals and other UI components... */}
-      {/* (Keeping the rest of the file logic but focused on the core performance changes) */}
+      {/* Edit Customer */}
+      <Dialog open={!!editingCustomer} onOpenChange={(open) => !open && setEditingCustomer(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-4 h-4" /> Edit Customer
+            </DialogTitle>
+            <DialogDescription>Perbarui data customer dan penempatan jaringan.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Nama</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Email</Label>
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>WhatsApp</Label>
+              <Input value={editWhatsapp} onChange={(e) => setEditWhatsapp(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Upline</Label>
+              <Select value={editParentId} onValueChange={handleParentChange}>
+                <SelectTrigger><SelectValue placeholder="Pilih upline" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Tanpa upline (root)</SelectItem>
+                  {customers
+                    .filter(c => c.id !== editingCustomer?.id)
+                    .map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Posisi</Label>
+              <Select value={editPosition} onValueChange={setEditPosition}>
+                <SelectTrigger><SelectValue placeholder="Pilih posisi" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Tanpa posisi</SelectItem>
+                  {availablePositions.map(pos => (
+                    <SelectItem key={pos} value={pos}>{pos === 'left' ? 'Kiri' : 'Kanan'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {showMoveWarning && (
+              <div className="flex gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                <AlertTriangle className="w-4 h-4 mt-0.5 text-destructive shrink-0" />
+                <span>
+                  Customer ini memiliki downline. Memindahkan upline akan mengubah struktur jaringan
+                  dan perhitungan poin turunannya.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCustomer(null)}>Batal</Button>
+            <Button onClick={handleSaveEdit}>Simpan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjust Poin (Super Admin) */}
+      <Dialog open={showAdjustModal} onOpenChange={setShowAdjustModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sesuaikan Poin</DialogTitle>
+            <DialogDescription>
+              {adjustingCustomer?.name} — poin saat ini {(adjustingCustomer?.totalPoints || 0).toLocaleString('id-ID')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Button
+                variant={adjustType === 'add' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setAdjustType('add')}
+              >
+                <Plus className="w-4 h-4 mr-1" /> Tambah
+              </Button>
+              <Button
+                variant={adjustType === 'subtract' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setAdjustType('subtract')}
+              >
+                <Minus className="w-4 h-4 mr-1" /> Kurangi
+              </Button>
+            </div>
+            <div className="space-y-1">
+              <Label>Jumlah Poin</Label>
+              <Input
+                type="number"
+                min="0"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Alasan</Label>
+              <Textarea
+                value={adjustReason}
+                onChange={(e) => setAdjustReason(e.target.value)}
+                placeholder="Contoh: koreksi transaksi manual"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdjustModal(false)}>Batal</Button>
+            <Button onClick={handleAdjustPoints} disabled={isAdjusting}>
+              {isAdjusting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share WhatsApp */}
+      <ShareWhatsAppModal
+        open={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        customers={customersToShare as any}
+      />
     </div>
   );
 };
