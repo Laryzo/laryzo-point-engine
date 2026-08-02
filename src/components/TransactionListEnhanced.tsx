@@ -159,6 +159,44 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
     }
   };
 
+  const handleShareWhatsApp = (items: Transaction[]) => {
+    if (items.length === 0) {
+      toast({ title: "Pilih transaksi", description: "Pilih minimal 1 transaksi untuk dibagikan", variant: "destructive" });
+      return;
+    }
+    setTransactionsToShare(items);
+    setShowWhatsAppModal(true);
+  };
+
+  const buildExportRows = (items: Transaction[]) =>
+    items.map(t => ({
+      Produk: t.product_name || '',
+      'Kode Produk': t.product_code || '',
+      Jenis: t.product_type || '',
+      Customer: t.customers?.name || '',
+      WhatsApp: t.customers?.whatsapp || '',
+      Level: t.customerLevel ?? 0,
+      Qty: t.qty || 0,
+      'Harga Pokok': t.harga_pokok || 0,
+      'Harga Konsumen': t.harga_konsumen || 0,
+      Profit: t.margin || 0,
+      'Total Profit': (t.margin || 0) * (t.qty || 0),
+      Tanggal: new Date(t.created_at).toLocaleDateString('id-ID'),
+    }));
+
+  const handleExport = (items: Transaction[], format: 'csv' | 'excel') => {
+    const source = items.length > 0 ? items : transactions;
+    const rows = buildExportRows(source);
+    if (rows.length === 0) {
+      toast({ title: "Tidak ada data", description: "Tidak ada transaksi untuk diexport", variant: "destructive" });
+      return;
+    }
+    const filename = `transaksi-${new Date().toISOString().split('T')[0]}`;
+    if (format === 'csv') exportToCSV(rows, filename);
+    else exportToExcel(rows, filename);
+    toast({ title: "Export berhasil", description: `${rows.length} transaksi diexport ke ${format.toUpperCase()}` });
+  };
+
   const columns = [
     { key: 'product_name', label: 'Produk', render: (val: string) => (
       <div className="flex items-center space-x-2">
@@ -166,13 +204,35 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
         <span className="font-medium">{val}</span>
       </div>
     )},
-    { key: 'customer_id', label: 'Customer', render: (_: any, row: Transaction) => row.customers?.name || '-' },
-    { key: 'harga_konsumen', label: 'Harga', render: (val: number) => `Rp ${val?.toLocaleString()}` },
+    { key: 'product_code', label: 'Kode Produk', render: (val: string) => val || '-' },
+    { key: 'product_type', label: 'Jenis', render: (val: string) => val ? (
+      <span className="px-2 py-1 rounded-full text-xs bg-muted text-muted-foreground">{val}</span>
+    ) : '-' },
+    { key: 'customer_id', label: 'Customer', render: (_: any, row: Transaction) => (
+      <div>
+        <p className="font-medium">{row.customers?.name || '-'}</p>
+        {row.customers?.whatsapp && (
+          <p className="text-xs text-muted-foreground">{row.customers.whatsapp}</p>
+        )}
+      </div>
+    )},
+    { key: 'customerLevel', label: 'Level', render: (val: number) => `Level ${val ?? 0}` },
+    { key: 'qty', label: 'Qty', render: (val: number) => val ?? 1 },
+    ...(isSuperAdmin ? [{
+      key: 'harga_pokok', label: 'Harga Pokok',
+      render: (val: number) => `Rp ${(val || 0).toLocaleString('id-ID')}`
+    }] : []),
+    { key: 'harga_konsumen', label: 'Harga Konsumen', render: (val: number) => `Rp ${(val || 0).toLocaleString('id-ID')}` },
     { key: 'margin', label: 'Profit', render: (val: number) => (
       <div className="flex items-center space-x-1 text-green-600">
         <TrendingUp className="w-3 h-3" />
-        <span>Rp {val?.toLocaleString()}</span>
+        <span>Rp {(val || 0).toLocaleString('id-ID')}</span>
       </div>
+    )},
+    { key: 'total_profit', label: 'Total Profit', render: (_: any, row: Transaction) => (
+      <span className="font-medium text-green-600">
+        Rp {((row.margin || 0) * (row.qty || 1)).toLocaleString('id-ID')}
+      </span>
     )},
     { key: 'created_at', label: 'Tanggal', render: (val: string) => new Date(val).toLocaleDateString('id-ID') }
   ];
@@ -182,9 +242,9 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Riwayat Transaksi ({totalCount})</CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -192,19 +252,47 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Import Transaksi</DialogTitle>
+                  <DialogDescription>Unggah file Excel untuk menambahkan transaksi.</DialogDescription>
+                </DialogHeader>
                 <ImportTransactions onSuccess={() => { setShowImportModal(false); fetchData(); }} />
               </DialogContent>
             </Dialog>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport([], 'csv')}>
+                  <Download className="w-4 h-4 mr-2" /> Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport([], 'excel')}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" /> Export Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
         <CardContent>
           <EnhancedTable
             data={transactions}
             columns={columns}
-            onEdit={isSuperAdmin ? handleEdit : undefined}
+            onEdit={handleEdit}
             onDelete={isSuperAdmin ? handleDelete : undefined}
+            onShareWhatsApp={handleShareWhatsApp}
+            shareWhatsAppEnabled
+            onExport={handleExport}
+            exportEnabled
             loading={loading}
+            title="Transaksi"
+            searchableColumns={['product_name', 'product_code', 'product_type']}
+            emptyMessage="Belum ada transaksi"
           />
+
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
