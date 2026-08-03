@@ -200,26 +200,30 @@ const CustomerShop = () => {
       .order('created_at', { ascending: false });
     
     if (data) {
-      // Fallback for missing merchant data due to RLS/Join issues
-      const enrichedData = await Promise.all(data.map(async (p: any) => {
-        const mData = Array.isArray(p.merchants) ? p.merchants[0] : p.merchants;
-        if (!mData && p.merchant_id) {
-          const { data: separateMerchant } = await supabase
-            .from('merchants')
-            .select('business_name, name, latitude, longitude')
-            .eq('id', p.merchant_id)
-            .maybeSingle();
-          if (separateMerchant) {
-            return { ...p, merchants: separateMerchant };
-          }
-        }
-        return p;
-      }));
-      setMerchantProducts(enrichedData);
+      // Merchant profile info is not directly readable by customers (RLS) — use the safe RPC
+      const merchantIds = Array.from(
+        new Set(data.map((p: any) => p.merchant_id).filter(Boolean))
+      ) as string[];
+
+      let merchantMap: Record<string, any> = {};
+      if (merchantIds.length > 0) {
+        const { data: merchantRows } = await supabase.rpc('get_public_merchants', { ids: merchantIds });
+        (merchantRows || []).forEach((m: any) => {
+          merchantMap[m.id] = m;
+        });
+      }
+
+      setMerchantProducts(
+        data.map((p: any) => ({
+          ...p,
+          merchants: merchantMap[p.merchant_id] || (Array.isArray(p.merchants) ? p.merchants[0] : p.merchants),
+        }))
+      );
     } else {
       setMerchantProducts([]);
     }
   };
+
 
   const merchantCategories = useMemo(() => {
     const cats = new Set<string>();
