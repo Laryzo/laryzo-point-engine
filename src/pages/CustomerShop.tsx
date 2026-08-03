@@ -889,42 +889,46 @@ const CustomerShop = () => {
             </ScrollArea>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-4">
           {filteredMerchantProducts.map((mp: any) => {
               const sellingPrice = Number(mp.price) || 0;
               return (
                 <Card
                   key={mp.id}
-                  className="overflow-hidden cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
+                  className="overflow-hidden cursor-pointer hover:shadow-md hover:border-primary/50 transition-all flex flex-col h-full"
                   onClick={() => navigate(`/portal/product/${mp.id}`)}
                 >
-                  <CardContent className="p-0">
-                    {mp.image_url ? (
-                      <img src={mp.image_url} alt={mp.name} className="w-full h-28 object-cover" />
-                    ) : (
-                      <div className="w-full h-28 bg-muted flex items-center justify-center">
-                        <Package className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="p-3">
-                      <p className="font-medium text-sm truncate">{mp.name}</p>
-                      <div className="flex items-center gap-1 text-primary font-bold text-sm">
-                        <Coins className="h-3 w-3" />
-                        <span>{formatNumber(sellingPrice)} poin</span>
-                      </div>
-                      {mp.merchant_id ? (
-                        <button
-                          className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/portal/merchant/${mp.merchant_id}`); }}
-                        >
-                          <Store className="h-3 w-3" />
-                          {(Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.business_name || (Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.name || 'Mitra'}
-                        </button>
+                  <CardContent className="p-0 flex flex-col h-full">
+                    <div className="aspect-square w-full bg-white flex items-center justify-center relative overflow-hidden border-b">
+                      {mp.image_url ? (
+                        <img src={mp.image_url} alt={mp.name} className="w-full h-full object-cover" />
                       ) : (
-                        <Badge variant="outline" className="text-[10px] mt-1">
-                          {(Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.business_name || (Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.name || 'Mitra'}
-                        </Badge>
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <Package className="h-8 w-8 text-muted-foreground" />
+                        </div>
                       )}
+                    </div>
+                    <div className="p-3 flex flex-col flex-1">
+                      <p className="font-medium text-sm line-clamp-2 mb-1 min-h-[2.5rem]">{mp.name}</p>
+                      <div className="mt-auto">
+                        <div className="flex items-center gap-1 text-primary font-bold text-sm">
+                          <Coins className="h-3 w-3" />
+                          <span>{formatNumber(sellingPrice)} poin</span>
+                        </div>
+                        {mp.merchant_id ? (
+                          <button
+                            className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/portal/merchant/${mp.merchant_id}`); }}
+                          >
+                            <Store className="h-3 w-3" />
+                            <span className="truncate">{(Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.business_name || (Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.name || 'Mitra'}</span>
+                          </button>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] mt-1">
+                            <span className="truncate">{(Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.business_name || (Array.isArray(mp.merchants) ? mp.merchants[0] : mp.merchants)?.name || 'Mitra'}</span>
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -998,73 +1002,111 @@ const CustomerShop = () => {
   );
 
   // Render products list
-  const renderProductsList = () => (
-    <div className="space-y-4">
-      {/* Search in products */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Cari produk..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      <p className="text-sm text-muted-foreground">
-        {filteredProducts.length} produk ditemukan (diurutkan dari harga terendah)
-      </p>
-
-      {filteredProducts.length === 0 ? (
-        <div className="text-center py-12">
-          <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">Tidak ada produk ditemukan</p>
+  const renderProductsList = () => {
+    const isPhysical = selectedCategory === 'physical';
+    
+    return (
+      <div className="space-y-4">
+        {/* Search in products */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari produk..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
         </div>
-      ) : (
-        <ScrollArea className="h-[calc(100vh-320px)]">
-          <div className="space-y-2 pr-4">
-            {filteredProducts.map((product) => (
-              <Card 
-                key={product.id} 
-                className="cursor-pointer hover:shadow-md transition-shadow hover:border-primary/50"
-                onClick={() => setSelectedProduct(product)}
-              >
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="flex items-center justify-center">
-                    {product.image_url || product.type === 'ppob'
-                      ? getProductBrandLogo(product)
-                      : (
-                        <div className="p-2 bg-muted rounded-lg">
-                          {getCategoryIcon(product.type, product.ppob_type)}
-                        </div>
-                      )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm truncate">{product.name}</h3>
-                    {product.description && (
-                      <p className="text-xs text-muted-foreground truncate">{product.description}</p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-1 text-primary font-semibold">
-                      <Coins className="h-4 w-4" />
-                      <span>{formatNumber(product.point_price)}</span>
-                    </div>
-                    {product.stock > 0 && product.stock < 10 && (
-                      <p className="text-xs text-orange-500">Stok: {product.stock}</p>
-                    )}
-                    {product.stock === 0 && (
-                      <p className="text-xs text-red-500">Habis</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+        <p className="text-sm text-muted-foreground">
+          {filteredProducts.length} produk ditemukan (diurutkan dari harga terendah)
+        </p>
+
+        {filteredProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Tidak ada produk ditemukan</p>
           </div>
-        </ScrollArea>
-      )}
-    </div>
-  );
+        ) : (
+          <ScrollArea className="h-[calc(100vh-320px)]">
+            <div className={isPhysical ? "grid grid-cols-2 sm:grid-cols-3 gap-3 pr-4 pb-4" : "space-y-2 pr-4"}>
+              {filteredProducts.map((product) => (
+                <Card 
+                  key={product.id} 
+                  className={`cursor-pointer hover:shadow-md transition-shadow hover:border-primary/50 overflow-hidden ${isPhysical ? 'flex flex-col h-full' : ''}`}
+                  onClick={() => setSelectedProduct(product)}
+                >
+                  {isPhysical ? (
+                    <>
+                      <div className="aspect-square w-full bg-white flex items-center justify-center relative overflow-hidden border-b">
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="p-4 bg-muted rounded-lg">
+                            {getCategoryIcon(product.type, product.ppob_type)}
+                          </div>
+                        )}
+                      </div>
+                      <CardContent className="p-3 flex flex-col flex-1">
+                        <h3 className="font-medium text-sm line-clamp-2 mb-1 min-h-[2.5rem]">{product.name}</h3>
+                        <div className="mt-auto">
+                          <div className="flex items-center gap-1 text-primary font-semibold">
+                            <Coins className="h-4 w-4" />
+                            <span>{formatNumber(product.point_price)}</span>
+                          </div>
+                          {product.stock > 0 && product.stock < 10 && (
+                            <p className="text-[10px] text-orange-500 mt-1">Stok: {product.stock}</p>
+                          )}
+                          {product.stock === 0 && (
+                            <p className="text-[10px] text-red-500 mt-1">Habis</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </>
+                  ) : (
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <div className="flex items-center justify-center">
+                        {product.image_url || product.type === 'ppob'
+                          ? getProductBrandLogo(product)
+                          : (
+                            <div className="p-2 bg-muted rounded-lg">
+                              {getCategoryIcon(product.type, product.ppob_type)}
+                            </div>
+                          )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sm truncate">{product.name}</h3>
+                        {product.description && (
+                          <p className="text-xs text-muted-foreground truncate">{product.description}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-1 text-primary font-semibold">
+                          <Coins className="h-4 w-4" />
+                          <span>{formatNumber(product.point_price)}</span>
+                        </div>
+                        {product.stock > 0 && product.stock < 10 && (
+                          <p className="text-xs text-orange-500">Stok: {product.stock}</p>
+                        )}
+                        {product.stock === 0 && (
+                          <p className="text-xs text-red-500">Habis</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
