@@ -150,8 +150,9 @@ const ProductDetail = () => {
             </p>
 
             <p className="text-xs text-muted-foreground">
-              Stok: {stock > 0 ? formatNumber(stock) : 'Habis'}
+              Stok: {unlimited ? 'Tersedia' : stock > 0 ? formatNumber(stock) : 'Habis'}
             </p>
+
 
             <div className="flex items-center gap-3 pt-2">
               <span className="text-sm">Jumlah</span>
