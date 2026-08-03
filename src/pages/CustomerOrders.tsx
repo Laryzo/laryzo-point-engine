@@ -17,6 +17,7 @@ interface Order {
   created_at: string;
   product_name: string;
   product_type: string;
+  product_image_url?: string;
   item_notes: string;
   estimated_shipping_cost: number;
   order_type: string;
@@ -186,10 +187,23 @@ const CustomerOrders = () => {
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        {getStatusIcon(order.status)}
+                        {order.product_image_url ? (
+                          <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center p-1 border shrink-0">
+                            <img
+                              src={order.product_image_url}
+                              alt={order.product_name}
+                              className="h-full w-full object-contain"
+                            />
+                          </div>
+                        ) : (
+                          getStatusIcon(order.status)
+                        )}
                         <div>
                           <h3 className="font-medium">{order.product_name || 'Produk'}</h3>
-                          <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
+                          <div className="flex items-center gap-2">
+                            {order.product_image_url && getStatusIcon(order.status)}
+                            <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
+                          </div>
                         </div>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full ${getStatusStyle(order.status)}`}>

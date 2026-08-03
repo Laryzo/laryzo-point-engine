@@ -373,9 +373,27 @@ const CustomerShop = () => {
   };
 
   const getProductBrandLogo = (product: Product) => {
+    // Priority 1: Direct image_url from product (Admin uploaded)
+    if (product.image_url) {
+      return (
+        <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center p-1 border shrink-0">
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="h-full w-full object-contain"
+            loading="lazy"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+      );
+    }
+
+    // Only continue with brand-based logos for PPOB
     if (product.type !== 'ppob') return null;
-    const logoUrl = product.image_url || getBrandLogoUrlFromProductName(product.name);
+    
+    const logoUrl = getBrandLogoUrlFromProductName(product.name);
     const color = getBrandColorFromProductName(product.name);
+    
     if (logoUrl) {
       return (
         <div
@@ -1013,7 +1031,7 @@ const CustomerShop = () => {
               >
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="flex items-center justify-center">
-                    {product.type === 'ppob'
+                    {product.image_url || product.type === 'ppob'
                       ? getProductBrandLogo(product)
                       : (
                         <div className="p-2 bg-muted rounded-lg">
@@ -1097,10 +1115,19 @@ const CustomerShop = () => {
       <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
         <DialogContent className="max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader>
-            <DialogTitle>{selectedProduct?.name}</DialogTitle>
-            <DialogDescription>
-              {selectedProduct?.description}
-            </DialogDescription>
+            <div className="flex items-start gap-4">
+              {selectedProduct && (selectedProduct.image_url || selectedProduct.type === 'ppob') && (
+                <div className="shrink-0">
+                  {getProductBrandLogo(selectedProduct)}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <DialogTitle className="text-left">{selectedProduct?.name}</DialogTitle>
+                <DialogDescription className="text-left line-clamp-2">
+                  {selectedProduct?.description}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="overflow-y-auto flex-1 pr-1">
