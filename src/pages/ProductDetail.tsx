@@ -55,8 +55,11 @@ const ProductDetail = () => {
   const merchantData = Array.isArray(product?.merchants) ? product.merchants[0] : product?.merchants;
   const merchantName = merchantData?.business_name || merchantData?.name || 'Mitra';
   const price = Number(product?.price || 0);
-  const stock = Number(product?.stock || 0);
-  const maxQty = stock > 0 ? stock : 1;
+  const stock = Number(product?.stock ?? 0);
+  const unlimited = stock < 0; // merchants use -1 for unlimited stock
+  const soldOut = !unlimited && stock <= 0;
+  const maxQty = unlimited ? 99 : stock > 0 ? stock : 1;
+
 
   const handleAddToCart = () => {
     if (!product) return;
