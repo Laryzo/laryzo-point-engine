@@ -1252,6 +1252,20 @@ export type Database = {
           title: string
         }[]
       }
+      get_public_merchants: {
+        Args: { ids: string[] }
+        Returns: {
+          business_address: string
+          business_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          latitude: number
+          logo_url: string
+          longitude: number
+          name: string
+        }[]
+      }
       increment_customer_points: {
         Args: { customer_uuid: string; points_to_add: number }
         Returns: boolean
