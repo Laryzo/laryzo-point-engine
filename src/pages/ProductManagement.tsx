@@ -73,7 +73,8 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
     setUploadingImage(true);
     try {
       const ext = file.name.split('.').pop() || 'png';
-      const path = `ppob/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const folder = formData.type === 'physical' ? 'admin-products' : 'ppob';
+      const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from('merchant-products')
         .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
@@ -935,6 +936,48 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Foto Produk</Label>
+              <div className="flex items-center gap-3">
+                {formData.image_url && (
+                  <img
+                    src={formData.image_url}
+                    alt={formData.name || 'Foto produk'}
+                    className="w-16 h-16 rounded-md object-contain border border-border bg-background"
+                  />
+                )}
+                <div className="flex-1 space-y-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingImage}
+                    onChange={handleImageUpload}
+                  />
+                  {formData.image_url && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, image_url: '' })}
+                    >
+                      Hapus foto
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {uploadingImage && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Mengunggah...
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">Foto ini tampil di halaman belanja customer.</p>
+              <Input
+                value={formData.image_url}
+                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                placeholder="atau tempel URL gambar"
+              />
+            </div>
+
             {formData.type === 'ppob' && (
               <>
                 <div className="space-y-2">
@@ -973,42 +1016,6 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                     placeholder="phone, meter_number, etc"
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Logo Produk</Label>
-                  <div className="flex items-center gap-3">
-                    {formData.image_url && (
-                      <img
-                        src={formData.image_url}
-                        alt="Logo produk"
-                        className="w-14 h-14 rounded-md object-contain border border-border bg-background"
-                      />
-                    )}
-                    <div className="flex-1 space-y-2">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        disabled={uploadingImage}
-                        onChange={handleImageUpload}
-                      />
-                      {formData.image_url && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setFormData({ ...formData, image_url: '' })}
-                        >
-                          Hapus logo
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  {uploadingImage && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Loader2 className="w-3 h-3 animate-spin" /> Mengunggah...
-                    </p>
-                  )}
-                </div>
               </>
             )}
 
@@ -1028,14 +1035,6 @@ const ProductManagement = ({ isSuperAdmin = false }: ProductManagementProps) => 
                     type="number"
                     value={formData.stock} 
                     onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>URL Gambar</Label>
-                  <Input 
-                    value={formData.image_url} 
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                   />
                 </div>
               </>
