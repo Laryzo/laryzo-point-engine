@@ -899,7 +899,7 @@ const CustomerShop = () => {
                   onClick={() => navigate(`/portal/product/${mp.id}`)}
                 >
                   <CardContent className="p-0 flex flex-col h-full">
-                    <div className="aspect-square w-full bg-white flex items-center justify-center relative overflow-hidden border-b">
+                    <div className="h-32 sm:h-40 w-full bg-white flex items-center justify-center relative overflow-hidden border-b shrink-0">
                       {mp.image_url ? (
                         <img src={mp.image_url} alt={mp.name} className="w-full h-full object-cover" />
                       ) : (
@@ -908,11 +908,11 @@ const CustomerShop = () => {
                         </div>
                       )}
                     </div>
-                    <div className="p-3 flex flex-col flex-1">
-                      <p className="font-medium text-sm line-clamp-2 mb-1 min-h-[2.5rem]">{mp.name}</p>
+                    <div className="p-2 sm:p-3 flex flex-col flex-1 min-h-0">
+                      <p className="font-medium text-xs sm:text-sm line-clamp-2 mb-1 leading-tight">{mp.name}</p>
                       <div className="mt-auto">
-                        <div className="flex items-center gap-1 text-primary font-bold text-sm">
-                          <Coins className="h-3 w-3" />
+                        <div className="flex items-center gap-1 text-primary font-bold text-xs sm:text-sm">
+                          <Coins className="h-3 w-3 sm:h-4 sm:w-4" />
                           <span>{formatNumber(sellingPrice)} poin</span>
                         </div>
                         {mp.merchant_id ? (
@@ -1038,7 +1038,7 @@ const CustomerShop = () => {
                 >
                   {isPhysical ? (
                     <>
-                      <div className="aspect-square w-full bg-white flex items-center justify-center relative overflow-hidden border-b">
+                      <div className="h-32 sm:h-40 w-full bg-white flex items-center justify-center relative overflow-hidden border-b shrink-0">
                         {product.image_url ? (
                           <img
                             src={product.image_url}
@@ -1052,18 +1052,18 @@ const CustomerShop = () => {
                           </div>
                         )}
                       </div>
-                      <CardContent className="p-3 flex flex-col flex-1">
-                        <h3 className="font-medium text-sm line-clamp-2 mb-1 min-h-[2.5rem]">{product.name}</h3>
+                      <CardContent className="p-2 sm:p-3 flex flex-col flex-1 min-h-0">
+                        <h3 className="font-medium text-xs sm:text-sm line-clamp-2 mb-1 leading-tight">{product.name}</h3>
                         <div className="mt-auto">
-                          <div className="flex items-center gap-1 text-primary font-semibold">
-                            <Coins className="h-4 w-4" />
+                          <div className="flex items-center gap-1 text-primary font-bold text-xs sm:text-sm">
+                            <Coins className="h-3 w-3 sm:h-4 sm:w-4" />
                             <span>{formatNumber(product.point_price)}</span>
                           </div>
                           {product.stock > 0 && product.stock < 10 && (
-                            <p className="text-[10px] text-orange-500 mt-1">Stok: {product.stock}</p>
+                            <p className="text-[10px] text-orange-500 mt-0.5">Stok: {product.stock}</p>
                           )}
                           {product.stock === 0 && (
-                            <p className="text-[10px] text-red-500 mt-1">Habis</p>
+                            <p className="text-[10px] text-red-500 mt-0.5">Habis</p>
                           )}
                         </div>
                       </CardContent>
