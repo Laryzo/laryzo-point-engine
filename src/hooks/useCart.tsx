@@ -53,8 +53,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addItem = (item: Omit<CartItem, 'qty'>, qty = 1) => {
     const existing = items.find((i) => i.product_id === item.product_id);
+    // Merchants use a negative stock value to mean unlimited stock
+    const unlimited = item.stock < 0;
     if (existing) {
-      const max = item.stock > 0 ? item.stock : existing.qty + qty;
+      const max = unlimited ? Infinity : item.stock > 0 ? item.stock : existing.qty + qty;
       persist(
         items.map((i) =>
           i.product_id === item.product_id
@@ -66,6 +68,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     persist([...items, { ...item, qty }]);
   };
+
 
   const setQty = (productId: string, qty: number) => {
     if (qty <= 0) {

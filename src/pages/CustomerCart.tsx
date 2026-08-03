@@ -74,7 +74,7 @@ const CustomerCart = () => {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => setQty(item.product_id, Math.min(item.stock > 0 ? item.stock : item.qty, item.qty + 1))}
+                          onClick={() => setQty(item.product_id, item.stock < 0 ? item.qty + 1 : Math.min(item.stock > 0 ? item.stock : item.qty, item.qty + 1))}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
