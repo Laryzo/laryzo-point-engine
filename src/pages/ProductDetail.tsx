@@ -168,10 +168,11 @@ const ProductDetail = () => {
               <span className="ml-auto text-sm font-semibold">{formatNumber(price * qty)} poin</span>
             </div>
 
-            <Button className="w-full" disabled={stock <= 0} onClick={handleAddToCart}>
+            <Button className="w-full" disabled={soldOut} onClick={handleAddToCart}>
               <ShoppingCart className="h-4 w-4 mr-2" />
-              {stock <= 0 ? 'Stok Habis' : 'Tambah ke Keranjang'}
+              {soldOut ? 'Stok Habis' : 'Tambah ke Keranjang'}
             </Button>
+
           </CardContent>
         </Card>
       </main>
