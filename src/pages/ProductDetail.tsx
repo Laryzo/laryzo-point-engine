@@ -31,22 +31,21 @@ const ProductDetail = () => {
         .maybeSingle();
       
       if (data) {
-        // Fallback: If merchants join failed (RLS or other issues), try fetching separately
-        const mData = Array.isArray(data.merchants) ? data.merchants[0] : data.merchants;
-        if (!mData && data.merchant_id) {
-          const { data: separateMerchant } = await supabase
-            .from('merchants')
-            .select('id, business_name, name, latitude, longitude, logo_url')
-            .eq('id', data.merchant_id)
-            .maybeSingle();
-          if (separateMerchant) {
-            data.merchants = separateMerchant;
+        // Merchant profile is not readable directly by customers (RLS) — use the safe RPC
+        if (data.merchant_id) {
+          const { data: merchantRows } = await supabase.rpc('get_public_merchants', {
+            ids: [data.merchant_id],
+          });
+          const m = (merchantRows || [])[0];
+          if (m) {
+            (data as any).merchants = m;
           }
         }
         setProduct(data);
       } else {
         setProduct(null);
       }
+
       
       setLoading(false);
     };
