@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1240,6 +1240,34 @@ export type Database = {
       }
     }
     Functions: {
+      create_customer_with_bfs_slot: {
+        Args: { _email?: string; _name: string; _whatsapp?: string }
+        Returns: {
+          address: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string | null
+          parent_id: string | null
+          points: number | null
+          points_blocked: boolean | null
+          position: Database["public"]["Enums"]["customer_position"] | null
+          updated_at: string | null
+          whatsapp: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "customers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      distribute_transaction_points: {
+        Args: { _transaction_id: string }
+        Returns: Json
+      }
       get_current_customer_id: { Args: never; Returns: string }
       get_current_merchant_id: { Args: never; Returns: string }
       get_landing_page_published: {
@@ -1292,6 +1320,7 @@ export type Database = {
           whatsapp: string
         }[]
       }
+      recalculate_all_transaction_points: { Args: never; Returns: Json }
     }
     Enums: {
       admin_role: "admin" | "super_admin"
