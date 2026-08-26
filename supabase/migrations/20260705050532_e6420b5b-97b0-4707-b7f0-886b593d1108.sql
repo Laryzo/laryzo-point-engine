@@ -7,6 +7,8 @@ CREATE TABLE public.landing_pages (
   theme_published jsonb NOT NULL DEFAULT '{}'::jsonb,
   sections_draft jsonb NOT NULL DEFAULT '[]'::jsonb,
   sections_published jsonb NOT NULL DEFAULT '[]'::jsonb,
+  settings_draft jsonb NOT NULL DEFAULT '{}'::jsonb,
+  settings_published jsonb NOT NULL DEFAULT '{}'::jsonb,
   updated_by uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
