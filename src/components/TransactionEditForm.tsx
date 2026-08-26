@@ -62,78 +62,11 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
     }
   };
 
-  const recalculatePoints = async (transactionId: string, customerId: string, calculatedProfit: number, productCode: string) => {
-    try {
-      // Delete existing point history for this transaction
-      // Note: Database trigger will automatically subtract old points from customers.points
-      await supabase
-        .from('point_history')
-        .delete()
-        .eq('transaction_id', transactionId);
-
-      // Give 1% points to the customer who made the transaction
-      // Note: customers.points is automatically updated via database trigger on point_history
-      const totalProfit = calculatedProfit * qty;
-      const customerPoints = totalProfit * 0.01;
-      await supabase.from('point_history').insert({
-        transaction_id: transactionId,
-        from_customer: customerId,
-        to_customer: customerId,
-        level: 0,
-        points: customerPoints,
-        product_code: productCode,
-        description: `Bonus poin ${productName || productCode}`,
-      });
-
-      // Distribute 1% to each upline (up to 10 levels)
-      let currentCustomer = customerId;
-      
-      for (let level = 1; level <= 10; level++) {
-        // Get parent of current customer
-        const { data: customer } = await supabase
-          .from('customers')
-          .select('parent_id')
-          .eq('id', currentCustomer)
-          .maybeSingle();
-
-        // If no parent found, stop distribution
-        if (!customer?.parent_id) {
-          break;
-        }
-
-        // Check if parent is blocked from receiving points
-        const { data: parentData } = await supabase
-          .from('customers')
-          .select('points_blocked')
-          .eq('id', customer.parent_id)
-          .maybeSingle();
-
-        // Skip if parent has points blocked
-        if (parentData?.points_blocked) {
-          currentCustomer = customer.parent_id;
-          continue;
-        }
-
-        // Give 1% points to parent
-        // Note: customers.points is automatically updated via database trigger on point_history
-        const uplinePoints = totalProfit * 0.01;
-        await supabase.from('point_history').insert({
-          transaction_id: transactionId,
-          from_customer: customerId,
-          to_customer: customer.parent_id,
-          level: level,
-          points: uplinePoints,
-          product_code: productCode,
-          description: `Bonus jaringan level ${level}`,
-        });
-
-        // Move to next level (parent becomes current customer)
-        currentCustomer = customer.parent_id;
-      }
-    } catch (error) {
-      console.error('Error recalculating points:', error);
-      throw error;
-    }
+  const recalculatePoints = async (transactionId: string) => {
+    const { error } = await supabase.functions.invoke('calculate-points', {
+      body: { transaction_id: transactionId, force_recalculate: true },
+    });
+    if (error) throw error;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -159,7 +92,7 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
       if (updateError) throw updateError;
 
       // Recalculate points based on updated transaction profit
-      await recalculatePoints(transaction.id, customerId, profit, productCode);
+      await recalculatePoints(transaction.id);
 
       toast({
         title: "Success",
@@ -167,10 +100,11 @@ export const TransactionEditForm = ({ transaction, onClose, onSuccess }: Transac
       });
 
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to update transaction";
       toast({
         title: "Error",
-        description: error.message || "Failed to update transaction",
+        description: message,
         variant: "destructive",
       });
     } finally {

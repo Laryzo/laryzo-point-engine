@@ -8,6 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "test:point-engine": "node scripts/point-engine-runtime-test.mjs",
+    "test:point-engine:reset": "node scripts/reset-point-engine-test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

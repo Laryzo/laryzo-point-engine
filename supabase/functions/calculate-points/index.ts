@@ -1,6 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// CORS configuration - restrict to trusted origins
 const ALLOWED_ORIGINS = [
   'https://lovable.dev',
   'https://jkqtqxwtyqrlhblnaohz.lovableproject.com',
@@ -9,238 +8,72 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
 ]
 
-function getCorsHeaders(origin: string | null): Record<string, string> {
-  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed =>
-    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
+function isOriginAllowed(origin: string | null): boolean {
+  return !!origin && ALLOWED_ORIGINS.some((allowed) =>
+    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app'),
   )
+}
 
+function corsHeaders(origin: string | null): Record<string, string> {
   return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+    'Access-Control-Allow-Origin': isOriginAllowed(origin) ? origin! : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin'
+    Vary: 'Origin',
   }
-}
-
-function isOriginAllowed(origin: string | null): boolean {
-  if (!origin) return false
-  return ALLOWED_ORIGINS.some(allowed =>
-    origin === allowed || origin.endsWith('.lovable.dev') || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
-  )
-}
-
-interface Customer {
-  id: string;
-  name: string;
-  parent_id: string | null;
-  points_blocked: boolean;
-}
-
-interface Transaction {
-  id: string;
-  customer_id: string;
-  harga_konsumen: number;
-  harga_pokok: number;
-  qty: number;
-  product_code: string;
 }
 
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin')
-  const corsHeaders = getCorsHeaders(origin)
+  const headers = { ...corsHeaders(origin), 'Content-Type': 'application/json' }
 
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  // Validate origin for non-preflight requests
-  if (!isOriginAllowed(origin)) {
-    console.warn('Blocked calculate-points request from unauthorized origin:', origin)
-    return new Response(
-      JSON.stringify({ error: 'Origin not allowed' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers })
+  if (!isOriginAllowed(origin)) return new Response(JSON.stringify({ error: 'Origin not allowed' }), { status: 403, headers })
+  if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers })
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) throw new Error('Supabase environment is not configured')
 
-    // SECURITY: Require admin authentication before allowing a full recalculation.
-    // This endpoint deletes all point_history rows and rewrites them — without
-    // auth any anonymous caller could wipe and rewrite customer points.
     const authHeader = req.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized — admin token required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return new Response(JSON.stringify({ error: 'Unauthorized — admin token required' }), { status: 401, headers })
     }
-    const token = authHeader.replace('Bearer ', '')
-    const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: { user }, error: authError } = await anonClient.auth.getUser(token)
+
+    const anonClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } })
+    const { data: { user }, error: authError } = await anonClient.auth.getUser(authHeader.slice('Bearer '.length))
     if (authError || !user?.email) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized — invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return new Response(JSON.stringify({ error: 'Unauthorized — invalid token' }), { status: 401, headers })
     }
-    const { data: adminRow } = await supabase
+
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey)
+    const { data: adminRow, error: adminError } = await serviceClient
       .from('admins')
-      .select('email, role')
+      .select('email')
       .eq('email', user.email.toLowerCase())
-      .single()
-    if (!adminRow) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden — admin only' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      .maybeSingle()
+    if (adminError) throw adminError
+    if (!adminRow) return new Response(JSON.stringify({ error: 'Forbidden — admin only' }), { status: 403, headers })
+
+    const body = await req.json().catch(() => ({}))
+    const transactionId = typeof body.transaction_id === 'string' ? body.transaction_id : ''
+    if (!transactionId) return new Response(JSON.stringify({ error: 'transaction_id is required' }), { status: 400, headers })
+
+    const forceRecalculate = body.force_recalculate === true
+    const rpcName = forceRecalculate ? 'replace_transaction_points' : 'distribute_transaction_points'
+    const { data, error } = await serviceClient.rpc(rpcName, { _transaction_id: transactionId })
+    if (error) {
+      console.error(`Point distribution failed for ${transactionId}:`, error)
+      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     }
 
-    console.log(`Starting point calculation, requested by admin ${user.email}...`);
-
-    // 1. Clear existing point_history (trigger will auto-subtract from customers.points)
-    // Then reset customer points to 0 to ensure clean slate
-    console.log('Clearing existing point data...');
-    await supabase.from('point_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    // Reset to 0 after delete trigger runs (in case of any leftover discrepancies)
-    await supabase.from('customers').update({ points: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
-
-    // 2. Fetch all customers (including points_blocked status)
-    console.log('Fetching customers...');
-    const { data: customers, error: customerError } = await supabase
-      .from('customers')
-      .select('id, name, parent_id, points_blocked');
-
-    if (customerError) {
-      console.error('Error fetching customers:', customerError);
-      throw customerError;
-    }
-
-    // Create customer lookup map
-    const customerMap = new Map<string, Customer>();
-    customers?.forEach(c => customerMap.set(c.id, c));
-
-    // 3. Fetch all transactions
-    console.log('Fetching transactions...');
-    const { data: transactions, error: transactionError } = await supabase
-      .from('transactions')
-      .select('id, customer_id, harga_konsumen, harga_pokok, qty, product_code, product_name');
-
-    if (transactionError) {
-      console.error('Error fetching transactions:', transactionError);
-      throw transactionError;
-    }
-
-    console.log(`Found ${transactions?.length || 0} transactions to process`);
-
-    // 4. Calculate points for each transaction
-    // Note: customers.points will be automatically updated via database trigger when inserting to point_history
-    const pointHistoryRecords: any[] = [];
-
-    const POINT_PERCENTAGE = 0.01; // 1% per level
-    const MAX_UPLINE_LEVELS = 10;
-
-    for (const transaction of transactions || []) {
-      // Logic: Total Profit basis for point calculation (1% of Total Profit)
-      // Total Profit = (Harga Konsumen - Harga Pokok) * Qty
-      // This matches the "Total Profit" column shown in the Admin Panel
-      const profitPerUnit = (Number(transaction.harga_konsumen) || 0) - (Number(transaction.harga_pokok) || 0);
-      const totalProfit = Math.round(profitPerUnit * (Number(transaction.qty) || 1));
-
-      // Basis calculation: 1% from Total Profit
-      const pointsFromProfit = totalProfit * POINT_PERCENTAGE;
-
-      if (totalProfit <= 0 || !transaction.customer_id) continue;
-
-      // Level 0: Customer's own purchase points (1% of Total Profit)
-      const selfCustomer = customerMap.get(transaction.customer_id);
-      if (!selfCustomer?.points_blocked) {
-        pointHistoryRecords.push({
-          transaction_id: transaction.id,
-          from_customer: transaction.customer_id,
-          to_customer: transaction.customer_id,
-          level: 0,
-          points: pointsFromProfit,
-          product_code: transaction.product_code,
-          description: `Bonus poin ${transaction.product_name || transaction.product_code || 'transaksi'}`
-        });
-      }
-
-      // Levels 1-10: Upline points (1% of Total Profit for each)
-      let currentCustomerId = transaction.customer_id;
-      for (let level = 1; level <= MAX_UPLINE_LEVELS; level++) {
-        const currentCustomer = customerMap.get(currentCustomerId);
-        if (!currentCustomer || !currentCustomer.parent_id) break;
-
-        const parentId = currentCustomer.parent_id;
-        const parentCustomer = customerMap.get(parentId);
-
-        // Skip if parent is blocked
-        if (parentCustomer?.points_blocked) {
-          currentCustomerId = parentId;
-          continue;
-        }
-
-        pointHistoryRecords.push({
-          transaction_id: transaction.id,
-          from_customer: transaction.customer_id,
-          to_customer: parentId,
-          level: level,
-          points: pointsFromProfit,
-          product_code: transaction.product_code,
-          description: `Bonus jaringan level ${level}`
-        });
-
-        currentCustomerId = parentId;
-      }
-    }
-
-    console.log(`Generated ${pointHistoryRecords.length} point history records`);
-
-    // 5. Insert point_history in batches
-    const BATCH_SIZE = 500;
-    for (let i = 0; i < pointHistoryRecords.length; i += BATCH_SIZE) {
-      const batch = pointHistoryRecords.slice(i, i + BATCH_SIZE);
-      const { error: insertError } = await supabase.from('point_history').insert(batch);
-      if (insertError) {
-        console.error(`Error inserting batch ${i / BATCH_SIZE + 1}:`, insertError);
-        throw insertError;
-      }
-      console.log(`Inserted batch ${i / BATCH_SIZE + 1} of ${Math.ceil(pointHistoryRecords.length / BATCH_SIZE)}`);
-    }
-
-    // 6. Customer points are now automatically updated via database trigger
-    // No need for manual update - trigger handles it when point_history is inserted
-    console.log('Customer points updated automatically via database trigger');
-
-    // 7. Return summary
-    const summary = {
-      success: true,
-      transactions_processed: transactions?.length || 0,
-      point_records_created: pointHistoryRecords.length,
-      customers_updated_via_trigger: true,
-      formula: '1% profit per level (0-10), max 11% total per transaction',
-      requested_by: user.email,
-    };
-
-    console.log('Point calculation completed:', summary);
-
-    return new Response(JSON.stringify(summary), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
-
+    return new Response(JSON.stringify(data), { status: 200, headers })
   } catch (error) {
-    console.error('Error in calculate-points:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    console.error('Error in calculate-points:', error)
+    const message = error instanceof Error ? error.message : 'Unexpected error'
+    return new Response(JSON.stringify({ error: message }), { status: 500, headers })
   }
-});
+})
