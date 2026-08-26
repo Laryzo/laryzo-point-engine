@@ -29,17 +29,30 @@ Hasil akhir yang diukur setelah seluruh request selesai adalah `history_rows=11`
 
 ## Test 2 — Failure rollback
 
-**Status: NOT RUN.**
+**Status: PASS.**
 
-Temporary failure wrapper sudah disiapkan sebagai database object test-only, dan fixture TROLL sudah dibuat. Namun saat akan menjalankan distribusi awal TROLL dan assertion rollback, konektor Supabase mengalami timeout berulang pada tahap pengambilan konfigurasi server. Karena operasi database tidak lagi dapat diverifikasi, test tidak diteruskan dan tidak diklaim PASS.
+Fixture `TROLL2` dibuat dengan 11 level penerima dan distribusi awal diproses dengan hasil `point_records_created=11`, `total_profit=15000`, dan `points_per_level=150`. Snapshot sebelum failure berisi **11 point_history**, total **Rp1.650**, saldo customer fixture yang sesuai, dan transaction row yang konsisten.
 
-Metode yang akan digunakan ketika konektor pulih adalah wrapper yang melakukan advisory lock, row lock transaksi, `DELETE FROM point_history` untuk satu transaction ID, lalu `RAISE EXCEPTION 'TEST_ONLY_FORCED_FAILURE_AFTER_DELETE'`. Pemanggilan akan dibungkus dalam block yang menangkap exception, lalu count/sum histori dan saldo customer dibandingkan dengan snapshot sebelum mutation. Wrapper tersebut harus dihapus setelah test.
+Temporary wrapper test-only kemudian memperoleh advisory lock dan row lock transaksi, menjalankan `DELETE FROM point_history` untuk transaction ID tersebut, lalu memaksa exception `TEST_ONLY_FORCED_FAILURE_AFTER_DELETE`. Exception tertangkap pada test transaction. Hasil assertion aktual:
+
+| Assertion | Nilai aktual |
+|---|---:|
+| Exception tertangkap | `true` |
+| Error | `TEST_ONLY_FORCED_FAILURE_AFTER_DELETE` |
+| Histori sebelum | 11 record / Rp1.650 |
+| Histori sesudah | 11 record / Rp1.650 |
+| Histori identik | `true` |
+| Saldo identik | `true` |
+| Transaksi identik | `true` |
+| Rollback pass | `true` |
+
+Dengan demikian, mutation DELETE yang dipaksa gagal tidak meninggalkan record parsial, tidak menggandakan poin, dan tidak mengubah saldo customer.
 
 ## Cleanup status
 
-**NOT VERIFIED / PENDING CONNECTOR RECOVERY.**
+**Status: PASS.**
 
-Cleanup fixture concurrent belum dapat dikonfirmasi setelah konektor timeout. Status terakhir sebelum timeout belum dapat digunakan sebagai bukti bahwa object dan fixture sudah terhapus. Temporary objects/fixtures yang masih mungkin ada di project test adalah wrapper concurrency, wrapper failure, fixture `TCONCURRENT`, dan fixture `TROLL`. Tidak ada satupun berada di production.
+Seluruh fixture dan temporary wrapper sudah dihapus dari project test-only. Verifikasi akhir menghasilkan `fixture_customers_remaining=0`, `fixture_transactions_remaining=0`, `fixture_history_remaining=0`, dan `temporary_wrapper_count=0`. Tidak ada operasi pada production.
 
 ## Repository dan PR
 
