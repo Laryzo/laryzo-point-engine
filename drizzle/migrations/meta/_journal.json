@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792268633013,
+      "tag": "0000_promo_reservations",
+      "breakpoints": true
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins, Wallet, Layout } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins, Wallet, Layout, CalendarClock } from 'lucide-react';
 import LandingBuilder from '@/pages/LandingBuilder';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
@@ -22,6 +22,7 @@ import SystemSettings from '@/pages/SystemSettings';
 import MerchantManagement from '@/components/MerchantManagement';
 import PointHistoryManagement from '@/components/PointHistoryManagement';
 import AdminTopupRequests from '@/pages/AdminTopupRequests';
+import AdminPromoReservations from '@/pages/AdminPromoReservations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -134,6 +135,8 @@ const Dashboard = () => {
         return <div className="p-6"><AdminTopupRequests /></div>;
       case 'settings':
         return isSuperAdmin ? <SystemSettings /> : null;
+      case 'promo-locks':
+        return <AdminPromoReservations />;
       case 'landing-builder':
         return <div className="h-[calc(100vh-73px)]"><LandingBuilder /></div>;
       case 'tree':
@@ -430,6 +433,15 @@ const Dashboard = () => {
                       <span>Landing Page</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => handleMenuChange('promo-locks')}
+                      className={activeView === 'promo-locks' ? 'bg-accent' : ''}
+                    >
+                      <CalendarClock className="h-4 w-4" />
+                      <span>Kunci Promo</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                   {isSuperAdmin && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
@@ -475,6 +487,7 @@ const Dashboard = () => {
                  activeView === 'point-history' ? 'Riwayat Poin' :
                  activeView === 'topup-requests' ? 'Top Up Saldo' :
                  activeView === 'landing-builder' ? 'Landing Page Builder' :
+                 activeView === 'promo-locks' ? 'Kunci Promo Multibeauty' :
                  activeView === 'settings' ? 'Settings' :
                  'Dashboard'}
               </h1>

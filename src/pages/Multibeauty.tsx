@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import LandingRenderer from "@/components/landing/LandingRenderer";
 import ChatAssistant from "@/components/landing/ChatAssistant";
+import PromoLockButton from "@/components/landing/PromoLockButton";
 import { useLandingPage } from "@/hooks/useLandingPage";
 import type { LandingData } from "@/hooks/useLandingPage";
 
@@ -73,6 +74,8 @@ const Multibeauty = () => {
     <>
       <LandingRenderer sections={active.sections} theme={active.theme} previewMode={isPreview} />
       
+      {!isPreview && <PromoLockButton adminWa={active.settings?.chatbot?.waNumber} />}
+
       {/* Chat Asisten - hanya tampil jika bukan preview mode */}
       {!isPreview && active.settings?.chatbot?.enabled !== false && (
         <ChatAssistant

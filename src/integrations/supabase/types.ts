@@ -856,6 +856,45 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_reservations: {
+        Row: {
+          created_at: string
+          followed_up_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          package: string
+          pay_date: string
+          status: string
+          updated_at: string
+          whatsapp: string
+        }
+        Insert: {
+          created_at?: string
+          followed_up_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          package: string
+          pay_date: string
+          status?: string
+          updated_at?: string
+          whatsapp: string
+        }
+        Update: {
+          created_at?: string
+          followed_up_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          package?: string
+          pay_date?: string
+          status?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       satellite_api_keys: {
         Row: {
           client_name: string
