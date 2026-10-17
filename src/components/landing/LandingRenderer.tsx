@@ -28,10 +28,14 @@ function Countdown({ endsAt }: { endsAt?: string }) {
       if (targetDate > now) return targetDate;
     }
     
-    // Default: Hitung mundur ke tengah malam hari ini
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    return today.getTime();
+    // Default: promo 48 jam per pengunjung, tersimpan di browser
+    const KEY = "mb_promo_deadline";
+    let saved = Number(localStorage.getItem(KEY) || 0);
+    if (!saved || saved < now - 7 * 86400000) {
+      saved = Date.now() + 48 * 3600000;
+      localStorage.setItem(KEY, String(saved));
+    }
+    return saved;
   };
 
   const target = getTarget();
@@ -346,6 +350,9 @@ export default function LandingRenderer({
                     {s.props.subtitle && <p className="opacity-90">{s.props.subtitle}</p>}
                     <Countdown endsAt={s.props.endsAt} />
                     {s.props.bonusText && <p className="text-lg font-medium">{s.props.bonusText}</p>}
+                    <button type="button" onClick={() => window.dispatchEvent(new Event("open-promo-lock"))} className="block mx-auto text-sm underline opacity-90">
+                      Belum gajian? Kunci promo sampai tanggal gajian Kakak
+                    </button>
                     {s.props.ctaText && (
                       <a href={s.props.ctaHref || "#order"} className="inline-flex items-center px-8 py-4 rounded-md font-bold shadow-lg" style={{ backgroundColor: accent, color: "#000" }}>
                         {s.props.ctaText}
