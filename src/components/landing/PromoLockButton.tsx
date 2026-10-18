@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export const PROMO_LOCK_EVENT = "open-promo-lock";
 
-const PACKAGES = ["1 Sabun", "Paket 3 Sabun", "Paket 6 Sabun"];
+const PACKAGES = ["Paket 1 pcs", "Paket 6 pcs"];
 
 function toWa62(raw: string) {
   const c = raw.replace(/[^0-9]/g, "");
@@ -33,7 +33,7 @@ export default function PromoLockButton({ adminWa }: { adminWa?: string | null }
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", whatsapp: "", package: PACKAGES[1], pay_date: "" });
+  const [form, setForm] = useState({ name: "", whatsapp: "", package: PACKAGES[0], pay_date: "" });
 
   useEffect(() => {
     const h = () => setOpen(true);
@@ -84,7 +84,7 @@ export default function PromoLockButton({ adminWa }: { adminWa?: string | null }
             <div><Label>Nomor WhatsApp</Label><Input inputMode="tel" maxLength={16} placeholder="08xxxxxxxxxx" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} /></div>
             <div>
               <Label>Pilihan Paket</Label>
-              <div className="grid grid-cols-3 gap-2 mt-1">
+              <div className="grid grid-cols-2 gap-2 mt-1">
                 {PACKAGES.map((p) => (
                   <button key={p} type="button" onClick={() => setForm({ ...form, package: p })}
                     className={`rounded-md border px-2 py-2 text-xs ${form.package === p ? "border-primary bg-primary/10 font-semibold" : ""}`}>{p}</button>
