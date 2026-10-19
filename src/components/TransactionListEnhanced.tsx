@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { PageJumpPagination } from '@/components/PageJumpPagination';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -294,31 +295,12 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
           />
 
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">
-                Halaman {currentPage + 1} dari {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={currentPage === 0 || loading}
-                  onClick={() => setCurrentPage(p => p - 1)}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Prev
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={currentPage >= totalPages - 1 || loading}
-                  onClick={() => setCurrentPage(p => p + 1)}
-                >
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <PageJumpPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            disabled={loading}
+          />
         </CardContent>
       </Card>
       
