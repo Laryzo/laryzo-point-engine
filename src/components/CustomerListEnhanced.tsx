@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageJumpPagination } from '@/components/PageJumpPagination';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,7 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
+  const [nameMap, setNameMap] = useState<Map<string, string>>(new Map());
   
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editName, setEditName] = useState('');
@@ -90,11 +92,12 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
 
       // Fetch all parent info needed for level calculation (optimized)
       // Note: For very large datasets, level should ideally be stored in the DB
-      const { data: allParentInfo } = await supabase
-        .from('customers')
-        .select('id, parent_id');
+      const allParentInfo = await fetchAllRows<{ id: string; parent_id: string | null; name: string | null }>((from, to) =>
+        supabase.from('customers').select('id, parent_id, name').order('id').range(from, to)
+      );
       
-      const parentMap = new Map((allParentInfo || []).map(c => [c.id, c.parent_id]));
+      const parentMap = new Map(allParentInfo.map(c => [c.id, c.parent_id]));
+      setNameMap(new Map(allParentInfo.map(c => [c.id, c.name || ''])));
 
       const calculateLevel = (customerId: string): number => {
         let level = 0;
@@ -331,7 +334,7 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
 
   const uplineName = (parentId: string | null) => {
     if (!parentId) return '-';
-    return customers.find(c => c.id === parentId)?.name || 'Upline lain';
+    return nameMap.get(parentId) || customers.find(c => c.id === parentId)?.name || 'Upline lain';
   };
 
   const columns = [

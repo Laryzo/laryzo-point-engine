@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -33,14 +34,16 @@ export const CustomerTree = ({ onStatsUpdate }: CustomerTreeProps) => {
 
   const fetchCustomers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .order('created_at', { ascending: true });
+      const data = await fetchAllRows<Customer>((from, to) =>
+        supabase
+          .from('customers')
+          .select('id, name, email, whatsapp, parent_id, position')
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
 
-      if (error) throw error;
-
-      setCustomers(data || []);
+      setCustomers(data);
       setRootCustomers(data?.filter(c => !c.parent_id) || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
