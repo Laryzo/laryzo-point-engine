@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, Trash2, RefreshCw, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, RefreshCw, Loader2 } from 'lucide-react';
+import { PageJumpPagination } from '@/components/PageJumpPagination';
 import { format } from 'date-fns';
 
 interface PointHistoryManagementProps {
@@ -35,7 +36,7 @@ const PointHistoryManagement = ({ isSuperAdmin = false }: PointHistoryManagement
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 50;
 
   // Edit state
   const [editingRecord, setEditingRecord] = useState<PointHistoryRecord | null>(null);
@@ -66,6 +67,8 @@ const PointHistoryManagement = ({ isSuperAdmin = false }: PointHistoryManagement
           to_customer_data:customers!point_history_to_customer_fkey(name)
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
+        .order('from_customer', { ascending: true })
+        .order('level', { ascending: true })
         .range(from, to);
 
       if (error) throw error;
@@ -208,22 +211,12 @@ const PointHistoryManagement = ({ isSuperAdmin = false }: PointHistoryManagement
         </CardContent>
       </Card>
 
-      {/* Pagination */}
-      {totalCount > PAGE_SIZE && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Menampilkan {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} dari {totalCount}
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
-              <ChevronLeft className="h-4 w-4 mr-1" />Prev
-            </Button>
-            <Button variant="outline" size="sm" disabled={currentPage * PAGE_SIZE >= totalCount} onClick={() => setCurrentPage(p => p + 1)}>
-              Next<ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <PageJumpPagination
+        currentPage={currentPage - 1}
+        totalPages={Math.ceil(totalCount / PAGE_SIZE)}
+        onPageChange={(p) => setCurrentPage(p + 1)}
+        disabled={loading}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={!!editingRecord} onOpenChange={(open) => !open && setEditingRecord(null)}>
