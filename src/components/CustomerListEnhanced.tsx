@@ -338,6 +338,7 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
   };
 
   const columns = [
+    { key: '__no', label: 'No', render: (_: any, __: any, index?: number) => currentPage * PAGE_SIZE + (index ?? 0) + 1 },
     { key: 'name', label: 'Nama', render: (val: string, row: Customer) => (
       <div className="flex flex-col">
         <span className="font-medium">{val}</span>
