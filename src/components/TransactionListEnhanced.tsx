@@ -203,6 +203,7 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
   };
 
   const columns = [
+    { key: '__no', label: 'No', render: (_: any, __: any, index?: number) => currentPage * PAGE_SIZE + (index ?? 0) + 1 },
     { key: 'product_name', label: 'Produk', render: (val: string) => (
       <div className="flex items-center space-x-2">
         <ShoppingCart className="w-4 h-4 text-primary" />
