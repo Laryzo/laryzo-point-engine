@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PageJumpPagination } from '@/components/PageJumpPagination';
+import { PageJumpPagination, PAGE_SIZE_ALL } from '@/components/PageJumpPagination';
 import { fetchAllRows } from '@/lib/fetch-all';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,13 +36,13 @@ interface CustomerListEnhancedProps {
   isSuperAdmin?: boolean;
 }
 
-const PAGE_SIZE = 50;
 
 export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhancedProps) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
   const [nameMap, setNameMap] = useState<Map<string, string>>(new Map());
   
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -82,13 +82,18 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
       setTotalCount(count || 0);
 
       // Fetch paginated data
-      const { data: customersData, error: customersError } = await supabase
-        .from('customers')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
-
-      if (customersError) throw customersError;
+      const customersData = pageSize === PAGE_SIZE_ALL
+        ? await fetchAllRows<any>((from, to) =>
+            supabase.from('customers').select('*').order('created_at', { ascending: false }).order('id').range(from, to))
+        : await (async () => {
+            const { data, error } = await supabase
+              .from('customers')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
+            if (error) throw error;
+            return data;
+          })();
 
       // Fetch all parent info needed for level calculation (optimized)
       // Note: For very large datasets, level should ideally be stored in the DB
@@ -135,7 +140,7 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
     } finally {
       setLoading(false);
     }
-  }, [currentPage, toast]);
+  }, [currentPage, pageSize, toast]);
 
   useEffect(() => {
     fetchCustomers();
@@ -338,7 +343,7 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
   };
 
   const columns = [
-    { key: '__no', label: 'No', render: (_: any, __: any, index?: number) => currentPage * PAGE_SIZE + (index ?? 0) + 1 },
+    { key: '__no', label: 'No', render: (_: any, __: any, index?: number) => (pageSize === PAGE_SIZE_ALL ? 0 : currentPage * pageSize) + (index ?? 0) + 1 },
     { key: 'name', label: 'Nama', render: (val: string, row: Customer) => (
       <div className="flex flex-col">
         <span className="font-medium">{val}</span>
@@ -417,7 +422,7 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
     )},
   ];
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const totalPages = pageSize === PAGE_SIZE_ALL ? 1 : Math.ceil(totalCount / pageSize);
   const availablePositions = getAvailablePositions(editParentId);
 
   return (
@@ -486,6 +491,8 @@ export const CustomerListEnhanced = ({ isSuperAdmin = false }: CustomerListEnhan
             totalPages={totalPages}
             onPageChange={setCurrentPage}
             disabled={loading}
+            pageSize={pageSize}
+            onPageSizeChange={(s) => { setPageSize(s); setCurrentPage(0); }}
           />
         </CardContent>
       </Card>

@@ -10,8 +10,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Pencil, Trash2, RefreshCw, Loader2 } from 'lucide-react';
-import { PageJumpPagination } from '@/components/PageJumpPagination';
+import { PageJumpPagination, PAGE_SIZE_ALL } from '@/components/PageJumpPagination';
 import { format } from 'date-fns';
+import { fetchAllRows } from '@/lib/fetch-all';
 
 interface PointHistoryManagementProps {
   isSuperAdmin?: boolean;
@@ -36,7 +37,7 @@ const PointHistoryManagement = ({ isSuperAdmin = false }: PointHistoryManagement
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const PAGE_SIZE = 50;
+  const [pageSize, setPageSize] = useState(50);
 
   // Edit state
   const [editingRecord, setEditingRecord] = useState<PointHistoryRecord | null>(null);
@@ -51,29 +52,35 @@ const PointHistoryManagement = ({ isSuperAdmin = false }: PointHistoryManagement
 
   useEffect(() => {
     fetchRecords();
-  }, [currentPage]);
+  }, [currentPage, pageSize]);
 
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      const from = (currentPage - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      const { data, error, count } = await supabase
-        .from('point_history')
-        .select(`
+      const sel = `
           *,
           from_customer_data:customers!point_history_from_customer_fkey(name),
           to_customer_data:customers!point_history_to_customer_fkey(name)
-        `, { count: 'exact' })
+        `;
+      const base = () => supabase
+        .from('point_history')
+        .select(sel, { count: 'exact' })
         .order('created_at', { ascending: false })
         .order('from_customer', { ascending: true })
         .order('level', { ascending: true })
-        .range(from, to);
+        .order('id', { ascending: true });
 
-      if (error) throw error;
-      setRecords(data || []);
-      setTotalCount(count || 0);
+      if (pageSize === PAGE_SIZE_ALL) {
+        const all = await fetchAllRows<any>((f, t) => base().range(f, t));
+        setRecords(all);
+        setTotalCount(all.length);
+      } else {
+        const from = (currentPage - 1) * pageSize;
+        const { data, error, count } = await base().range(from, from + pageSize - 1);
+        if (error) throw error;
+        setRecords(data || []);
+        setTotalCount(count || 0);
+      }
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -174,7 +181,7 @@ const PointHistoryManagement = ({ isSuperAdmin = false }: PointHistoryManagement
               ) : (
                 records.map((record, index) => (
                   <TableRow key={record.id}>
-                    <TableCell className="text-muted-foreground">{(currentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
+                    <TableCell className="text-muted-foreground">{(pageSize === PAGE_SIZE_ALL ? 0 : (currentPage - 1) * pageSize) + index + 1}</TableCell>
                     <TableCell>{format(new Date(record.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
                     <TableCell>{record.from_customer_data?.name || '-'}</TableCell>
                     <TableCell className="font-medium">{record.to_customer_data?.name || '-'}</TableCell>
@@ -213,9 +220,11 @@ const PointHistoryManagement = ({ isSuperAdmin = false }: PointHistoryManagement
 
       <PageJumpPagination
         currentPage={currentPage - 1}
-        totalPages={Math.ceil(totalCount / PAGE_SIZE)}
+        totalPages={pageSize === PAGE_SIZE_ALL ? 1 : Math.ceil(totalCount / pageSize)}
         onPageChange={(p) => setCurrentPage(p + 1)}
         disabled={loading}
+        pageSize={pageSize}
+        onPageSizeChange={(s) => { setPageSize(s); setCurrentPage(1); }}
       />
 
       {/* Edit Dialog */}
