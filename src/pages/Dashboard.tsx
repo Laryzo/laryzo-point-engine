@@ -26,6 +26,7 @@ import AdminPromoReservations from '@/pages/AdminPromoReservations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { fetchAllRows } from '@/lib/fetch-all';
 
 const Dashboard = () => {
   const { admin, logout } = useAuth();
@@ -88,7 +89,9 @@ const Dashboard = () => {
         merchantsRes,
       ] = await Promise.all([
         supabase.from('customers').select('id', { count: 'exact', head: true }),
-        supabase.from('transactions').select('margin, qty'),
+        fetchAllRows<{ margin: number | null; qty: number | null }>((from, to) =>
+          supabase.from('transactions').select('margin, qty').order('id').range(from, to)
+        ).then((data) => ({ data })),
         supabase.from('orders').select('id', { count: 'exact', head: true }),
         supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['pending', 'processing']),
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
