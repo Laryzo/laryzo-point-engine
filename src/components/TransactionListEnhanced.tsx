@@ -80,12 +80,15 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
 
       if (error) throw error;
 
-      // Fetch parent info for level calculation (optimized)
-      const { data: allParentInfo } = await supabase
-        .from('customers')
-        .select('id, parent_id');
-      
-      const parentMap = new Map((allParentInfo || []).map(c => [c.id, c.parent_id]));
+      // Fetch parent info for level calculation (optimized, paged past the 1000-row cap)
+      const allParentInfo = await fetchAllRows<{ id: string; parent_id: string | null }>((from, to) =>
+        supabase
+          .from('customers')
+          .select('id, parent_id')
+          .range(from, to)
+      );
+
+      const parentMap = new Map(allParentInfo.map(c => [c.id, c.parent_id]));
 
       const calculateLevel = (customerId: string): number => {
         let level = 0;
