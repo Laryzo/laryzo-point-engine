@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PageJumpPagination } from '@/components/PageJumpPagination';
+import { PageJumpPagination, PAGE_SIZE_ALL } from '@/components/PageJumpPagination';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/fetch-all';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,13 +38,13 @@ interface TransactionListEnhancedProps {
   isSuperAdmin?: boolean;
 }
 
-const PAGE_SIZE = 50;
 
 export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionListEnhancedProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
   
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
@@ -65,21 +65,19 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
       setTotalCount(count || 0);
 
       // Fetch paginated transactions
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`
-          *,
-          customers (
-            id,
-            name,
-            whatsapp,
-            parent_id
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
-
-      if (error) throw error;
+      const txSelect = `*, customers ( id, name, whatsapp, parent_id )`;
+      const data = pageSize === PAGE_SIZE_ALL
+        ? await fetchAllRows<any>((from, to) =>
+            supabase.from('transactions').select(txSelect).order('created_at', { ascending: false }).order('id').range(from, to))
+        : await (async () => {
+            const { data, error } = await supabase
+              .from('transactions')
+              .select(txSelect)
+              .order('created_at', { ascending: false })
+              .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
+            if (error) throw error;
+            return data;
+          })();
 
       // Fetch parent info for level calculation (optimized, paged past the 1000-row cap)
       const allParentInfo = await fetchAllRows<{ id: string; parent_id: string | null }>((from, to) =>
@@ -138,7 +136,7 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
     } finally {
       setLoading(false);
     }
-  }, [currentPage, toast]);
+  }, [currentPage, pageSize, toast]);
 
   useEffect(() => {
     fetchData();
@@ -203,7 +201,7 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
   };
 
   const columns = [
-    { key: '__no', label: 'No', render: (_: any, __: any, index?: number) => currentPage * PAGE_SIZE + (index ?? 0) + 1 },
+    { key: '__no', label: 'No', render: (_: any, __: any, index?: number) => (pageSize === PAGE_SIZE_ALL ? 0 : currentPage * pageSize) + (index ?? 0) + 1 },
     { key: 'product_name', label: 'Produk', render: (val: string) => (
       <div className="flex items-center space-x-2">
         <ShoppingCart className="w-4 h-4 text-primary" />
@@ -243,7 +241,7 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
     { key: 'created_at', label: 'Tanggal', render: (val: string) => new Date(val).toLocaleDateString('id-ID') }
   ];
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const totalPages = pageSize === PAGE_SIZE_ALL ? 1 : Math.ceil(totalCount / pageSize);
 
   return (
     <div className="space-y-4">
@@ -305,6 +303,8 @@ export const TransactionListEnhanced = ({ isSuperAdmin = false }: TransactionLis
             totalPages={totalPages}
             onPageChange={setCurrentPage}
             disabled={loading}
+            pageSize={pageSize}
+            onPageSizeChange={(s) => { setPageSize(s); setCurrentPage(0); }}
           />
         </CardContent>
       </Card>
