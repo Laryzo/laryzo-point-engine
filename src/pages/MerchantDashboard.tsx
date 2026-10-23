@@ -17,6 +17,8 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { getAppFeePercent, computeSellingPrice, estimateCostFromPrice } from '@/lib/app-fee';
+import { useOrderAlarm } from '@/hooks/useOrderAlarm';
+import { Bell, BellOff } from 'lucide-react';
 
 const formatShippingCost = (cost: number) => `Rp ${cost.toLocaleString('id-ID')}`;
 
@@ -120,6 +122,10 @@ const MerchantDashboard = () => {
     fetchMerchantCustomers();
   }, [isSuperAdmin]);
 
+  const alarm = useOrderAlarm();
+  const alarmRingRef = useRef(alarm.ring);
+  alarmRingRef.current = alarm.ring;
+
   // Realtime subscription for new orders
   useEffect(() => {
     if (!merchant?.id) return;
@@ -143,6 +149,7 @@ const MerchantDashboard = () => {
             description: `${deliveryLabel} — ${order.delivery_address || 'Ambil di tempat'}`,
           });
 
+          alarmRingRef.current();
           // Refresh delivery orders and daily stats
           fetchDeliveryOrders();
           fetchDailyStats();
@@ -2080,10 +2087,30 @@ const MerchantDashboard = () => {
         <div className="flex-1 flex flex-col">
           <div className="border-b bg-card p-4 flex items-center gap-4">
             <SidebarTrigger />
-            <h1 className="text-xl font-semibold">
+            <h1 className="text-xl font-semibold flex-1">
               {activeView === 'products' ? 'Produk Saya' : activeView === 'history' ? 'Riwayat Transaksi' : activeView === 'delivery' ? 'Pengiriman' : activeView === 'customers' ? 'Daftar Customer' : activeView === 'employees' ? 'Kelola Karyawan' : activeView === 'settings' ? 'Pengaturan Toko' : 'POS / Kasir'}
             </h1>
+            <Button
+              size="sm"
+              variant={alarm.enabled ? 'default' : 'outline'}
+              onClick={alarm.enabled ? alarm.disable : alarm.enable}
+            >
+              {alarm.enabled ? <Bell className="w-4 h-4 mr-1" /> : <BellOff className="w-4 h-4 mr-1" />}
+              {alarm.enabled ? 'Suara Aktif' : 'Aktifkan Suara'}
+            </Button>
           </div>
+          {alarm.ringing && (
+            <div className="bg-destructive text-destructive-foreground p-3 flex items-center justify-between gap-3 animate-pulse">
+              <span className="font-semibold">🔔 Pesanan baru masuk!</span>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => { alarm.stop(); setActiveView('delivery'); }}
+              >
+                Lihat Pesanan
+              </Button>
+            </div>
+          )}
           <div className="flex-1 overflow-auto">
             {renderContent()}
           </div>
