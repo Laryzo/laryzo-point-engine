@@ -31,7 +31,7 @@ const Multibeauty = () => {
 
   useEffect(() => {
     if (active) {
-      const originalFavicon = "/favicon.png";
+      const originalFavicon = "/favicon.png?v=2";
       // Use absolute path to ensure it loads on both laryzo.biz.id/multibeauty and multibeautysoap.biz.id
       const multibeautyFavicon = "/multibeauty/favicon.png";
       
@@ -44,7 +44,7 @@ const Multibeauty = () => {
         rels.forEach(rel => {
           let link = document.querySelector(`link[rel*='${rel}']`) as HTMLLinkElement;
           if (link) {
-            link.href = `${absoluteHref}?v=${Date.now()}`;
+            link.href = absoluteHref.includes("?") ? absoluteHref : `${absoluteHref}?v=2`;
           }
         });
       };
