@@ -116,6 +116,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     const tokenData = candidateTokens.find((t: any) => t.token === String(token).trim());
 
+    if (!tokenData) {
+      // Count this failed attempt against the pending tokens for the email.
+      for (const t of candidateTokens) {
+        await supabase
+          .from('password_reset_tokens')
+          .update({ attempts: (t.attempts ?? 0) + 1 })
+          .eq('id', t.id)
+      }
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     // Check if token is expired
     const now = new Date();
     const expiresAt = new Date(tokenData.expires_at);
