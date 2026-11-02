@@ -71,11 +71,14 @@ Deno.serve(async (req) => {
     // Check if requester is super_admin
     const { data: requesterAdmin, error: requesterError } = await supabase
       .from('admins')
-      .select('id, role')
+      .select('id, role, user_id')
       .eq('email', requesterEmail)
       .single()
 
-    if (requesterError || !requesterAdmin) {
+    // SECURITY: the session user id must match the binding stored on the admin
+    // row. A self-registered auth account reusing a super-admin email address
+    // has a different user id and is rejected here.
+    if (requesterError || !requesterAdmin || requesterAdmin.user_id !== claimsData.user.id) {
       console.log('Reset password denied - requester not admin')
       return new Response(
         JSON.stringify({ error: 'Unauthorized - Not an admin' }),

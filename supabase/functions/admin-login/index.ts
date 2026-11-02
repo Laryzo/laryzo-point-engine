@@ -79,6 +79,17 @@ Deno.serve(async (req) => {
 
     // Handle registration for first admin
     if (action === 'register') {
+      // SECURITY: first-admin bootstrap requires a server-side setup key so a
+      // random internet caller cannot claim the first super-admin account.
+      const setupKey = String(body.setup_key || req.headers.get('x-setup-key') || '')
+      const expectedSetupKey = Deno.env.get('ADMIN_SETUP_KEY') ?? ''
+      if (!expectedSetupKey || setupKey !== expectedSetupKey) {
+        return new Response(
+          JSON.stringify({ error: 'Registrasi admin dinonaktifkan. Kunci setup diperlukan.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       // Check if any admin exists
       const { count: adminCount } = await supabase
         .from('admins')
@@ -156,6 +167,13 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Bind the new admin row to its auth user (identity pinning).
+      try {
+        await supabase.from('admins').update({ user_id: signInData.session.user.id }).eq('id', newAdmin.id)
+      } catch (bindError) {
+        console.error('Failed to bind admin user_id:', bindError)
+      }
+
       // Log successful registration
       await supabase.from('login_attempts').insert({
         email: sanitizedEmail,
@@ -178,7 +196,7 @@ Deno.serve(async (req) => {
     // Login flow
     const { data: admin, error: adminError } = await supabase
       .from('admins')
-      .select('id, email, name, role, password_hash, created_at')
+      .select('id, email, name, role, password_hash, user_id, created_at')
       .eq('email', sanitizedEmail)
       .single()
 
@@ -271,6 +289,13 @@ Deno.serve(async (req) => {
         console.error('Hash resync error:', syncError)
       }
 
+      // Bind the admin row to the verified auth user (identity pinning).
+      try {
+        await supabase.from('admins').update({ user_id: fallbackSignIn.session.user.id }).eq('id', admin.id)
+      } catch (bindError) {
+        console.error('Failed to bind admin user_id:', bindError)
+      }
+
       // Log successful login
       await supabase.from('login_attempts').insert({
         email: sanitizedEmail,
@@ -344,6 +369,13 @@ Deno.serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+     // Bind the admin row to the verified auth user (identity pinning).
+     try {
+       await supabase.from('admins').update({ user_id: signInData.session.user.id }).eq('id', admin.id)
+     } catch (bindError) {
+       console.error('Failed to bind admin user_id:', bindError)
+     }
 
      // Log successful login
      await supabase.from('login_attempts').insert({
