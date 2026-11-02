@@ -7,10 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Shield } from 'lucide-react';
 
-const AdminRegister = () => {
+const AdminRegister = ({ onBack }: { onBack?: () => void }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [setupKey, setSetupKey] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const { toast } = useToast();
@@ -18,7 +19,7 @@ const AdminRegister = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !setupKey) {
       toast({
         title: "Error",
         description: "Semua field harus diisi",
@@ -28,7 +29,7 @@ const AdminRegister = () => {
     }
 
     setLoading(true);
-    const { error } = await register(name, email, password);
+    const { error } = await register(name, email, password, setupKey);
     
     if (error) {
       toast({
@@ -71,6 +72,17 @@ const AdminRegister = () => {
                 placeholder="Masukkan nama lengkap"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="setup-key">Kunci Setup</Label>
+              <Input
+                id="setup-key"
+                type="password"
+                placeholder="Kunci setup dari admin sistem"
+                value={setupKey}
+                onChange={(e) => setSetupKey(e.target.value)}
                 required
               />
             </div>
