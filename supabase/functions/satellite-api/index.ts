@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
       )
     }
     
-    console.log('Received validated satellite API request:', requestData)
+    console.log('Received validated satellite API request')
 
     // Validate parent_id exists if provided
     if (requestData.customer_data.parent_id) {
@@ -507,7 +507,7 @@ Deno.serve(async (req) => {
       },
     }
 
-    console.log('Satellite API response:', response)
+    console.log('Satellite API response generated')
     await logRequest(supabase, req, true, keyId)
 
     return new Response(

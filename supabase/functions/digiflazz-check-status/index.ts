@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`Checking status for order: ${order_id}, ref_id: ${order.ref_id}, requested by admin ${user.email}`)
+    console.log(`Checking status for order: ${order_id}, ref_id: ${order.ref_id}`)
 
     // Create MD5 signature using node:crypto
     const sign = createHash('md5')

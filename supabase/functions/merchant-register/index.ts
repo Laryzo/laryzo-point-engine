@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     const { name, email, password, whatsapp, business_name, business_address } = body
-    console.log(`Registering merchant: ${email}`)
+    console.log('Merchant registration request received')
 
     if (!name || !email || !password || !whatsapp || !business_name) {
       return new Response(
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Merchant registered successfully: ${sanitizedEmail}`)
+    console.log('Merchant registered successfully')
 
     return new Response(
       JSON.stringify({ 

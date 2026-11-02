@@ -94,7 +94,7 @@ async function sendCredentialEmail(
         </div>
       `,
     })
-    console.log(`Credential email sent to ${recipientEmail}`)
+    console.log('Credential email sent')
   } catch (e) {
     console.error('Failed to send credential email:', e)
   }
@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
       sendCredentialEmail(merchantEmail, name.trim(), sanitizedEmail, maskedPassword, merchantDisplayName)
     }
 
-    console.log(`New customer registered from merchant POS: ${name} (${sanitizedEmail}) by merchant ${merchantAuth.merchant_id}`)
+    console.log('New customer registered from merchant POS')
 
     return new Response(
       JSON.stringify({ success: true, customer: newCustomer, is_new: true, password: plainPassword }),

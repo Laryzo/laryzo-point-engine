@@ -130,7 +130,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log('Email recovery sent successfully:', emailResponse);
+    console.log('Email recovery sent successfully');
 
     return new Response(
       JSON.stringify({ 

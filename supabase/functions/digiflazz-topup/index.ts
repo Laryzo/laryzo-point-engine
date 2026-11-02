@@ -482,7 +482,7 @@ Deno.serve(async (req) => {
                 .eq('customer_id', customer.id)
                 .eq('phone_number', order.input_value)
               
-              console.log('Saved phone number to history:', order.input_value)
+              console.log('Saved phone number to history')
             }
           } catch (histErr) {
             console.error('Phone history save error:', histErr)

@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`Merchant logged in: ${sanitizedEmail}`)
+    console.log('Merchant logged in')
 
     return new Response(
       JSON.stringify({

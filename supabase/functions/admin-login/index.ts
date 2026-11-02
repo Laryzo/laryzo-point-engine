@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       .gte('attempted_at', windowStart)
 
     if (attemptCount !== null && attemptCount >= RATE_LIMIT_MAX) {
-      console.log(`Rate limit exceeded for ${sanitizedEmail} from ${clientIp}`)
+      console.log('Rate limit exceeded for a login attempt from', clientIp)
       return new Response(
         JSON.stringify({ error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
         success: true
       })
 
-      console.log(`Admin registered: ${sanitizedEmail}`)
+      console.log('First admin registered')
 
       return new Response(
         JSON.stringify({
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
         success: false
       })
 
-      console.log(`Login failed - admin not found: ${sanitizedEmail}`)
+      console.log('Login failed - admin not found')
       return new Response(
         JSON.stringify({ success: false, error: 'Email atau password salah' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -212,8 +212,6 @@ Deno.serve(async (req) => {
     )
 
     // Verify password using bcryptjs (synchronous, no Workers needed)
-    console.log(`Verifying password for ${sanitizedEmail}...`)
-    console.log(`Hash prefix: ${admin.password_hash.substring(0, 7)}`)
 
     // Normalize bcrypt hash prefix for compatibility ($2a$ vs $2b$)
     // bcryptjs uses $2a$ but some implementations use $2b$ - they are functionally equivalent
@@ -241,9 +239,7 @@ Deno.serve(async (req) => {
       })
 
       if (fallbackSignInError || !fallbackSignIn.session) {
-        console.log(
-          `Auth fallback signIn failed for ${sanitizedEmail}: ${fallbackSignInError?.message ?? 'no_message'}`
-        )
+        console.log('Auth fallback signIn failed:', fallbackSignInError?.message ?? 'no_message')
 
         // Log failed attempt
         await supabase.from('login_attempts').insert({
@@ -252,7 +248,7 @@ Deno.serve(async (req) => {
           success: false,
         })
 
-        console.log(`Login failed - invalid password: ${sanitizedEmail}`)
+        console.log('Login failed - invalid password')
         return new Response(
           JSON.stringify({ success: false, error: 'Email atau password salah' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -282,7 +278,7 @@ Deno.serve(async (req) => {
         success: true,
       })
 
-      console.log(`Admin logged in via auth fallback: ${sanitizedEmail}`)
+      console.log('Admin logged in via auth fallback')
 
       const { password_hash, ...safeAdmin } = admin
 
@@ -356,7 +352,7 @@ Deno.serve(async (req) => {
        success: true
      })
 
-     console.log(`Admin logged in: ${sanitizedEmail}`)
+     console.log('Admin logged in')
 
      // Return admin without password hash
      const { password_hash, ...safeAdmin } = admin

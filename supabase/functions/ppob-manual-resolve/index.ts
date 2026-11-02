@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
         .from('orders')
         .update({ customer_confirmed_at: new Date().toISOString() })
         .eq('id', order_id)
-      console.log(`Order ${order_id} dikonfirmasi diterima oleh customer ${userEmail}`)
+      console.log(`Order ${order_id} dikonfirmasi diterima oleh customer`)
       return new Response(
         JSON.stringify({ success: true, status: 'confirmed' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
         })
         .eq('id', order_id)
 
-      console.log(`Order ${order_id} ditandai SUKSES manual oleh ${userEmail}, distribusi ke ${distributed} penerima`)
+      console.log(`Order ${order_id} ditandai SUKSES manual oleh admin, distribusi ke ${distributed} penerima`)
 
       return new Response(
         JSON.stringify({ success: true, status: 'completed', distributed }),
@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
       })
       .eq('id', order_id)
 
-    console.log(`Order ${order_id} ditandai GAGAL (${action}) oleh ${userEmail}, poin direfund`)
+    console.log(`Order ${order_id} ditandai GAGAL (${action}) oleh admin, poin direfund`)
 
     return new Response(
       JSON.stringify({ success: true, status: 'failed', refunded: order.points_used }),

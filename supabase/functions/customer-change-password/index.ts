@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (fetchError || !authData) {
-      console.warn('Customer auth record not found for:', user.email)
+      console.warn('Customer auth record not found')
       return new Response(
         JSON.stringify({ error: 'Data autentikasi tidak ditemukan' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

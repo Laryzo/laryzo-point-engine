@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (callerError || !callerAdmin || callerAdmin.role !== 'super_admin') {
-      console.warn('Non-super_admin attempted to create admin:', user.email)
+      console.warn('Non-super_admin attempted to create admin')
       return new Response(
         JSON.stringify({ error: 'Only super admins can create new admins' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
