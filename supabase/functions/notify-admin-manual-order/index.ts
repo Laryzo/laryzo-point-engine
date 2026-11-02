@@ -7,6 +7,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 }
 
+function escapeHtml(input: string): string {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders })
@@ -87,29 +96,29 @@ Deno.serve(async (req) => {
     // Build detail rows based on order type
     const detailRows: string[] = []
     detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Order ID</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${shortId}</td></tr>`)
-    detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Customer</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${customer?.name || '-'}</td></tr>`)
-    detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>WhatsApp</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${customer?.whatsapp || '-'}</td></tr>`)
-    detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Produk</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${product?.name || '-'}${!isPhysical ? ` (${product?.digiflazz_sku || '-'})` : ''}</td></tr>`)
+    detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Customer</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(customer?.name || '-')}</td></tr>`)
+    detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>WhatsApp</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(customer?.whatsapp || '-')}</td></tr>`)
+    detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Produk</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(product?.name || '-')}${!isPhysical ? ` (${escapeHtml(product?.digiflazz_sku || '-')})` : ''}</td></tr>`)
 
     if (isPhysical) {
       // Physical product: show delivery address, maps link, qty, notes
-      detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Alamat Pengiriman</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${order.delivery_address || customer?.address || '-'}</td></tr>`)
+      detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Alamat Pengiriman</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(order.delivery_address || customer?.address || '-')}</td></tr>`)
       if (order.delivery_latitude && order.delivery_longitude) {
         const mapsUrl = `https://www.google.com/maps?q=${order.delivery_latitude},${order.delivery_longitude}`
         detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Lokasi</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb"><a href="${mapsUrl}">Buka di Google Maps</a></td></tr>`)
       }
       if (order.item_notes) {
-        detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Catatan Item</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${order.item_notes}</td></tr>`)
+        detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Catatan Item</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(order.item_notes)}</td></tr>`)
       }
       if (order.admin_notes) {
-        detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Catatan Admin</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${order.admin_notes}</td></tr>`)
+        detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Catatan Admin</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(order.admin_notes)}</td></tr>`)
       }
       detailRows.push(`<tr><td style="padding:8px"><b>Total Harga</b></td><td style="padding:8px">Rp ${Number(order.input_value || 0).toLocaleString('id-ID')}</td></tr>`)
     } else {
       // PPOB: show target number, points, reason
-      detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Nomor Tujuan</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>${order.input_value || '-'}</b></td></tr>`)
+      detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Nomor Tujuan</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>${escapeHtml(order.input_value || '-')}</b></td></tr>`)
       detailRows.push(`<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb"><b>Total Poin</b></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${Number(order.points_used).toLocaleString('id-ID')}</td></tr>`)
-      detailRows.push(`<tr><td style="padding:8px"><b>Alasan</b></td><td style="padding:8px">${order.digiflazz_message || 'Digiflazz tidak terhubung'}</td></tr>`)
+      detailRows.push(`<tr><td style="padding:8px"><b>Alasan</b></td><td style="padding:8px">${escapeHtml(order.digiflazz_message || 'Digiflazz tidak terhubung')}</td></tr>`)
     }
 
     // Build steps based on order type

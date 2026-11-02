@@ -6,6 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+function escapeHtml(input: string): string {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
@@ -60,14 +69,14 @@ Deno.serve(async (req) => {
     if (adminEmail && RESEND_KEY) {
       const html = `
         <h2>Permintaan Top Up Saldo Baru</h2>
-        <p><b>Nama:</b> ${customer?.name || '-'}</p>
-        <p><b>Email:</b> ${customer?.email || '-'}</p>
-        <p><b>WhatsApp:</b> ${customer?.whatsapp || '-'}</p>
+        <p><b>Nama:</b> ${escapeHtml(customer?.name || '-')}</p>
+        <p><b>Email:</b> ${escapeHtml(customer?.email || '-')}</p>
+        <p><b>WhatsApp:</b> ${escapeHtml(customer?.whatsapp || '-')}</p>
         <hr/>
         <p><b>Jumlah Top Up:</b> Rp ${Number(req_.amount).toLocaleString('id-ID')}</p>
         <p><b>Kode Unik:</b> ${req_.unique_code}</p>
         <p><b>Total Transfer:</b> Rp ${Number(req_.transfer_amount).toLocaleString('id-ID')}</p>
-        <p><b>Bank:</b> ${bank.bank_name} - ${bank.account_number} a.n. ${bank.account_holder}</p>
+        <p><b>Bank:</b> ${escapeHtml(bank.bank_name)} - ${escapeHtml(bank.account_number)} a.n. ${escapeHtml(bank.account_holder)}</p>
         <p><b>Waktu Konfirmasi:</b> ${new Date().toLocaleString('id-ID')}</p>
         <p>Silakan login ke dashboard admin untuk approve/reject permintaan ini.</p>
       `

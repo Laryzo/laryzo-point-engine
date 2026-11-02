@@ -339,6 +339,10 @@ Deno.serve(async (req) => {
     if (margin !== requestedMargin) {
       console.warn('Satellite margin clamped by server-side validation')
     }
+    // SECURITY: loyalty points are only earned from margins we can verify
+    // against our own catalog. Unknown products record the transaction but
+    // award no points until the product exists in the catalog.
+    const pointableMargin = catalogProduct ? margin : 0
 
     // Create transaction using the server-validated margin
     const { data: transaction, error: transactionError } = await supabase
@@ -367,7 +371,7 @@ Deno.serve(async (req) => {
 
     // Distribute points (1% to customer, 1% to each upline up to 10 levels)
     const qty = requestData.transaction_data.qty || 1
-    const totalMargin = margin * qty
+    const totalMargin = pointableMargin * qty
     const pointPercentage = 0.01 // 1%
 
 
@@ -391,8 +395,8 @@ Deno.serve(async (req) => {
 
     // Give 1% to the customer who made the transaction
     const customerPoints = totalMargin * pointPercentage
-    
-    pointHistoryRecords.push({
+
+    if (pointableMargin > 0) pointHistoryRecords.push({
       transaction_id: transaction.id,
       from_customer: null,
       to_customer: customerId,
@@ -418,7 +422,7 @@ Deno.serve(async (req) => {
       .eq('id', customerId)
       .single()
 
-    if (customer?.parent_id) {
+    if (pointableMargin > 0 && customer?.parent_id) {
       let currentParentId = customer.parent_id
       let level = 1
 

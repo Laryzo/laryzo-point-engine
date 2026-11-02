@@ -117,7 +117,10 @@ Deno.serve(async (req) => {
           throw new Error('Harga item manual tidak valid')
         }
         dbPricePerUnit = clientPrice
-        dbCostPerUnit = 0
+        // SECURITY: implied cost follows the standard 95/5 pricing rule
+        // (selling price = cost / 0.95), so the point-generating margin is the
+        // 5% application fee - never the full caller-supplied price.
+        dbCostPerUnit = Math.round(clientPrice * 0.95)
       }
 
       const total = Math.round(dbPricePerUnit * qtyNum)

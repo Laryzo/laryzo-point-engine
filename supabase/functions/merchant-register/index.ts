@@ -82,7 +82,8 @@ Deno.serve(async (req) => {
 
     if (existingAuth) {
       return new Response(
-        JSON.stringify({ error: 'Email sudah terdaftar sebagai mitra' }),
+        // Generic message: do not confirm whether the email is already registered.
+        JSON.stringify({ error: 'Pendaftaran tidak dapat diproses. Periksa kembali data Anda, atau masuk jika Anda sudah memiliki akun mitra.' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
