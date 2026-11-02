@@ -695,17 +695,16 @@ const CustomerShop = () => {
       } else {
         // Physical/product order: deduct points and/or wallet directly
         if (calc.pointsUsed > 0) {
+          // Server-side, order-bound point debit (verified against the order
+          // and the signed-in customer — never a raw points amount).
           const { data: pointsSuccess, error: pointsError } = await supabase.rpc(
-            'increment_customer_points',
-            {
-              customer_uuid: customer.id,
-              points_to_add: -calc.pointsUsed
-            }
+            'spend_points_for_order',
+            { _order_id: order.id }
           );
           if (pointsError) throw pointsError;
           if (!pointsSuccess) {
             await supabase.from('orders').delete().eq('id', order.id);
-            throw new Error('Gagal mengurangi poin - akun mungkin diblokir');
+            throw new Error('Poin tidak cukup atau akun diblokir');
           }
         }
         if (calc.walletUsed > 0) {
@@ -716,7 +715,7 @@ const CustomerShop = () => {
           if (wErr || !wRes?.success) {
             // refund points if already deducted
             if (calc.pointsUsed > 0) {
-              await supabase.rpc('increment_customer_points', { customer_uuid: customer.id, points_to_add: calc.pointsUsed });
+              await supabase.rpc('refund_points_for_order', { _order_id: order.id });
             }
             await supabase.from('orders').delete().eq('id', order.id);
             throw new Error(wRes?.error || wErr?.message || 'Gagal mendebit saldo');
