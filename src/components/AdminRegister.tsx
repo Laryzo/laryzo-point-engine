@@ -51,7 +51,7 @@ const AdminRegister = ({ onBack }: { onBack?: () => void }) => {
   // This was a critical vulnerability that allowed total data loss from client-side
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4 flex-col">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex items-center justify-center mb-4">
@@ -116,6 +116,14 @@ const AdminRegister = ({ onBack }: { onBack?: () => void }) => {
           {/* System Reset button removed for security - this was a critical vulnerability */}
         </CardContent>
       </Card>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="mt-4 text-sm text-slate-500 hover:text-slate-300 underline"
+        >
+          Kembali ke Login
+        </button>
+      )}
     </div>
   );
 };
