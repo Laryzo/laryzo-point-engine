@@ -84,11 +84,14 @@ Deno.serve(async (req) => {
     // Verify the caller is a super_admin
     const { data: callerAdmin, error: callerError } = await supabase
       .from('admins')
-      .select('id, role')
+      .select('id, role, user_id')
       .eq('email', user.email)
       .single()
 
-    if (callerError || !callerAdmin || callerAdmin.role !== 'super_admin') {
+    // SECURITY: the session user id must match the binding stored on the admin
+    // row. A self-registered auth account reusing a super-admin email address
+    // has a different user id and is rejected here.
+    if (callerError || !callerAdmin || callerAdmin.role !== 'super_admin' || callerAdmin.user_id !== user.id) {
       console.warn('Non-super_admin attempted to create admin')
       return new Response(
         JSON.stringify({ error: 'Only super admins can create new admins' }),
