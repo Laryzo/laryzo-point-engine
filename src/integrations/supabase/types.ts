@@ -23,6 +23,7 @@ export type Database = {
           password_hash: string
           role: Database["public"]["Enums"]["admin_role"]
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -32,6 +33,7 @@ export type Database = {
           password_hash: string
           role?: Database["public"]["Enums"]["admin_role"]
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -41,6 +43,7 @@ export type Database = {
           password_hash?: string
           role?: Database["public"]["Enums"]["admin_role"]
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -624,6 +627,7 @@ export type Database = {
           merchant_id: string | null
           order_type: string
           pickup_address: string | null
+          points_debited_at: string | null
           points_earned: number
           points_used: number
           processed_at: string | null
@@ -661,6 +665,7 @@ export type Database = {
           merchant_id?: string | null
           order_type?: string
           pickup_address?: string | null
+          points_debited_at?: string | null
           points_earned?: number
           points_used?: number
           processed_at?: string | null
@@ -698,6 +703,7 @@ export type Database = {
           merchant_id?: string | null
           order_type?: string
           pickup_address?: string | null
+          points_debited_at?: string | null
           points_earned?: number
           points_used?: number
           processed_at?: string | null
@@ -743,6 +749,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      password_reset_tokens: {
+        Row: {
+          admin_id: string
+          attempts: number
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          token: string
+          used: boolean
+        }
+        Insert: {
+          admin_id: string
+          attempts?: number
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          token: string
+          used?: boolean
+        }
+        Update: {
+          admin_id?: string
+          attempts?: number
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean
+        }
+        Relationships: []
       }
       point_history: {
         Row: {
@@ -1360,6 +1399,8 @@ export type Database = {
         }[]
       }
       recalculate_all_transaction_points: { Args: never; Returns: Json }
+      refund_points_for_order: { Args: { _order_id: string }; Returns: boolean }
+      spend_points_for_order: { Args: { _order_id: string }; Returns: boolean }
     }
     Enums: {
       admin_role: "admin" | "super_admin"

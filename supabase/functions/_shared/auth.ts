@@ -50,14 +50,19 @@ export function isServiceRole(req: Request): boolean {
 // the caller is not authenticated as an admin.
 export async function requireAdmin(req: Request): Promise<null | { email: string; role: string }> {
   const user = await getAuthUser(req)
-  if (!user?.email) return null
+  if (!user?.email || !user.id) return null
   const svc = serviceClient()
   const { data } = await svc
     .from('admins')
-    .select('email, role')
+    .select('email, role, user_id')
     .eq('email', user.email.toLowerCase().trim())
     .maybeSingle()
-  return data ? { email: data.email, role: data.role } : null
+  if (!data) return null
+  // SECURITY: the session user id must match the binding stored on the admin
+  // row. A self-registered auth account reusing an admin email address has a
+  // different user id and is rejected here.
+  if (data.user_id !== user.id) return null
+  return { email: data.email, role: data.role }
 }
 
 export async function requireSuperAdmin(req: Request): Promise<null | { email: string; role: string }> {

@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       .gte('attempted_at', windowStart)
 
     if (attemptCount !== null && attemptCount >= RATE_LIMIT_MAX) {
-      console.log(`Rate limit exceeded for ${sanitizedEmail} from ${clientIp}`)
+      console.log('Rate limit exceeded for a login attempt from', clientIp)
       return new Response(
         JSON.stringify({ error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -79,6 +79,17 @@ Deno.serve(async (req) => {
 
     // Handle registration for first admin
     if (action === 'register') {
+      // SECURITY: first-admin bootstrap requires a server-side setup key so a
+      // random internet caller cannot claim the first super-admin account.
+      const setupKey = String(body.setup_key || req.headers.get('x-setup-key') || '')
+      const expectedSetupKey = Deno.env.get('ADMIN_SETUP_KEY') ?? ''
+      if (!expectedSetupKey || setupKey !== expectedSetupKey) {
+        return new Response(
+          JSON.stringify({ error: 'Registrasi admin dinonaktifkan. Kunci setup diperlukan.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       // Check if any admin exists
       const { count: adminCount } = await supabase
         .from('admins')
@@ -156,6 +167,13 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Bind the new admin row to its auth user (identity pinning).
+      try {
+        await supabase.from('admins').update({ user_id: signInData.session.user.id }).eq('id', newAdmin.id)
+      } catch (bindError) {
+        console.error('Failed to bind admin user_id:', bindError)
+      }
+
       // Log successful registration
       await supabase.from('login_attempts').insert({
         email: sanitizedEmail,
@@ -163,7 +181,7 @@ Deno.serve(async (req) => {
         success: true
       })
 
-      console.log(`Admin registered: ${sanitizedEmail}`)
+      console.log('First admin registered')
 
       return new Response(
         JSON.stringify({
@@ -178,7 +196,7 @@ Deno.serve(async (req) => {
     // Login flow
     const { data: admin, error: adminError } = await supabase
       .from('admins')
-      .select('id, email, name, role, password_hash, created_at')
+      .select('id, email, name, role, password_hash, user_id, created_at')
       .eq('email', sanitizedEmail)
       .single()
 
@@ -190,7 +208,7 @@ Deno.serve(async (req) => {
         success: false
       })
 
-      console.log(`Login failed - admin not found: ${sanitizedEmail}`)
+      console.log('Login failed - admin not found')
       return new Response(
         JSON.stringify({ success: false, error: 'Email atau password salah' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -212,8 +230,6 @@ Deno.serve(async (req) => {
     )
 
     // Verify password using bcryptjs (synchronous, no Workers needed)
-    console.log(`Verifying password for ${sanitizedEmail}...`)
-    console.log(`Hash prefix: ${admin.password_hash.substring(0, 7)}`)
 
     // Normalize bcrypt hash prefix for compatibility ($2a$ vs $2b$)
     // bcryptjs uses $2a$ but some implementations use $2b$ - they are functionally equivalent
@@ -241,9 +257,7 @@ Deno.serve(async (req) => {
       })
 
       if (fallbackSignInError || !fallbackSignIn.session) {
-        console.log(
-          `Auth fallback signIn failed for ${sanitizedEmail}: ${fallbackSignInError?.message ?? 'no_message'}`
-        )
+        console.log('Auth fallback signIn failed:', fallbackSignInError?.message ?? 'no_message')
 
         // Log failed attempt
         await supabase.from('login_attempts').insert({
@@ -252,7 +266,7 @@ Deno.serve(async (req) => {
           success: false,
         })
 
-        console.log(`Login failed - invalid password: ${sanitizedEmail}`)
+        console.log('Login failed - invalid password')
         return new Response(
           JSON.stringify({ success: false, error: 'Email atau password salah' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -275,6 +289,13 @@ Deno.serve(async (req) => {
         console.error('Hash resync error:', syncError)
       }
 
+      // Bind the admin row to the verified auth user (identity pinning).
+      try {
+        await supabase.from('admins').update({ user_id: fallbackSignIn.session.user.id }).eq('id', admin.id)
+      } catch (bindError) {
+        console.error('Failed to bind admin user_id:', bindError)
+      }
+
       // Log successful login
       await supabase.from('login_attempts').insert({
         email: sanitizedEmail,
@@ -282,7 +303,7 @@ Deno.serve(async (req) => {
         success: true,
       })
 
-      console.log(`Admin logged in via auth fallback: ${sanitizedEmail}`)
+      console.log('Admin logged in via auth fallback')
 
       const { password_hash, ...safeAdmin } = admin
 
@@ -349,6 +370,13 @@ Deno.serve(async (req) => {
         )
       }
 
+     // Bind the admin row to the verified auth user (identity pinning).
+     try {
+       await supabase.from('admins').update({ user_id: signInData.session.user.id }).eq('id', admin.id)
+     } catch (bindError) {
+       console.error('Failed to bind admin user_id:', bindError)
+     }
+
      // Log successful login
      await supabase.from('login_attempts').insert({
        email: sanitizedEmail,
@@ -356,7 +384,7 @@ Deno.serve(async (req) => {
        success: true
      })
 
-     console.log(`Admin logged in: ${sanitizedEmail}`)
+     console.log('Admin logged in')
 
      // Return admin without password hash
      const { password_hash, ...safeAdmin } = admin

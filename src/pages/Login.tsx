@@ -19,13 +19,14 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const { login, isFirstAdmin } = useAuth();
+  const [showFirstAdminRegister, setShowFirstAdminRegister] = useState(false);
+  const { login } = useAuth();
   const navigate = useNavigate();
   const { t } = useLanguage();
 
-  // Show admin register if no admins exist
-  if (isFirstAdmin) {
-    return <AdminRegister />;
+  // First-admin bootstrap is explicit and requires the server-side setup key.
+  if (showFirstAdminRegister) {
+    return <AdminRegister onBack={() => setShowFirstAdminRegister(false)} />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,6 +115,17 @@ const Login = () => {
             >
               <HelpCircle className="w-4 h-4 mr-1" />
               {t("Lupa Password atau Email?", "Forgot Password or Email?")}
+            </Button>
+          </div>
+
+          <div className="mt-1 flex justify-center">
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => setShowFirstAdminRegister(true)}
+              className="p-0 h-auto font-normal text-xs text-slate-500 hover:text-cyan-400"
+            >
+              {t("Daftar Admin Pertama (kunci setup)", "Register First Admin (setup key)")}
             </Button>
           </div>
           

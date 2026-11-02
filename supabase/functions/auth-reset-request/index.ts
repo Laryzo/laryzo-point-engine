@@ -98,16 +98,26 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
 
-    // Generate random 6-digit token
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    // SECURITY: generate the token with a CSPRNG (never Math.random).
+    // 8-digit code from 4 random bytes, uniformly reduced and zero-padded.
+    const randomBytes = new Uint32Array(1);
+    crypto.getRandomValues(randomBytes);
+    const token = String(randomBytes[0] % 100000000).padStart(8, '0');
     
     // Set expiry time (15 minutes from now)
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-    // Store token in database (you may want to create a password_reset_tokens table)
+    // Invalidate any previous unused tokens for this admin, then store the new
+    // single-use token in the database.
+    await supabase
+      .from('password_reset_tokens')
+      .delete()
+      .eq('email', normalizedEmail)
+      .eq('used', false);
+
     const { error: tokenError } = await supabase
       .from('password_reset_tokens')
-      .upsert({
+      .insert({
         admin_id: admin.id,
         token,
         email: normalizedEmail,

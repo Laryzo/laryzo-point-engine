@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     const { name, email, password, whatsapp, business_name, business_address } = body
-    console.log(`Registering merchant: ${email}`)
+    console.log('Merchant registration request received')
 
     if (!name || !email || !password || !whatsapp || !business_name) {
       return new Response(
@@ -82,7 +82,8 @@ Deno.serve(async (req) => {
 
     if (existingAuth) {
       return new Response(
-        JSON.stringify({ error: 'Email sudah terdaftar sebagai mitra' }),
+        // Generic message: do not confirm whether the email is already registered.
+        JSON.stringify({ error: 'Pendaftaran tidak dapat diproses. Periksa kembali data Anda, atau masuk jika Anda sudah memiliki akun mitra.' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -159,7 +160,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Merchant registered successfully: ${sanitizedEmail}`)
+    console.log('Merchant registered successfully')
 
     return new Response(
       JSON.stringify({ 

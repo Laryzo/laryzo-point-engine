@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
             });
 
             if (authUserError && !authUserError.message.includes("already been registered")) {
-              console.warn(`Auth user creation warning for ${customer.email}:`, authUserError.message);
+              console.warn('Auth user creation warning:', authUserError.message);
             }
 
             created++;

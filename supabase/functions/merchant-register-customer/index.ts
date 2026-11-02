@@ -7,6 +7,15 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+function escapeHtml(input: string): string {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function generatePassword(length = 8): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
   let result = ''
@@ -83,10 +92,10 @@ async function sendCredentialEmail(
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
           <h2 style="color: #ea580c;">🎉 Selamat Datang di Laryzo!</h2>
-          <p>Akun baru telah dibuat oleh <strong>${merchantName}</strong>:</p>
+          <p>Akun baru telah dibuat oleh <strong>${escapeHtml(merchantName)}</strong>:</p>
           <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p><strong>Nama:</strong> ${customerName}</p>
-            <p><strong>Email:</strong> ${customerEmail}</p>
+            <p><strong>Nama:</strong> ${escapeHtml(customerName)}</p>
+            <p><strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
             <p><strong>Password:</strong> ${password}</p>
           </div>
           <p>Silakan login di portal Laryzo menggunakan kredensial di atas.</p>
@@ -94,7 +103,7 @@ async function sendCredentialEmail(
         </div>
       `,
     })
-    console.log(`Credential email sent to ${recipientEmail}`)
+    console.log('Credential email sent')
   } catch (e) {
     console.error('Failed to send credential email:', e)
   }
@@ -176,8 +185,10 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (existingByEmail) {
+      // SECURITY: do not leak other PII (email/whatsapp/points) of an existing
+      // customer to any merchant that merely knows their email address.
       return new Response(
-        JSON.stringify({ success: true, customer: existingByEmail, is_new: false }),
+        JSON.stringify({ success: true, customer: { id: existingByEmail.id, name: existingByEmail.name }, is_new: false }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -190,7 +201,7 @@ Deno.serve(async (req) => {
 
     if (existingByWa) {
       return new Response(
-        JSON.stringify({ success: true, customer: existingByWa, is_new: false }),
+        JSON.stringify({ success: true, customer: { id: existingByWa.id, name: existingByWa.name }, is_new: false }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -257,7 +268,7 @@ Deno.serve(async (req) => {
       sendCredentialEmail(merchantEmail, name.trim(), sanitizedEmail, maskedPassword, merchantDisplayName)
     }
 
-    console.log(`New customer registered from merchant POS: ${name} (${sanitizedEmail}) by merchant ${merchantAuth.merchant_id}`)
+    console.log('New customer registered from merchant POS')
 
     return new Response(
       JSON.stringify({ success: true, customer: newCustomer, is_new: true, password: plainPassword }),

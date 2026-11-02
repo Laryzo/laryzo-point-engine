@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
         user_metadata: { merchant_id: callerAuth.merchant_id },
       })
 
-      console.log(`Merchant employee created: ${sanitizedEmail} by ${user.email}`)
+      console.log('Merchant employee created')
 
       return new Response(
         JSON.stringify({ success: true }),
@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
 
       if (deleteError) throw deleteError
 
-      console.log(`Merchant employee deleted: ${employee.email} by ${user.email}`)
+      console.log('Merchant employee deleted')
 
       return new Response(
         JSON.stringify({ success: true }),

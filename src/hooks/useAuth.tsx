@@ -14,7 +14,7 @@ interface AuthContextType {
   loading: boolean;
   isFirstAdmin: boolean;
   login: (email: string, password: string) => Promise<{ error?: string }>;
-  register: (name: string, email: string, password: string) => Promise<{ error?: string }>;
+  register: (name: string, email: string, password: string, setupKey?: string) => Promise<{ error?: string }>;
   logout: () => void;
   resetSystem: () => Promise<{ error?: string }>;
 }
@@ -27,8 +27,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isFirstAdmin, setIsFirstAdmin] = useState(false);
 
   useEffect(() => {
-    checkAdminExists();
-
     // Check for stored admin session
     const storedAdmin = localStorage.getItem('admin_session');
     if (storedAdmin) {
@@ -49,26 +47,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const checkAdminExists = async () => {
-    try {
-      // Use Edge Function to check admin status securely
-      const { data, error } = await supabase.functions.invoke('admin-check');
-
-      if (error) {
-        console.error('Error checking admin:', error);
-        // Don't fallback to registration page on error - assume admins exist
-        setIsFirstAdmin(false);
-      } else {
-        setIsFirstAdmin(data?.isFirstAdmin || false);
-      }
-    } catch (error) {
-      console.error('Error in checkAdminExists:', error);
-      // Don't fallback to registration page on error - assume admins exist
-      setIsFirstAdmin(false);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Admin bootstrap is now gated server-side by a setup key; the app no
+  // longer probes a public endpoint to learn whether any admin exists.
+  setTimeout(() => setLoading(false), 0);
 
   const login = async (email: string, password: string) => {
     try {
@@ -106,11 +87,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, setupKey?: string) => {
     try {
       // Use Edge Function for secure server-side registration
       const { data, error } = await supabase.functions.invoke('admin-login', {
-        body: { email, password, name, action: 'register' }
+        body: { email, password, name, action: 'register', setup_key: setupKey }
       });
 
       if (error) {

@@ -7,10 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Shield } from 'lucide-react';
 
-const AdminRegister = () => {
+const AdminRegister = ({ onBack }: { onBack?: () => void }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [setupKey, setSetupKey] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const { toast } = useToast();
@@ -18,7 +19,7 @@ const AdminRegister = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !setupKey) {
       toast({
         title: "Error",
         description: "Semua field harus diisi",
@@ -28,7 +29,7 @@ const AdminRegister = () => {
     }
 
     setLoading(true);
-    const { error } = await register(name, email, password);
+    const { error } = await register(name, email, password, setupKey);
     
     if (error) {
       toast({
@@ -50,7 +51,7 @@ const AdminRegister = () => {
   // This was a critical vulnerability that allowed total data loss from client-side
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4 flex-col">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex items-center justify-center mb-4">
@@ -71,6 +72,17 @@ const AdminRegister = () => {
                 placeholder="Masukkan nama lengkap"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="setup-key">Kunci Setup</Label>
+              <Input
+                id="setup-key"
+                type="password"
+                placeholder="Kunci setup dari admin sistem"
+                value={setupKey}
+                onChange={(e) => setSetupKey(e.target.value)}
                 required
               />
             </div>
@@ -104,6 +116,14 @@ const AdminRegister = () => {
           {/* System Reset button removed for security - this was a critical vulnerability */}
         </CardContent>
       </Card>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="mt-4 text-sm text-slate-500 hover:text-slate-300 underline"
+        >
+          Kembali ke Login
+        </button>
+      )}
     </div>
   );
 };

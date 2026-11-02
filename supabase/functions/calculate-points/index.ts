@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`Starting point calculation, requested by admin ${user.email}...`);
+    console.log('Starting point calculation, requested by an admin...');
 
     // 1. Clear existing point_history (trigger will auto-subtract from customers.points)
     // Then reset customer points to 0 to ensure clean slate

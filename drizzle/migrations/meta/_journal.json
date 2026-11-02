@@ -15,6 +15,13 @@
       "when": 1793652896115,
       "tag": "0001_tighten_landing_assets_read",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793654698067,
+      "tag": "0002_harden_admin_identity_points_and_merchant_access",
+      "breakpoints": true
     }
   ]
 }

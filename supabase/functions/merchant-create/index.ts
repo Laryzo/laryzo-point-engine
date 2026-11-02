@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       user_metadata: { merchant_id },
     })
 
-    console.log(`Merchant auth created for: ${sanitizedEmail}`)
+    console.log('Merchant auth created')
 
     return new Response(
       JSON.stringify({ success: true }),

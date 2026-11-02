@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
       .gte('attempted_at', windowStart)
 
     if (attemptCount !== null && attemptCount >= RATE_LIMIT_MAX) {
-      console.log(`Rate limit exceeded for ${sanitizedEmail}`)
+      console.log('Rate limit exceeded for a login attempt')
       return new Response(
         JSON.stringify({ error: 'Terlalu banyak percobaan. Coba lagi dalam 15 menit.' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
         success: true
       })
 
-      console.log(`Customer registered: ${sanitizedEmail}`)
+      console.log('Customer registered')
 
       return new Response(
         JSON.stringify({
@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
         success: false
       })
 
-      console.log(`Customer login failed - not found: ${sanitizedEmail}`)
+      console.log('Customer login failed - not found')
       return new Response(
         JSON.stringify({ success: false, error: 'Email atau password salah' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
         success: false
       })
 
-      console.log(`Customer login failed - invalid password: ${sanitizedEmail}`)
+      console.log('Customer login failed - invalid password')
       return new Response(
         JSON.stringify({ success: false, error: 'Email atau password salah' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -309,7 +309,7 @@ Deno.serve(async (req) => {
       success: true
     })
 
-    console.log(`Customer logged in: ${sanitizedEmail}`)
+    console.log('Customer logged in')
 
     // Ensure auth user exists and password is synced so we can sign in and get JWT
     const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers({

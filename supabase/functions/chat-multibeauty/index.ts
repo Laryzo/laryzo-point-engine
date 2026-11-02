@@ -463,6 +463,33 @@ function getSemanticCategory(message: string): string | null {
 }
 
 // ============================================================
+// RATE LIMITING — the endpoint must stay public (landing page),
+// but unbounded paid AI usage is a cost-abuse risk. Sliding-window
+// limiter per client IP (per server isolate).
+// ============================================================
+const RATE_WINDOW_MS = 10 * 60 * 1000 // 10 minutes
+const RATE_MAX_MESSAGES = 20 // max messages per window per IP
+const chatRateBuckets = new Map<string, number[]>()
+
+function isChatRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const bucket = (chatRateBuckets.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS)
+  if (bucket.length >= RATE_MAX_MESSAGES) {
+    chatRateBuckets.set(ip, bucket)
+    return true
+  }
+  bucket.push(now)
+  chatRateBuckets.set(ip, bucket)
+  // Opportunistic cleanup so the map cannot grow without bound.
+  if (chatRateBuckets.size > 5000) {
+    for (const [key, times] of chatRateBuckets) {
+      if (times.every((t) => now - t >= RATE_WINDOW_MS)) chatRateBuckets.delete(key)
+    }
+  }
+  return false
+}
+
+// ============================================================
 // SUPABASE CLIENT
 // ============================================================
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -484,6 +511,18 @@ serve(async (req) => {
     // Accepting it would let any visitor replace the system prompt and use this
     // endpoint as a free, unrestricted LLM proxy on our AI bill.
     const { message, conversationHistory, whatsappNumber, landingSlug = "multibeauty" } = body;
+
+    // Rate limit per client IP before touching the paid AI service
+    const clientIp = (req.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim()
+    if (isChatRateLimited(clientIp)) {
+      return new Response(
+        JSON.stringify({
+          message: "Anda mengirim pesan terlalu banyak. Mohon tunggu beberapa menit, atau hubungi kami via WhatsApp ya! 💬",
+          whatsappNumber: body.whatsappNumber || null,
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Check for required fields + basic input validation
     if (!message || typeof message !== "string" || message.trim().length === 0) {
