@@ -83,16 +83,18 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Find valid token
-    const { data: tokenData, error: tokenError } = await supabase
+    // Load all unused tokens for this email, then verify with a capped number
+    // of attempts so the code cannot be brute-forced.
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const { data: candidateTokens, error: tokenError } = await supabase
       .from('password_reset_tokens')
       .select('*')
-      .eq('token', token)
-      .eq('email', email)
-      .eq('used', false)
-      .single();
+      .eq('email', normalizedEmail)
+      .eq('used', false);
 
-    if (tokenError || !tokenData) {
+    const MAX_VERIFY_ATTEMPTS = 5;
+
+    if (tokenError || !candidateTokens || candidateTokens.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Invalid or expired token' }),
         { 
@@ -101,6 +103,18 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     }
+
+    if (candidateTokens.some((t: any) => (t.attempts ?? 0) >= MAX_VERIFY_ATTEMPTS)) {
+      return new Response(
+        JSON.stringify({ error: 'Terlalu banyak percobaan. Minta token reset baru.' }),
+        { 
+          status: 429, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const tokenData = candidateTokens.find((t: any) => t.token === String(token).trim());
 
     // Check if token is expired
     const now = new Date();
