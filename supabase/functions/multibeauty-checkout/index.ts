@@ -145,7 +145,15 @@ Deno.serve(async (req) => {
           })
           .eq("id", customerId);
       } else {
-        console.log("Existing customer order from unauthenticated caller — profile left unchanged");
+        // SECURITY: an unauthenticated caller must not be able to attach orders
+        // (or trigger notifications/processing) to an account they cannot prove
+        // ownership of just by knowing the email address.
+        return new Response(
+          JSON.stringify({
+            error: "Email sudah terdaftar. Silakan masuk dengan akun Anda terlebih dahulu untuk memesan, atau gunakan email lain.",
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     } else {
 

@@ -39,6 +39,38 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
+// Rate limiting: this endpoint queries customer data by phone number, so cap
+// probing per client IP (sliding window, per server isolate).
+const RECOVERY_WINDOW_MS = 15 * 60 * 1000
+const RECOVERY_MAX_REQUESTS = 5
+const recoveryBuckets = new Map<string, number[]>()
+
+function isRecoveryRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const bucket = (recoveryBuckets.get(ip) || []).filter((t) => now - t < RECOVERY_WINDOW_MS)
+  if (bucket.length >= RECOVERY_MAX_REQUESTS) {
+    recoveryBuckets.set(ip, bucket)
+    return true
+  }
+  bucket.push(now)
+  recoveryBuckets.set(ip, bucket)
+  if (recoveryBuckets.size > 5000) {
+    for (const [key, times] of recoveryBuckets) {
+      if (times.every((t) => now - t >= RECOVERY_WINDOW_MS)) recoveryBuckets.delete(key)
+    }
+  }
+  return false
+}
+
+function escapeHtml(input: string): string {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 interface RequestBody {
   whatsapp: string;
 }
@@ -61,6 +93,15 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Rate limit before any database lookup
+    const clientIp = (req.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim()
+    if (isRecoveryRateLimited(clientIp)) {
+      return new Response(
+        JSON.stringify({ error: 'Terlalu banyak permintaan. Coba lagi nanti.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const { whatsapp }: RequestBody = await req.json();
 
     if (!whatsapp) {
@@ -73,11 +114,24 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Normalize: only digits, sane length, otherwise return the generic
+    // response without touching the database.
+    const digits = String(whatsapp).replace(/\D/g, '')
+    if (digits.length < 10 || digits.length > 15) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'If this WhatsApp number is registered, the associated email has been sent to you.'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Find customer with this WhatsApp number
     const { data: customer, error: customerError } = await supabase
       .from('customers')
       .select('email, name')
-      .eq('whatsapp', whatsapp)
+      .eq('whatsapp', digits)
       .single();
 
     if (customerError || !customer || !customer.email) {
@@ -102,11 +156,11 @@ const handler = async (req: Request): Promise<Response> => {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Email Recovery</h2>
-          <p>Halo ${customer.name},</p>
-          <p>Anda telah meminta informasi email yang terkait dengan nomor WhatsApp ${whatsapp}.</p>
+          <p>Halo ${escapeHtml(customer.name)},</p>
+          <p>Anda telah meminta informasi email yang terkait dengan nomor WhatsApp ${escapeHtml(digits)}.</p>
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>Email terkait:</strong></p>
-            <h3 style="color: #333; margin: 10px 0;">${customer.email}</h3>
+            <h3 style="color: #333; margin: 10px 0;">${escapeHtml(customer.email)}</h3>
           </div>
           <p>Gunakan email ini untuk login ke sistem Laryzo Point Engine.</p>
           <p>Jika Anda tidak meminta informasi ini, abaikan email ini.</p>
