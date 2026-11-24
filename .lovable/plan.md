@@ -1,53 +1,20 @@
-# Setup VPS Proxy untuk Digiflazz
+# Verifikasi Customer Full Service dan Pendaftaran Driver
 
-## Tujuan
-Menyediakan VPS dengan IP static Indonesia yang berfungsi sebagai proxy aman antara aplikasi Laryzo (Lovable Cloud) dan API Digiflazz, karena Digiflazz mewajibkan pemanggilan API dari IP Indonesia yang telah di-whitelist.
+## Yang Akan Dibangun
+- Form verifikasi customer di halaman Profil: nama sesuai KTP, NIK, dan foto KTP. Status ditampilkan sebagai belum diajukan, menunggu, disetujui, atau perlu perbaikan; tidak ada bonus poin verifikasi.
+- Akun yang belum disetujui tetap dapat memakai layanan digital dan mengumpulkan poin, tetapi tidak dapat membayar pesanan produk fisik toko/mitra dengan poin. Pemeriksaan dilakukan di aplikasi dan di server agar tidak bisa dilewati. Verifikasi membuka akses layanan driver dan fitur tukar poin ke E-Wallet saat layanan tersebut tersedia.
+- Formulir pendaftaran driver hanya untuk customer yang sedang masuk. Semua dokumen wajib dikirim saat pendaftaran: identitas KTP, foto diri, SIM dan masa berlaku, STNK dan masa berlaku pajak, data serta foto kendaraan, dan SKCK beserta masa berlaku.
+- Menu pemeriksaan Admin untuk menyetujui atau menolak KTP customer dan pendaftaran driver, disertai catatan koreksi. Karena berkas berisi data identitas sensitif, akses pemeriksaan dibatasi ke Super Admin.
+- Berkas disimpan privat; pemilik hanya dapat mengunggah ke foldernya sendiri, sedangkan berkas hanya dapat dilihat Super Admin melalui tautan sementara.
 
-## Hasil Akhir yang Diharapkan
-1. VPS berjalan dengan IP static Indonesia.
-2. Aplikasi proxy meneruskan request dari edge function Laryzo ke `https://api.digiflazz.com/v1/transaction`.
-3. Proxy dilindungi secret key sehingga tidak bisa dipakai orang lain.
-4. Edge function `digiflazz-topup` (dan fungsi terkait) diarahkan ke URL proxy VPS.
-5. Webhook Digiflazz tetap diterima langsung oleh edge function `digiflazz-webhook` di Lovable Cloud.
+## Rincian Teknis
+- Tambahkan tabel aplikasi verifikasi terpisah dari profil customer, tanpa akses baca/tulis langsung dari browser; fungsi server memeriksa customer atau Super Admin sebelum membaca/mengubahnya.
+- Buat bucket dokumen privat dan kebijakan unggah berbasis sesi customer serta folder pemilik.
+- Tambahkan fungsi server untuk status/pengajuan customer, pengajuan driver, serta antrean dan keputusan Super Admin.
+- Tambahkan pemeriksaan verifikasi di proses pembelian mitra dan proses pemakaian poin untuk order fisik.
+- Perbarui Profil Customer, halaman pengajuan driver, Dashboard Admin, dan tipe data aplikasi.
 
-## Tahapan Pekerjaan
-
-### 1. Siapkan VPS
-- Rekomendasikan provider VPS dengan lokasi Indonesia (misalnya IDCloudHost, Niagahoster, Cloudflare RPS, atau DigitalOcean Singapore sebagai fallback).
-- Spesifikasi minimum: 1 vCPU, 1 GB RAM, Ubuntu 22.04/24.04 LTS.
-- Pastikan IP public static dan port 443 terbuka.
-
-### 2. Pasang Infrastruktur Dasar di VPS
-- Update sistem dan install Node.js 20 LTS.
-- Install PM2 untuk menjalankan proxy sebagai service.
-- Install dan konfigurasi Nginx sebagai reverse proxy dengan SSL (Let's Encrypt/certbot).
-- Buka firewall (UFW) hanya untuk 22, 80, dan 443.
-
-### 3. Buat Aplikasi Proxy Digiflazz
-- Buat folder project `/opt/digiflazz-proxy`.
-- Buat server Express/Node.js yang:
-  - Menerima POST di `/digiflazz/v1/transaction`.
-  - Memvalidasi header `X-Proxy-Secret`.
-  - Meneruskan body request ke `https://api.digiflazz.com/v1/transaction`.
-  - Mengembalikan response Digiflazz ke client tanpa modifikasi.
-- Sertakan logging dasar (timestamp, ref_id, status response) untuk debug.
-
-### 4. Atur Keamanan Proxy
-- Generate secret key acak (misalnya 64 karakter hex).
-- Simpan secret key di environment variable VPS (`DIGIFLAZZ_PROXY_SECRET`).
-- Pastikan endpoint proxy hanya meneruskan ke path transaction Digiflazz; tolak path lain.
-
-### 5. Konfigurasi Aplikasi Laryzo
-- Di edge function `supabase/functions/digiflazz-topup/index.ts`, gunakan environment variable `DIGIFLAZZ_PROXY_URL` dan `DIGIFLAZZ_PROXY_SECRET`.
-- Jika environment variable tidak diisi, edge function tetap bisa fallback ke API Digiflazz langsung (untuk development/testing).
-- Simpan `DIGIFLAZZ_PROXY_URL` dan `DIGIFLAZZ_PROXY_SECRET` sebagai secret di Lovable Cloud.
-
-### 6. Deploy dan Uji
-- Jalankan proxy di VPS menggunakan PM2.
-- Uji endpoint proxy dengan curl dari local/edge function.
-- Lakukan test transaksi PPOB (dengan mode development/testing) untuk memastikan response Digiflazz sampai ke aplikasi.
-
-## Catatan Penting
-- Saya tidak bisa membeli VPS langsung; Anda perlu menyediakan VPS sendiri.
-- Setelah VPS siap, saya bisa membuat script instalasi otomatis dan mengonfigurasi aplikasi proxy.
-- Biaya VPS sepenuhnya ditanggung Anda ke provider pilihan.
+## Batas Pekerjaan
+- Tidak membangun pencarian/penugasan driver, perjalanan, pelacakan lokasi, dompet driver, atau pembayaran tunai.
+- Tidak membuat pencairan poin ke E-Wallet yang belum tersedia; aksesnya akan mengikuti status verifikasi ketika fitur itu dibangun.
+- Tidak mengubah data transaksi/customer yang sudah ada.
