@@ -6,3 +6,4 @@
 - Customer self-updates cannot change points/points_blocked/parent_id/position (DB trigger `guard_customer_self_update_trg`).
 - Merchant access functions require `merchants.is_active = true`.
 - Edge function logs must never contain emails, phone numbers, or customer names (PII).
+- Customer identity and driver documents must remain in private storage and service-role-only records; owner-scoped uploads and Super Admin-only review reduce KTP/SKCK exposure.
