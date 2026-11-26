@@ -131,6 +131,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (pointsToDeduct > 0) {
+      const { data: identity } = await supabase
+        .from("customer_identity_verifications")
+        .select("status")
+        .eq("customer_id", customerId)
+        .maybeSingle();
+
+      if (identity?.status !== "approved") {
+        return new Response(JSON.stringify({ error: "Verifikasi KTP Full Service diperlukan sebelum membayar belanja mitra dengan poin." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     if ((customer.points || 0) < pointsToDeduct) {
       return new Response(JSON.stringify({ error: "Poin tidak cukup" }), {
         status: 400,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '@/hooks/useCustomerAuth';
+import { useCustomerIdentity } from '@/hooks/useCustomerIdentity';
 import { useCart } from '@/hooks/useCart';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -103,6 +104,7 @@ interface PhoneHistoryItem {
 const CustomerShop = () => {
   const navigate = useNavigate();
   const { customer, refreshCustomer } = useCustomerAuth();
+  const { isFullService, loading: identityLoading } = useCustomerIdentity();
   const { count: cartCount } = useCart();
   const { toast } = useToast();
   
@@ -588,6 +590,16 @@ const CustomerShop = () => {
     const walletBalance = Number(customer.balance || 0);
     const pointsBalance = Number(customer.points || 0);
     const calc = calculatePayment(paymentMethod, totalPointsNeeded, walletBalance, pointsBalance);
+
+    const requiresFullService = (selectedProduct.type === 'physical' || selectedProduct.type === 'merchant') && calc.pointsUsed > 0;
+    if (requiresFullService && !isFullService) {
+      toast({
+        title: 'Verifikasi KTP diperlukan',
+        description: 'Akun Full Service diperlukan untuk membayar belanja fisik mitra dengan poin.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (!calc.canPay) {
       toast({
@@ -1356,6 +1368,17 @@ const CustomerShop = () => {
             )}
 
             {customer && selectedProduct && (
+              (selectedProduct.type === 'physical' || selectedProduct.type === 'merchant') && !isFullService && calculatePayment(paymentMethod, selectedProduct.point_price, Number(customer.balance || 0), Number(customer.points || 0)).pointsUsed > 0 && (
+                <div className="flex flex-col gap-2 border-t pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-muted-foreground">Verifikasi KTP untuk membayar produk fisik mitra dengan poin.</p>
+                  <Button type="button" variant="link" className="h-auto justify-start p-0" onClick={() => navigate('/portal/profile')}>
+                    Buka verifikasi
+                  </Button>
+                </div>
+              )
+            )}
+
+            {customer && selectedProduct && (
               <PaymentMethodSelector
                 totalPrice={selectedProduct.point_price}
                 walletBalance={Number(customer.balance || 0)}
@@ -1374,7 +1397,7 @@ const CustomerShop = () => {
             </Button>
             <Button 
               onClick={handleOrder} 
-              disabled={orderLoading || !customer || !selectedProduct || !calculatePayment(paymentMethod, selectedProduct.point_price, Number(customer.balance || 0), Number(customer.points || 0)).canPay}
+              disabled={orderLoading || !customer || !selectedProduct || !calculatePayment(paymentMethod, selectedProduct.point_price, Number(customer.balance || 0), Number(customer.points || 0)).canPay || ((selectedProduct.type === 'physical' || selectedProduct.type === 'merchant') && calculatePayment(paymentMethod, selectedProduct.point_price, Number(customer.balance || 0), Number(customer.points || 0)).pointsUsed > 0 && (!isFullService || identityLoading))}
             >
               {orderLoading ? 'Memproses...' : 'Beli Sekarang'}
             </Button>

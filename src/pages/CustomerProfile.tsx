@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User, Mail, Phone, Lock, Save, Loader2, Home } from 'lucide-react';
 import MapLocationPicker from '@/components/MapLocationPicker';
+import CustomerIdentityVerification from '@/components/CustomerIdentityVerification';
 
 const CustomerProfile = () => {
   const navigate = useNavigate();
@@ -256,6 +257,8 @@ const CustomerProfile = () => {
             </form>
           </CardContent>
         </Card>
+
+        <CustomerIdentityVerification />
 
         {/* Change Password */}
         <Card>

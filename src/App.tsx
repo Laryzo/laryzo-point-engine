@@ -38,6 +38,7 @@ const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const MerchantPage = lazy(() => import("./pages/MerchantPage"));
 const CustomerCart = lazy(() => import("./pages/CustomerCart"));
 const CustomerCheckout = lazy(() => import("./pages/CustomerCheckout"));
+const DriverApplication = lazy(() => import("./pages/DriverApplication"));
 
 const queryClient = new QueryClient();
 
@@ -100,6 +101,11 @@ const CustomerPortalRoutes = () => {
       <Route path="cart" element={
         <CustomerProtectedRoute>
           <CustomerCart />
+        </CustomerProtectedRoute>
+      } />
+      <Route path="driver/register" element={
+        <CustomerProtectedRoute>
+          <DriverApplication />
         </CustomerProtectedRoute>
       } />
       <Route path="checkout" element={

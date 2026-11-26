@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins, Wallet, Layout, CalendarClock } from 'lucide-react';
+import { Users, TrendingUp, ShoppingCart, Award, LogOut, Plus, Settings, Home, TreePine, List, Receipt, Satellite, Package, ClipboardList, Cog, Store, CalendarDays, BarChart3, Coins, Wallet, Layout, CalendarClock, ShieldCheck } from 'lucide-react';
 import LandingBuilder from '@/pages/LandingBuilder';
 import { CustomerTree } from '@/components/CustomerTree';
 import { CustomerForm } from '@/components/CustomerForm';
@@ -23,6 +23,7 @@ import MerchantManagement from '@/components/MerchantManagement';
 import PointHistoryManagement from '@/components/PointHistoryManagement';
 import AdminTopupRequests from '@/pages/AdminTopupRequests';
 import AdminPromoReservations from '@/pages/AdminPromoReservations';
+import IdentityReviewManagement from '@/components/IdentityReviewManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -140,6 +141,8 @@ const Dashboard = () => {
         return isSuperAdmin ? <SystemSettings /> : null;
       case 'promo-locks':
         return <AdminPromoReservations />;
+      case 'identity-verification':
+        return isSuperAdmin ? <IdentityReviewManagement /> : null;
       case 'landing-builder':
         return <div className="h-[calc(100vh-73px)]"><LandingBuilder /></div>;
       case 'tree':
@@ -360,6 +363,17 @@ const Dashboard = () => {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        onClick={() => handleMenuChange('identity-verification')}
+                        className={activeView === 'identity-verification' ? 'bg-accent' : ''}
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Verifikasi Identitas</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       onClick={() => handleMenuChange('customers')}
@@ -491,6 +505,7 @@ const Dashboard = () => {
                  activeView === 'topup-requests' ? 'Top Up Saldo' :
                  activeView === 'landing-builder' ? 'Landing Page Builder' :
                  activeView === 'promo-locks' ? 'Kunci Promo Multibeauty' :
+                 activeView === 'identity-verification' ? 'Verifikasi Identitas' :
                  activeView === 'settings' ? 'Settings' :
                  'Dashboard'}
               </h1>

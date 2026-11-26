@@ -4,7 +4,7 @@ import {
   expectedDriverDocumentPath,
   isCurrentDocumentDate,
   isValidNationalId,
-} from './identity-validation.ts';
+} from '../_shared/identity-validation.ts';
 
 Deno.test('NIK requires exactly 16 digits', () => {
   if (!isValidNationalId('3173010101900001')) throw new Error('16-digit NIK should be accepted');

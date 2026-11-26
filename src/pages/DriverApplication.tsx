@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '@/hooks/useCustomerAuth';
 import { useCustomerIdentity } from '@/hooks/useCustomerIdentity';
-import { DriverDocumentKey, MAX_IDENTITY_FILE_BYTES, uploadIdentityDocument } from '@/lib/identity-documents';
+import { MAX_IDENTITY_FILE_BYTES, uploadIdentityDocument } from '@/lib/identity-documents';
+import type { DriverDocumentKey } from '@/lib/identity-documents';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, CheckCircle2, Clock3, FileCheck2, Loader2, ShieldCheck, Upload, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, Loader2, ShieldCheck, Upload, XCircle } from 'lucide-react';
 
 interface DriverForm {
   legal_name: string;
@@ -51,7 +52,10 @@ const documentFields: { key: DriverDocumentKey; label: string; allowPdf: boolean
   { key: 'skck', label: 'Foto SKCK yang masih berlaku', allowPdf: true },
 ];
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 
 const DriverApplication = () => {
   const navigate = useNavigate();
@@ -325,6 +329,7 @@ const DriverApplication = () => {
                 <CardDescription>Semua berkas wajib dikirim sekarang agar pendaftaran dapat diperiksa lengkap.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Dokumen disimpan privat dan hanya dapat dibuka oleh Super Admin untuk pemeriksaan.</p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="driver-skck-number">Nomor SKCK</Label>

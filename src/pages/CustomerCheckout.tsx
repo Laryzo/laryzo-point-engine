@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/hooks/useCart';
 import { useCustomerAuth } from '@/hooks/useCustomerAuth';
+import { useCustomerIdentity } from '@/hooks/useCustomerIdentity';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +22,7 @@ const CustomerCheckout = () => {
   const { toast } = useToast();
   const { items, total, clear } = useCart();
   const { customer, refreshCustomer } = useCustomerAuth();
+  const { isFullService, loading: identityLoading } = useCustomerIdentity();
 
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'external_ojol'>('pickup');
   const [deliveryAddress, setDeliveryAddress] = useState(customer?.address || '');
@@ -54,6 +56,15 @@ const CustomerCheckout = () => {
       toast({
         title: 'Pembayaran Tidak Cukup',
         description: `Kurang Rp ${formatNumber(calc.shortage)}. Silakan top up saldo.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (calc.pointsUsed > 0 && !isFullService) {
+      toast({
+        title: 'Verifikasi KTP diperlukan',
+        description: 'Akun Full Service diperlukan untuk membayar belanja fisik mitra dengan poin.',
         variant: 'destructive',
       });
       return;
@@ -199,7 +210,16 @@ const CustomerCheckout = () => {
           onCalculated={() => {}}
         />
 
-        <Button className="w-full" size="lg" disabled={loading} onClick={handleCheckout}>
+        {!identityLoading && !isFullService && calc.pointsUsed > 0 && (
+          <div className="flex flex-col gap-2 border-l-2 border-primary pl-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-muted-foreground">Verifikasi KTP diperlukan untuk membayar pesanan mitra dengan poin.</p>
+            <Button type="button" variant="link" className="h-auto justify-start p-0" onClick={() => navigate('/portal/profile')}>
+              Buka verifikasi
+            </Button>
+          </div>
+        )}
+
+        <Button className="w-full" size="lg" disabled={loading || (calc.pointsUsed > 0 && (identityLoading || !isFullService))} onClick={handleCheckout}>
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Memproses...

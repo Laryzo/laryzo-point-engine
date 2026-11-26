@@ -3,11 +3,13 @@ import { useCustomerAuth } from '@/hooks/useCustomerAuth';
 import { useCustomerNotifications } from '@/hooks/useCustomerNotifications';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Coins, ShoppingBag, History, LogOut, Package, User, Wallet } from 'lucide-react';
+import { Bike, Coins, History, LogOut, Package, ShieldCheck, ShoppingBag, User, Wallet } from 'lucide-react';
+import { useCustomerIdentity } from '@/hooks/useCustomerIdentity';
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
   const { customer, logout, refreshCustomer } = useCustomerAuth();
+  const { isFullService, loading: identityLoading, error: identityError } = useCustomerIdentity();
 
   // Realtime notifications
   useCustomerNotifications({
@@ -72,8 +74,21 @@ const CustomerDashboard = () => {
           </CardContent>
         </Card>
 
+        {!identityLoading && !identityError && !isFullService && (
+          <Card className="cursor-pointer border-primary/30 hover:bg-muted/40" onClick={() => navigate('/portal/profile')}>
+            <CardContent className="flex items-center gap-3 p-4">
+              <ShieldCheck className="h-6 w-6 shrink-0 text-primary" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">Buka akses Full Service</p>
+                <p className="text-sm text-muted-foreground">Verifikasi KTP untuk belanja fisik dengan poin dan layanan driver.</p>
+              </div>
+              <span className="text-sm font-medium text-primary">Lengkapi</span>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           <Card 
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => navigate('/portal/wallet')}
@@ -127,6 +142,17 @@ const CustomerDashboard = () => {
                 <User className="h-6 w-6 text-primary" />
               </div>
               <span className="text-sm font-medium">Profil</span>
+            </CardContent>
+          </Card>
+          <Card
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/portal/driver/register')}
+          >
+            <CardContent className="p-4 flex flex-col items-center text-center">
+              <div className="p-3 bg-primary/10 rounded-full mb-2">
+                <Bike className="h-6 w-6 text-primary" />
+              </div>
+              <span className="text-sm font-medium">Daftar Driver</span>
             </CardContent>
           </Card>
         </div>

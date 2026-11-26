@@ -15,8 +15,12 @@ export function isCurrentDocumentDate(value: unknown, today = new Date()): value
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) return false;
-  const todayDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-  return parsed.getTime() >= todayDate.getTime();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(today);
+  const dateParts = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const jakartaToday = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
+  return value >= jakartaToday;
 }
 
 export function expectedDriverDocumentPath(customerId: string, key: DriverDocumentKey): string {
