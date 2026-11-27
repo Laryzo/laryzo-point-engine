@@ -12,13 +12,19 @@ const ALLOWED_DOCUMENT_TYPES = new Set([
   'image/webp',
   'application/pdf',
 ]);
+const FILE_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf',
+};
 
 export async function uploadIdentityDocument(
   customerId: string,
   scope: IdentityDocumentScope,
   documentKey: DriverDocumentKey,
   file: File,
-): Promise<void> {
+): Promise<string> {
   if (!ALLOWED_DOCUMENT_TYPES.has(file.type)) {
     throw new Error('Gunakan berkas JPG, PNG, WebP, atau PDF.');
   }
@@ -27,10 +33,11 @@ export async function uploadIdentityDocument(
   }
 
   const fileName = scope === 'customer-kyc' ? 'ktp' : documentKey;
-  const path = `${scope}/${customerId}/${fileName}`;
+  const path = `${scope}/${customerId}/${fileName}-${crypto.randomUUID()}.${FILE_EXTENSIONS[file.type]}`;
   const { error } = await supabase.storage
     .from(IDENTITY_DOCUMENT_BUCKET)
-    .upload(path, file, { upsert: true, contentType: file.type });
+    .upload(path, file, { upsert: false, contentType: file.type });
 
   if (error) throw new Error(error.message || 'Gagal mengunggah dokumen.');
+  return path;
 }

@@ -139,11 +139,12 @@ const DriverApplication = () => {
     setSubmitting(true);
     try {
       await supabase.auth.refreshSession();
+      const documentPaths: Partial<Record<DriverDocumentKey, string>> = {};
       for (const { key, label } of documentFields) {
         const file = files[key];
         if (!file) throw new Error(`${label} belum dipilih.`);
         if (file.size > MAX_IDENTITY_FILE_BYTES) throw new Error(`${label} maksimal 8 MB.`);
-        await uploadIdentityDocument(customer.id, 'driver-applications', key, file);
+        documentPaths[key] = await uploadIdentityDocument(customer.id, 'driver-applications', key, file);
       }
 
       const { data, error: submitError } = await supabase.functions.invoke('identity-verification', {
@@ -152,6 +153,7 @@ const DriverApplication = () => {
           ...form,
           vehicle_year: Number(form.vehicle_year),
           agree_to_accuracy: agree,
+          document_paths: documentPaths,
         },
       });
       if (submitError) throw new Error(submitError.message || 'Pendaftaran tidak dapat dikirim.');

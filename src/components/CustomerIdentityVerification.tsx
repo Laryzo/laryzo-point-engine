@@ -42,9 +42,9 @@ const CustomerIdentityVerification = () => {
     setSubmitting(true);
     try {
       await supabase.auth.refreshSession();
-      await uploadIdentityDocument(customer.id, 'customer-kyc', 'ktp', ktpFile);
+      const ktpPath = await uploadIdentityDocument(customer.id, 'customer-kyc', 'ktp', ktpFile);
       const { data, error: submitError } = await supabase.functions.invoke('identity-verification', {
-        body: { action: 'submit_customer', legal_name: legalName.trim(), national_id: nationalId },
+        body: { action: 'submit_customer', legal_name: legalName.trim(), national_id: nationalId, ktp_path: ktpPath },
       });
       if (submitError) throw new Error(submitError.message || 'Pengajuan tidak dapat dikirim.');
       if (!data?.success) throw new Error(data?.error || 'Pengajuan tidak dapat dikirim.');

@@ -3,8 +3,9 @@ import {
   areDriverDocumentsComplete,
   DRIVER_DOCUMENT_KEYS,
   expectedCustomerKtpPath,
-  expectedDriverDocumentPath,
   isCurrentDocumentDate,
+  isExpectedCustomerKtpPath,
+  isExpectedDriverDocumentPath,
   isValidNationalId,
 } from '../_shared/identity-validation.ts';
 
@@ -93,7 +94,10 @@ Deno.serve(async (req) => {
       if (existing?.status === 'approved') return reply({ error: 'Verifikasi akun ini sudah disetujui.' }, 409);
       if (existing?.status === 'pending') return reply({ error: 'Pengajuan KTP sedang diperiksa.' }, 409);
 
-      const ktpPath = expectedCustomerKtpPath(caller.customer_id);
+      const ktpPath = text(body.ktp_path, 300);
+      if (!isExpectedCustomerKtpPath(caller.customer_id, ktpPath)) {
+        return reply({ error: 'Unggah ulang foto KTP dari formulir ini.' }, 400);
+      }
       if (!await fileExists(client, ktpPath)) return reply({ error: 'Unggah foto KTP sebelum mengirim pengajuan.' }, 400);
       const { error } = await client.from('customer_identity_verifications').upsert({
         customer_id: caller.customer_id,
@@ -154,8 +158,14 @@ Deno.serve(async (req) => {
       }
       if (body.agree_to_accuracy !== true) return reply({ error: 'Persetujuan kebenaran data wajib diberikan.' }, 400);
 
-      const paths = Object.fromEntries(DRIVER_DOCUMENT_KEYS.map((key) => [key, expectedDriverDocumentPath(caller.customer_id, key)])) as Record<typeof DRIVER_DOCUMENT_KEYS[number], string>;
+      const requestedPaths = body.document_paths && typeof body.document_paths === 'object'
+        ? body.document_paths as Record<string, unknown>
+        : {};
+      const paths = Object.fromEntries(DRIVER_DOCUMENT_KEYS.map((key) => [key, text(requestedPaths[key], 300)])) as Record<typeof DRIVER_DOCUMENT_KEYS[number], string>;
       if (!areDriverDocumentsComplete(paths)) return reply({ error: 'Seluruh dokumen driver wajib dilampirkan.' }, 400);
+      if (DRIVER_DOCUMENT_KEYS.some((key) => !isExpectedDriverDocumentPath(caller.customer_id, key, paths[key]))) {
+        return reply({ error: 'Unggah ulang seluruh dokumen melalui formulir ini.' }, 400);
+      }
       const exists = await Promise.all(Object.values(paths).map((path) => fileExists(client, path)));
       if (exists.some((present) => !present)) return reply({ error: 'Unggah KTP, foto diri, SIM, STNK, kendaraan, dan SKCK sebelum mengirim.' }, 400);
 

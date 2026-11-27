@@ -5,6 +5,13 @@ export function isValidNationalId(value: unknown): value is string {
   return typeof value === 'string' && /^\d{16}$/.test(value);
 }
 
+export function requiresFullServiceForPointOrder(orderType: unknown, pointsUsed: unknown): boolean {
+  return ['food', 'product'].includes(String(orderType))
+    && typeof pointsUsed === 'number'
+    && Number.isFinite(pointsUsed)
+    && pointsUsed > 0;
+}
+
 export function areDriverDocumentsComplete(
   paths: Partial<Record<DriverDocumentKey, unknown>>,
 ): boolean {
@@ -24,9 +31,22 @@ export function isCurrentDocumentDate(value: unknown, today = new Date()): value
 }
 
 export function expectedDriverDocumentPath(customerId: string, key: DriverDocumentKey): string {
-  return `driver-applications/${customerId}/${key}`;
+  return `driver-applications/${customerId}/${key}-`;
 }
 
 export function expectedCustomerKtpPath(customerId: string): string {
-  return `customer-kyc/${customerId}/ktp`;
+  return `customer-kyc/${customerId}/ktp-`;
+}
+
+function hasVersionedFile(prefix: string, path: unknown): path is string {
+  if (typeof path !== 'string' || !path.startsWith(prefix)) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|webp|pdf)$/i.test(path.slice(prefix.length));
+}
+
+export function isExpectedCustomerKtpPath(customerId: string, path: unknown): path is string {
+  return hasVersionedFile(expectedCustomerKtpPath(customerId), path);
+}
+
+export function isExpectedDriverDocumentPath(customerId: string, key: DriverDocumentKey, path: unknown): path is string {
+  return hasVersionedFile(expectedDriverDocumentPath(customerId, key), path);
 }

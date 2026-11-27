@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requiresFullServiceForPointOrder } from "../_shared/identity-validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -131,7 +132,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (pointsToDeduct > 0) {
+    if (requiresFullServiceForPointOrder("food", pointsToDeduct)) {
       const { data: identity } = await supabase
         .from("customer_identity_verifications")
         .select("status")
